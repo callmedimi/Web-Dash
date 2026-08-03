@@ -1,0 +1,3292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SetareVanak NOC ToolBOX & Assistant</title>
+<link rel="icon" type="image/png" href="/static/sig.png">
+<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+<style>
+body {
+background-color: #1a1a1a;
+background-image: url('/static/sig.png');
+background-repeat: no-repeat;
+background-position: center;
+background-size: contain;
+background-attachment: fixed;
+min-height: 100vh;
+color: #ffffff;
+}
+.main-container {
+max-width: 1200px;
+margin: 2rem auto;
+padding: 2rem;
+background-color: rgba(33, 37, 41, 0.95);
+border-radius: 10px;
+box-shadow: 0 0 20px rgba(0,0,0,0.3);
+}
+.form-control, .form-select {
+background-color: #2c3034;
+border-color: #495057;
+color: #ffffff;
+}
+.form-control:focus, .form-select:focus {
+background-color: #2c3034;
+border-color: #0d6efd;
+color: #ffffff;
+}
+.form-control::placeholder {
+color: #6c757d;
+}
+.card {
+background-color: rgba(33, 37, 41, 0.95);
+border-color: #495057;
+}
+.card-header {
+background-color: rgba(52, 58, 64, 0.95);
+border-bottom-color: #495057;
+color: #ffffff;
+}
+.nav-tabs {
+border-bottom-color: #495057;
+}
+.nav-tabs .nav-link {
+color: #adb5bd;
+border-color: transparent;
+}
+.nav-tabs .nav-link:hover {
+color: #ffffff;
+border-color: transparent;
+}
+.nav-tabs .nav-link.active {
+color: #ffffff;
+background-color: rgba(33, 37, 41, 0.95);
+border-color: #495057 #495057 transparent;
+}
+.tab-pane {
+display: none;
+}
+.tab-pane.active {
+display: block;
+}
+.log-box {
+background: #0d1117;
+color: #e6edf3;
+font-family: 'JetBrains Mono','Fira Code','Cascadia Code','Consolas',monospace;
+font-size: 0.82rem;
+padding: 14px 16px;
+border-radius: 8px;
+height: 320px;
+overflow-y: auto;
+line-height: 1.6;
+white-space: pre-wrap;
+word-break: break-all;
+}
+.log-box .log-time {
+color: #8b949e;
+margin-right: 8px;
+}
+.log-box .log-msg { color: #e6edf3; }
+.log-box .log-info .log-msg { color: #c9d1d9; }
+.log-box .log-success .log-msg { color: #3fb950; }
+.log-box .log-warn .log-msg { color: #d29922; }
+.log-box .log-error .log-msg { color: #f85149; }
+.log-box .log-highlight .log-msg { color: #79c0ff; font-weight: 600; }
+.drop-zone {
+border: 2px dashed #495057;
+border-radius: 10px;
+padding: 36px 20px;
+text-align: center;
+cursor: pointer;
+transition: border-color .2s, background .2s;
+margin-bottom: 14px;
+background: #2c3034;
+}
+.drop-zone:hover, .drop-zone.dragover {
+border-color: #0d6efd;
+background: rgba(13, 110, 253, 0.05);
+}
+.drop-zone .placeholder { background: #2c3034; }
+.drop-zone .icon { font-size: 2.2rem; color: #6c757d; margin-bottom: 6px; }
+.drop-zone p { color: #adb5bd; font-size: 0.9rem; }
+.drop-zone .browse-link { color: #0d6efd; font-weight: 500; cursor: pointer; }
+.drop-zone .file-name { color: #0d6efd; font-weight: 600; margin-top: 6px; display: none; }
+.drop-zone.has-file { border-color: #0d6efd; background: #2c3034; }
+.drop-zone.has-file .file-name { display: block; }
+.drop-zone.has-file .placeholder { display: none; }
+.preview-table {
+width: 100%;
+border-collapse: collapse;
+font-size: 0.84rem;
+margin-top: 10px;
+color: #ffffff;
+}
+.preview-table th {
+background: #2c3034;
+padding: 8px 10px;
+text-align: left;
+font-weight: 600;
+border-bottom: 2px solid #495057;
+white-space: nowrap;
+}
+.preview-table td {
+padding: 7px 10px;
+border-bottom: 1px solid #495057;
+}
+.preview-table tr:hover td { background: rgba(255,255,255,0.03); }
+.stat-card {
+background: #2c3034;
+border-radius: 8px;
+padding: 14px 16px;
+text-align: center;
+}
+.stat-card .stat-value { font-size: 1.5rem; font-weight: 700; color: #ffffff; }
+.stat-card .stat-label { font-size: 0.78rem; color: #adb5bd; margin-top: 2px; }
+.analytics-table {
+width: 100%;
+border-collapse: collapse;
+font-size: 0.84rem;
+margin-bottom: 6px;
+color: #ffffff;
+}
+.analytics-table th {
+background: #2c3034;
+padding: 6px 10px;
+text-align: left;
+font-weight: 600;
+border-bottom: 2px solid #495057;
+}
+.analytics-table td {
+padding: 5px 10px;
+border-bottom: 1px solid #495057;
+}
+.analytics-table tr:hover td { background: rgba(255,255,255,0.03); }
+.analytics-table .bar {
+display: inline-block;
+height: 6px;
+border-radius: 3px;
+background: #0d6efd;
+min-width: 4px;
+vertical-align: middle;
+margin-right: 6px;
+}
+.toast {
+position: fixed;
+top: 20px;
+right: 20px;
+background: #dc3545;
+color: #fff;
+padding: 12px 20px;
+border-radius: 8px;
+font-size: 0.88rem;
+font-weight: 500;
+box-shadow: 0 4px 12px rgba(0,0,0,.5);
+z-index: 999;
+opacity: 0;
+transform: translateY(-12px);
+transition: opacity .25s, transform .25s;
+pointer-events: none;
+}
+.toast.show {
+opacity: 1;
+transform: translateY(0);
+}
+.spinner {
+display: none;
+width: 18px;
+height: 18px;
+border: 3px solid #495057;
+border-top-color: #0d6efd;
+border-radius: 50%;
+animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading .spinner { display: inline-block; }
+.router-row {
+display: flex;
+gap: 10px;
+align-items: center;
+margin-bottom: 10px;
+flex-wrap: wrap;
+}
+.router-row input {
+padding: 8px 11px;
+border: 1px solid #495057;
+border-radius: 6px;
+font-size: 0.88rem;
+background: #2c3034;
+color: #ffffff;
+transition: border-color .15s, box-shadow .15s;
+}
+.router-row input:focus {
+outline: none;
+border-color: #0d6efd;
+box-shadow: 0 0 0 3px rgba(13, 110, 253, .12);
+}
+.router-row input::placeholder { color: #6c757d; }
+.router-row .f-name { flex: 1 1 110px; min-width: 90px; }
+.router-row .f-host { flex: 2 1 140px; min-width: 120px; }
+.router-row .f-user { flex: 1 1 100px; min-width: 90px; }
+.router-row .f-pass { flex: 1 1 100px; min-width: 90px; }
+.badge-progress {
+display: inline-flex;
+align-items: center;
+gap: 4px;
+padding: 3px 10px;
+border-radius: 12px;
+font-size: 0.75rem;
+font-weight: 600;
+background: rgba(13, 110, 253, 0.15);
+color: #0d6efd;
+}
+.btn-download {
+background-color: #198754;
+border-color: #198754;
+color: #fff;
+}
+.btn-download:hover {
+background-color: #157347;
+border-color: #146c43;
+color: #fff;
+}
+h1, h2, h3, h5, label, p { color: #ffffff; }
+a { color: #0d6efd; }
+code { color: #79c0ff; }
+hr { border-color: #495057; }
+textarea {
+background-color: #2c3034 !important;
+border-color: #495057 !important;
+color: #ffffff !important;
+}
+textarea:focus {
+border-color: #0d6efd !important;
+box-shadow: 0 0 0 3px rgba(13, 110, 253, .12) !important;
+}
+select {
+background-color: #2c3034;
+border-color: #495057;
+color: #ffffff;
+}
+select:focus {
+border-color: #0d6efd;
+}
+.btn-outline-secondary {
+color: #adb5bd;
+border-color: #495057;
+}
+.btn-outline-secondary:hover {
+color: #ffffff;
+background-color: #495057;
+border-color: #495057;
+}
+.lic-router-card {
+background: #1c1c1c;
+border: 1px solid #2c3034;
+border-radius: 8px;
+margin-bottom: 8px;
+overflow: hidden;
+transition: border-color .2s;
+}
+.lic-router-card:hover { border-color: #495057; }
+.lic-router-header:hover { background: rgba(255,255,255,0.03); }
+.lic-router-card table { border: none; }
+.lic-router-card table th { background: #1c1c1c; border-bottom: 1px solid #2c3034; }
+.lic-router-card table td { border-bottom: 1px solid #1c1c1c; }
+.lic-router-card table tr:last-child td { border-bottom: none; }
+.lic-router-card table tr:hover td { background: rgba(255,255,255,0.02); }
+.btn-outline-info {
+color: #0dcaf0;
+border-color: #0dcaf0;
+}
+.btn-outline-info:hover {
+color: #000;
+background-color: #0dcaf0;
+border-color: #0dcaf0;
+}
+.auth-screen {
+display: flex;
+align-items: center;
+justify-content: center;
+min-height: 80vh;
+}
+.auth-card {
+background: rgba(33, 37, 41, 0.95);
+border-radius: 12px;
+padding: 2.5rem 2rem;
+max-width: 400px;
+width: 100%;
+box-shadow: 0 0 30px rgba(0,0,0,0.4);
+}
+.auth-card h2 { text-align: center; margin-bottom: 0.5rem; }
+.auth-card p { text-align: center; color: #adb5bd; font-size: 0.88rem; margin-bottom: 1.5rem; }
+.main-content { display: none; }
+.main-content.authenticated { display: block; }
+.user-badge {
+display: inline-flex;
+align-items: center;
+gap: 6px;
+padding: 4px 14px;
+border-radius: 20px;
+font-size: 0.82rem;
+font-weight: 500;
+background: rgba(13, 110, 253, 0.12);
+color: #0d6efd;
+border: 1px solid rgba(13, 110, 253, 0.2);
+}
+.user-badge .role-tag {
+font-size: 0.7rem;
+padding: 1px 8px;
+border-radius: 10px;
+background: rgba(13, 110, 253, 0.2);
+text-transform: uppercase;
+}
+.perm-card {
+background: rgba(255,255,255,0.03);
+border: 1px solid rgba(255,255,255,0.08);
+border-radius: 8px;
+padding: 14px 16px;
+margin-bottom: 10px;
+}
+.perm-card-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 10px;
+}
+.perm-card-user {
+font-weight: 600;
+font-size: 0.95rem;
+}
+.perm-card-role {
+font-size: 0.75rem;
+color: #adb5bd;
+margin-left: 8px;
+text-transform: uppercase;
+}
+.perm-badges {
+display: flex;
+flex-wrap: wrap;
+gap: 6px;
+}
+.perm-badge {
+display: inline-flex;
+align-items: center;
+gap: 4px;
+padding: 4px 10px;
+border-radius: 14px;
+font-size: 0.75rem;
+cursor: pointer;
+border: 1px solid transparent;
+transition: all .12s;
+user-select: none;
+}
+.perm-badge.on {
+background: rgba(25,135,84,0.2);
+color: #75b798;
+border-color: rgba(25,135,84,0.4);
+}
+.perm-badge.off {
+background: rgba(255,255,255,0.05);
+color: #6c757d;
+border-color: rgba(255,255,255,0.1);
+}
+.perm-badge.on:hover {
+background: rgba(25,135,84,0.3);
+}
+.perm-badge.off:hover {
+background: rgba(255,255,255,0.1);
+color: #adb5bd;
+}
+.perm-badge .badge-icon {
+font-size: 0.65rem;
+line-height: 1;
+}
+.perm-badge.on .badge-icon { color: #75b798; }
+.perm-badge.off .badge-icon { color: #6c757d; }
+@media(max-width: 700px) {
+body { padding: 8px; }
+.main-container { padding: 1rem; margin: 0.5rem; }
+.router-row input { min-width: 100% !important; flex: 1 1 100%; }
+.log-box { height: 240px; font-size: 0.78rem; }
+}
+</style>
+</head>
+<body>
+<!-- Loading Overlay -->
+<div class="auth-screen" id="loadingScreen">
+<div class="auth-card" style="text-align:center;padding:3rem 2rem">
+<div class="spinner" style="display:inline-block;width:32px;height:32px;margin-bottom:16px"></div>
+<p style="color:#adb5bd">Loading...</p>
+</div>
+</div>
+<!-- Auth Screen (hidden until /me confirms unauthenticated) -->
+<div class="auth-screen" id="authScreen" style="display:none">
+<div class="auth-card">
+<div class="d-flex align-items-center justify-content-center" style="width:52px;height:48px;background:linear-gradient(135deg,#0d6efd,#0a58ca);border-radius:12px;color:#fff;font-weight:800;font-size:1.4rem;margin:0 auto 16px">NOC</div>
+<h2>Seatre NOC ToolBOX</h2>
+<p>Sign in to access the tools</p>
+<div id="loginError" style="color:#f85149;font-size:0.84rem;margin-bottom:12px;display:none"></div>
+<form id="loginForm" onsubmit="return doLogin(event)">
+<div class="mb-3">
+<input type="text" id="loginUser" class="form-control" placeholder="Username" required autocomplete="username">
+</div>
+<div class="mb-3">
+<input type="password" id="loginPass" class="form-control" placeholder="Password" required autocomplete="current-password">
+</div>
+<button type="submit" class="btn btn-primary w-100" id="loginBtn">Sign In</button>
+</form>
+<div style="text-align:center;margin-top:16px"><div class="spinner" id="loginSpinner"></div></div>
+</div>
+</div>
+<!-- Main Content -->
+<div class="main-container main-content" id="mainContent">
+<!-- Header -->
+<div class="d-flex align-items-center justify-content-between mb-1">
+<div class="d-flex align-items-center gap-3">
+<div class="d-flex align-items-center justify-content-center" style="width:52px;height:36px;background:linear-gradient(135deg,#0d6efd,#0a58ca);border-radius:9px;color:#fff;font-weight:800;font-size:1.1rem">NOC</div>
+<h1 class="mb-0" style="font-size:1.35rem;font-weight:700">SetareVanak NOC ToolBOX &amp; Assistant</h1>
+</div>
+<div class="d-flex align-items-center gap-2" id="authHeader">
+<span class="user-badge" id="userBadge">
+<span id="userDisplayName">user</span>
+<span class="role-tag" id="userRoleTag">user</span>
+</span>
+<button class="btn btn-outline-secondary btn-sm" onclick="doLogout()" title="Sign out" style="padding:4px 10px;font-size:0.8rem">Sign Out</button>
+</div>
+</div>
+<p class="mb-3" style="color:#adb5bd;font-size:0.88rem;padding-left:50px">Connects to Huawei routers — Tries to BE a Useful Assist</p>
+<!-- Network Credentials (shared across features) -->
+<div class="d-flex gap-2 align-items-center flex-wrap mb-3 px-1" id="networkCredsSection">
+<span style="font-size:0.85rem;font-weight:600;color:#adb5bd;margin-right:4px">Network Credentials:</span>
+<input type="text" id="netUser" class="form-control" style="max-width:160px" placeholder="Username" autocomplete="off">
+<input type="password" id="netPass" class="form-control" style="max-width:160px" placeholder="Password">
+<button class="btn btn-primary btn-sm" id="netCredsBtn" onclick="setNetworkCreds()" style="padding:5px 14px;font-size:0.84rem">Set</button>
+<span id="netCredsStatus" style="font-size:0.82rem;color:#6c757d;display:none"></span>
+</div>
+<!-- Tabs -->
+<ul class="nav nav-tabs" id="mainTabs" role="tablist">
+<li class="nav-item" role="presentation">
+    <button class="nav-link active" id="alarm-clear-tab" data-bs-toggle="tab" data-bs-target="#tab-alarm-clear" type="button" role="tab">Alarm Clearing</button>
+</li>
+<li class="nav-item" role="presentation">
+<button class="nav-link" id="reporting-tab" data-bs-toggle="tab" data-bs-target="#tab-reporting" type="button" role="tab">Alarm Reporting</button>
+</li>
+<li class="nav-item" role="presentation">
+<button class="nav-link" id="vrf-tab" data-bs-toggle="tab" data-bs-target="#tab-vrf" type="button" role="tab">VRF Routing</button>
+</li>
+<li class="nav-item" role="presentation">
+<button class="nav-link" id="license-tab" data-bs-toggle="tab" data-bs-target="#tab-license" type="button" role="tab">License Info</button>
+</li>
+<li class="nav-item" role="presentation">
+<button class="nav-link" id="zabbix-tab" data-bs-toggle="tab" data-bs-target="#tab-zabbix" type="button" role="tab">Zabbix Search</button>
+</li>
+<li class="nav-item" role="presentation" id="nav-admin" style="display:none">
+<button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#tab-admin" type="button" role="tab">Admin</button>
+</li>
+</ul>
+<div class="tab-content mt-3">
+<!-- Manual Entry Tab -->
+<div class="tab-pane active" id="tab-alarm-clear" role="tabpanel">
+    <div class="card mb-3" id="manualClearCard">
+        <div class="card-header"><h5 class="mb-0">Single Device Clear</h5></div>
+        <div class="card-body">
+            <div id="manualRouterList">
+                <div class="router-row">
+                    <input class="f-name" type="text" name="name[]" placeholder="Name (optional)" autocomplete="off">
+                    <input class="f-host" type="text" name="host[]" placeholder="IP address *" required autocomplete="off">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.router-row').remove()" title="Remove">&times;</button>
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addManualRow()">+ Add Router</button>
+            <div class="d-flex align-items-center gap-2 mt-3">
+                <button class="btn btn-primary" id="manualRunBtn" onclick="runManual()">Run</button>
+                <div class="spinner" id="manualSpinner"></div>
+            </div>
+        </div>
+    </div>
+    <div class="card" id="bulkClearCard">
+        <div class="card-header"><h5 class="mb-0">Bulk Clearing</h5></div>
+        <div class="card-body">
+            <div class="drop-zone" id="dropZone">
+                <div class="placeholder">
+                    <div class="icon">&#128196;</div>
+                    <p>Drag &amp; drop your CSV file here, or <span class="browse-link" onclick="document.getElementById('csvFile').click()">browse</span></p>
+                    <p style="font-size:0.82rem;color:#6c757d;margin-top:4px">Expected columns: NE Name, NE IP Address, ...</p>
+                </div>
+                <div class="file-name" id="fileName"></div>
+            </div>
+            <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleFile(this.files[0])">
+            <button class="btn btn-primary" id="bulkRunBtn" onclick="runBulk()">Run on All Routers</button>
+            <div class="preview-section" id="previewSection" style="display:none">
+                <hr>
+                <div class="preview-count" id="previewCount"></div>
+                <div style="overflow-x:auto">
+                    <table class="preview-table">
+                        <thead><tr><th>#</th><th>NE Name</th><th>IP Address</th><th>NE Type</th><th>Version</th><th>LSR ID</th></tr></thead>
+                        <tbody id="previewBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Reporting Tab -->
+<div class="tab-pane" id="tab-reporting" role="tabpanel">
+<div class="card" id="reportingCard">
+<div class="card-header"><h5 class="mb-0">Upload Node CSV</h5></div>
+<div class="card-body">
+<div class="drop-zone" id="reportDropZone">
+<div class="placeholder">
+<div class="icon">&#128196;</div>
+<p>Drag &amp; drop your CSV file here, or <span class="browse-link" onclick="document.getElementById('reportCsvFile').click()">browse</span></p>
+<p style="font-size:0.82rem;color:#6c757d;margin-top:4px">Expected columns: NE Name, NE IP Address, ...</p>
+</div>
+<div class="file-name" id="reportFileName"></div>
+</div>
+<input type="file" id="reportCsvFile" accept=".csv" style="display:none" onchange="handleReportFile(this.files[0])">
+<div id="reportOptions" style="display:none">
+<hr>
+<div class="d-flex gap-3 align-items-center flex-wrap mb-3">
+<div>
+<label class="form-label mb-0" style="font-weight:600;font-size:0.9rem">Province:</label>
+<select id="provinceSelect" class="form-select d-inline-block" style="width:auto;min-width:120px">
+<option value="">-- Select Province --</option>
+</select>
+</div>
+<span style="color:#495057">|</span>
+<div>
+<label class="form-label mb-0" style="font-weight:600;font-size:0.9rem">Min Age:</label>
+<input type="number" id="ageValue" class="form-control d-inline-block" value="2" min="1" max="999" style="width:70px">
+<select id="ageUnit" class="form-select d-inline-block" style="width:auto;min-width:80px">
+<option value="days">Days</option>
+<option value="hours">Hours</option>
+</select>
+</div>
+</div>
+<div class="d-flex align-items-center gap-2 mt-2">
+<button class="btn btn-primary" id="reportRunBtn" onclick="runReport()">Generate Report for Province</button>
+<button class="btn btn-outline-info" id="fullReportRunBtn" onclick="runFullReport()">Generate Full Report</button>
+<div class="spinner" id="reportSpinner"></div>
+</div>
+<div class="preview-section" id="reportPreviewSection" style="display:none">
+<hr>
+<div class="preview-count" id="reportPreviewCount"></div>
+<div style="overflow-x:auto">
+<table class="preview-table">
+<thead><tr><th>#</th><th>NE Name</th><th>IP Address</th><th>NE Type</th><th>Version</th></tr></thead>
+<tbody id="reportPreviewBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- VRF Routing Tab -->
+<div class="tab-pane" id="tab-vrf" role="tabpanel">
+<div class="card" id="vrfRoutingCard">
+<div class="card-header"><h5 class="mb-0">VRF Routing Check</h5></div>
+<div class="card-body">
+<p style="color:#adb5bd;font-size:0.88rem;margin-bottom:14px">
+Paste one or more interface configurations below. Each config block is parsed for VRF and IP,
+then routing is checked on <strong id="vrfRouterLabel" style="color:#0d6efd">hardcoded-router</strong>.
+<br><small style="color:#6c757d">💡 Tip: You can use the Target IP from the BGP Route Check section below.</small>
+</p>
+   
+<label class="form-label" style="font-weight:600;font-size:0.9rem">Interface Configuration(s)</label>
+<textarea id="vrfConfigInput" rows="10" class="form-control font-monospace" style="resize:vertical" placeholder="Paste one or more interface config blocks:
+
+interface Vlanif3487
+ description Cluster433454323AB
+ ip binding vpn-instance MCCI_CP
+ ip address 10.22.205.52 255.255.255.224
+ arp-proxy enable
+ arp-proxy inner-sub-vlan-proxy enable
+
+interface Vlanif1234
+ description SomeOtherSite
+ ip binding vpn-instance SOME_VRF
+ ip address 10.0.0.1 255.255.255.0"></textarea>
+<div class="d-flex align-items-center gap-2 mt-2">
+<button class="btn btn-primary" id="vrfParseBtn" onclick="checkVrfRouting()">Check Routing</button>
+<div class="spinner" id="vrfSpinner"></div>
+<span id="vrfSummary" style="font-size:0.88rem;color:#adb5bd;display:none"></span>
+</div>
+</div>
+</div>
+<div class="card mt-3" id="vrfResultsCard" style="display:none">
+<div class="card-header"><h5 class="mb-0">Results</h5></div>
+<div class="card-body">
+<div style="overflow-x:auto">
+<table class="preview-table">
+<thead>
+<tr><th>#</th><th>Interface</th><th>Description</th><th>VPN Instance</th><th>IP Address</th><th>Has Route</th><th>Total VRF Routes</th><th>Details</th></tr>
+</thead>
+<tbody id="vrfResultsBody"></tbody>
+</table>
+</div>
+<div id="vrfVrfDetails" style="margin-top:16px;display:none">
+<h6 style="font-weight:600;margin-bottom:6px">VRF Routing Tables Checked</h6>
+<div id="vrfVrfDetailsBody" style="font-size:0.84rem;color:#adb5bd"></div>
+</div>
+</div>
+</div>
+<div class="card mt-3" id="bgpRouteCheckCard">
+<div class="card-header"><h5 class="mb-0">BGP Route Check — VRF &amp; Originator Lookup</h5></div>
+<div class="card-body">
+<p style="color:#adb5bd;font-size:0.88rem;margin-bottom:14px">
+Query the route reflector's BGP received-routes table for a target IP.
+Matches RT values to VRFs and shows the originator router.
+</p>
+<div class="d-flex gap-2 align-items-center flex-wrap mb-3">
+<input type="text" id="bgpTargetIp" class="form-control" style="max-width:200px" placeholder="Target IP address *" autocomplete="off" onkeydown="if(event.key==='Enter')checkBgpRoute()">
+<button class="btn btn-primary" id="bgpCheckBtn" onclick="checkBgpRoute()">Check BGP Route</button>
+<div class="spinner" id="bgpCheckSpinner" style="display:none"></div>
+</div>
+<div id="bgpStatus" style="font-size:0.88rem;color:#adb5bd;display:none"></div>
+</div>
+</div>
+<div class="card mt-3" id="bgpResultsCard" style="display:none">
+<div class="card-header"><h5 class="mb-0">BGP Received Routes — RT → VRF Mapping</h5></div>
+<div class="card-body">
+<div id="bgpResultsContainer"></div>
+</div>
+</div>
+<div class="card mt-3" id="originatorCard" style="display:none">
+<div class="card-header"><h5 class="mb-0">Originator Interfaces</h5></div>
+<div class="card-body">
+<div id="originatorInfo" style="font-size:0.88rem;margin-bottom:12px;color:#adb5bd"></div>
+<div style="overflow-x:auto">
+<table class="preview-table">
+<thead><tr><th style="border-bottom:none">VRF Routes &amp; Interface Configs</th></tr></thead>
+<tbody id="originatorInterfacesBody"></tbody>
+</table>
+</div>
+<div id="originatorVlanInfo" style="margin-top:12px;display:none">
+<h6 style="font-weight:600;margin-bottom:6px">VLANs</h6>
+<div id="originatorVlanBody" style="font-size:0.84rem;color:#adb5bd"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- License Check Tab -->
+<div class="tab-pane" id="tab-license" role="tabpanel">
+    <!-- Card 1: Existing License Check -->
+    <div class="card mb-3" id="licenseCheckCard">
+        <div class="card-header"><h5 class="mb-0">License Check</h5></div>
+        <div class="card-body">
+            <p style="color:#adb5bd;font-size:0.88rem;margin-bottom:14px">
+                Upload a node CSV or paste router details below to query license information
+                via <code>display license</code> and <code>display license verbose</code>.
+            </p>
+            <div class="drop-zone" id="licDropZone">
+                <div class="placeholder">
+                    <div class="icon">&#128196;</div>
+                    <p>Drag &amp; drop your CSV file here, or <span class="browse-link" onclick="document.getElementById('licCsvFileOriginal').click()">browse</span></p>
+                    <p style="font-size:0.82rem;color:#6c757d;margin-top:4px">Expected columns: NE Name, NE IP Address, ...</p>
+                </div>
+                <div class="file-name" id="licFileName"></div>
+            </div>
+            <input type="file" id="licCsvFileOriginal" accept=".csv" style="display:none" onchange="handleLicFile(this.files[0])">
+            <hr style="border-color:#495057">
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-primary" id="licRunBtn" onclick="runLicenseCheck()">Check Licenses</button>
+                <button class="btn btn-outline-danger" id="licStopBtn" onclick="stopLicenseCheck()" style="display:none">Stop</button>
+                <div class="spinner" id="licSpinner"></div>
+            </div>
+            <div class="preview-section" id="licPreviewSection" style="display:none">
+                <hr>
+                <div class="preview-count" id="licPreviewCount"></div>
+                <div style="overflow-x:auto">
+                    <table class="preview-table" style="white-space:nowrap">
+                        <thead><tr><th>#</th><th>NE Name</th><th>IP Address</th><th>NE Type</th><th>Software Version</th><th>LSR ID</th></tr></thead>
+                        <tbody id="licPreviewBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: License Renewal -->
+    <div class="card" id="licenseRenewalCard">
+        <div class="card-header"><h5 class="mb-0">License Renewal</h5></div>
+        <div class="card-body">
+            <p style="color:#adb5bd;font-size:0.88rem;margin-bottom:14px">
+                Upload a router CSV and license files (.zip or .xml) to begin the renewal process.
+            </p>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Step 1: Upload Router CSV</h6>
+                    <div class="drop-zone" id="licCsvDropZone">
+                        <div class="placeholder">
+                            <div class="icon">&#128196;</div>
+                            <p>Drag &amp; drop your router CSV file here, or <span class="browse-link">browse</span></p>
+                        </div>
+                        <div class="file-name" id="licCsvFileName"></div>
+                    </div>
+                    <input type="file" id="licCsvFile" accept=".csv" style="display:none">
+                </div>
+                <div class="col-md-6">
+                    <h6>Step 2: Upload License Files</h6>
+                    <div class="drop-zone" id="licFileDropZone">
+                        <div class="placeholder">
+                            <div class="icon">&#128229;</div>
+                            <p>Drag &amp; drop license .zip or .xml files, or <span class="browse-link">browse</span></p>
+                        </div>
+                        <div class="file-name" id="licFileFileName"></div>
+                    </div>
+                    <input type="file" id="licFile" accept=".zip,.xml" multiple style="display:none">
+                </div>
+            </div>
+            <button class="btn btn-primary" id="matchLicensesBtn" onclick="matchLicenses()">Step 3: Match Licenses &amp; Routers</button>
+            <div class="spinner" id="matchSpinner"></div>
+            
+            <div id="matchedRoutersSection" style="display:none;">
+                <hr>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 id="matchedRoutersHeader" class="mb-0">Matched Routers</h6>
+                    <div class="form-check me-2">
+                        <input class="form-check-input" type="checkbox" id="chkSelectAllMatched" checked onchange="toggleSelectAllMatched(this.checked)">
+                        <label class="form-check-label" for="chkSelectAllMatched" style="font-size:0.85rem;color:#adb5bd;cursor:pointer">Select / Deselect All</label>
+                    </div>
+                </div>
+                <div id="matchedRoutersList"></div>
+                <div class="d-flex align-items-center gap-2 mt-3">
+                    <button class="btn btn-success" id="startRenewalBtn" onclick="startRenewal()">Start Renewal for Selected</button>
+                    <div class="spinner" id="renewalSpinner"></div>
+                </div>
+            </div>
+             <div id="unmatchedLicensesSection" style="display:none;">
+                <hr>
+                <h6>Unmatched Licenses (ESN not found)</h6>
+                <ul id="unmatchedLicensesList" class="list-group"></ul>
+            </div>
+        </div>
+    </div>
+</div> <!-- Closes tab-license -->
+
+<!-- Zabbix Search Tab -->
+<div class="tab-pane" id="tab-zabbix" role="tabpanel">
+  <!-- 1. Original Zabbix Search Card -->
+  <div class="card" id="zabbixSearchCard">
+    <div class="card-header"><h5 class="mb-0">Zabbix Interface Search</h5></div>
+    <div class="card-body">
+      <p style="color:#adb5bd;font-size:0.88rem;margin-bottom:14px">
+        Searches from a local database of the
+        <strong style="color:#0d6efd"> Routers</strong> host group,
+        refreshed weekly from Zabbix.
+      </p>
+<div class="d-flex gap-2 align-items-center flex-wrap mb-3">
+          <input type="text" id="zabbixKeyword" class="form-control"
+            style="flex:1 1 300px;min-width:200px"
+            placeholder="Enter keyword (e.g. l3vpn)"
+            autocomplete="off"
+            onkeydown="if(event.key==='Enter')searchZabbix()">
+          <button class="btn btn-primary" id="zabbixSearchBtn" onclick="searchZabbix()">Search</button>
+          <div class="spinner" id="zabbixSearchSpinner" style="display:none"></div>
+        </div>
+      <div id="zabbixSearchInfo" style="font-size:0.82rem;color:#6c757d;margin-bottom:8px;display:none"></div>
+      <div id="zabbixSearchError" style="color:#f85149;font-size:0.88rem;margin-bottom:12px;display:none"></div>
+      <div id="zabbixResults" style="display:none">
+        <hr>
+        <div id="zabbixSummary" style="font-size:0.88rem;color:#adb5bd;margin-bottom:10px"></div>
+        <div style="overflow-x:auto">
+          <table class="preview-table" style="white-space:nowrap">
+            <thead>
+              <tr>
+                <th>#</th><th>Host</th><th>Name</th><th>Status</th><th>Matched Interfaces</th><th>Interface Count</th>
+              </tr>
+            </thead>
+            <tbody id="zabbixResultsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<div id="codeSearchCardWrapper" style="display:none;">
+     <!-- 2. Duplicated Zabbix Search Card (with External Link Button) -->
+     <div class="card mt-3">
+       <div class="card-header"><h5 class="mb-0">Code SITE Search</h5></div>
+       <div class="card-body">
+         <p style="color:#adb5bd;font-size:0.88rem;margin-bottom:14px">
+           Searches from a local database of the
+           <strong style="color:#0d6efd"> Routers</strong> host group.
+           Includes a button to open the search keyword in an external tool.
+         </p>
+         <div class="d-flex gap-2 align-items-center flex-wrap mb-3">
+           <input type="text" id="zabbixKeyword2" class="form-control"
+                  style="flex:1 1 300px;min-width:200px"
+                  placeholder="Enter CodeSite (e.g. TH1234)"
+                  autocomplete="off"
+                  onkeydown="if(event.key==='Enter')searchZabbix2()"
+                  oninput="validateKeyword2()">
+           <button class="btn btn-primary" id="zabbixSearchBtn2" onclick="searchZabbix2()">Search</button>
+           <div class="spinner" id="zabbixSearchSpinner2" style="display:none"></div>
+         </div>
+         <div id="zabbixSearchInfo2" style="font-size:0.82rem;color:#6c757d;margin-bottom:8px;display:none"></div>
+         <div id="zabbixSearchError2" style="color:#f85149;font-size:0.88rem;margin-bottom:12px;display:none"></div>
+         
+         <div id="zabbixResults2" style="display:none">
+           <hr>
+           <div id="zabbixSummary2" style="font-size:0.88rem;color:#adb5bd;margin-bottom:10px"></div>
+           
+           <!-- NEW BUTTON USING USER INPUT -->
+           <div class="mb-3 d-flex align-items-center gap-2">
+             <button class="btn btn-outline-info" id="zabbixExternalBtn2" onclick="openExternalZabbixLink()">
+               &#128279; Open Dashboard 
+             </button>
+             <span style="font-size:0.8rem;color:#6c757d">Finds Specific Site Dashboard</span>
+           </div>
+
+           <div style="overflow-x:auto">
+             <table class="preview-table" style="white-space:nowrap">
+               <thead>
+                 <tr>
+                   <th>#</th><th>Host</th><th>Name</th><th>Status</th><th>Matched Interfaces</th><th>Interface Count</th>
+                 </tr>
+               </thead>
+               <tbody id="zabbixResultsBody2"></tbody>
+             </table>
+           </div>
+         </div>
+       </div>
+     </div>
+   </div>
+</div> <!-- Closes tab-zabbix -->
+
+<!-- Admin Tab -->
+<div class="tab-pane" id="tab-admin" role="tabpanel">
+<div class="card">
+<div class="card-header"><h5 class="mb-0">Administration</h5></div>
+<div class="card-body">
+<ul class="nav nav-tabs mb-3" id="adminTabs" role="tablist" style="border-bottom-color:#495057">
+<li class="nav-item" role="presentation" id="nav-admin-users" style="display:none">
+<button class="nav-link active" id="admin-users-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-users" type="button" role="tab">Users</button>
+</li>
+<li class="nav-item" role="presentation" id="nav-admin-perms" style="display:none">
+<button class="nav-link" id="admin-perms-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-perms" type="button" role="tab">Permissions</button>
+</li>
+<li class="nav-item" role="presentation" id="nav-admin-zabbix" style="display:none">
+<button class="nav-link" id="admin-zabbix-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-zabbix" type="button" role="tab">Zabbix DB</button>
+</li>
+</ul>
+<div class="tab-content">
+<!-- Users Management -->
+<div class="tab-pane active" id="tab-admin-users" role="tabpanel">
+<div class="d-flex justify-content-between align-items-center mb-2">
+<h6 class="mb-0" style="font-weight:600">User Accounts</h6>
+<button class="btn btn-primary btn-sm" onclick="showAddUserModal()">+ Add User</button>
+</div>
+<div style="overflow-x:auto">
+<table class="preview-table" id="userTable">
+<thead><tr><th>Username</th><th>Display Name</th><th>Role</th><th>Actions</th></tr></thead>
+<tbody id="userTableBody"></tbody>
+</table>
+</div>
+<div id="noUsersMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No users loaded.</div>
+</div>
+<!-- Permissions Management -->
+<div class="tab-pane" id="tab-admin-perms" role="tabpanel">
+<p style="color:#adb5bd;font-size:0.88rem;margin-bottom:12px">Grant or revoke feature access for any user.</p>
+<div id="permCards"></div>
+<div id="noPermUsersMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No users loaded.</div>
+</div>
+<!-- Zabbix DB Refresh -->
+<div class="tab-pane" id="tab-admin-zabbix" role="tabpanel">
+<p style="color:#adb5bd;font-size:0.88rem;margin-bottom:12px">
+Refresh the local router database from Zabbix.
+The database is used by the Zabbix Interface Search tab.
+</p>
+<div class="d-flex gap-3 align-items-start flex-wrap">
+<div>
+<label for="zabbixGroupSelect" class="form-label mb-1" style="font-weight:600;font-size:0.85rem">Select host groups:</label>
+<select id="zabbixGroupSelect" class="form-select" multiple size="8" style="width:280px;min-height:180px">
+<option value="Huawei BH Routers" selected>Huawei BH Routers</option>
+<option value="Huawei CGNAT Eudemon">Huawei CGNAT Eudemon</option>
+<option value="Huawei CL Routers">Huawei CL Routers</option>
+<option value="Huawei IG Routers">Huawei IG Routers</option>
+<option value="Huawei IL Switches">Huawei IL Switches</option>
+<option value="Huawei Internet Switches">Huawei Internet Switches</option>
+<option value="Huawei IP Routers">Huawei IP Routers</option>
+<option value="IX F5 CGNAT">IX F5 CGNAT</option>
+<option value="Juniper Firewall">Juniper Firewall</option>
+</select>
+<div class="mt-2 d-flex gap-2">
+<button class="btn btn-outline-info btn-sm" id="zabbixRefreshBtn" onclick="refreshZabbixDb()">Refresh Selected</button>
+<button class="btn btn-outline-warning btn-sm" onclick="refreshZabbixDb(true)">Rebuild All</button>
+<button class="btn btn-outline-danger btn-sm" onclick="deleteZabbixDb()">Delete DB</button>
+<div class="spinner" id="zabbixSpinner" style="display:none"></div>
+</div>
+</div>
+<div style="min-width:250px">
+<label class="form-label mb-1" style="font-weight:600;font-size:0.85rem">Database status:</label>
+<div id="zabbixDbInfo" class="p-3 rounded" style="background:#2c3034;font-size:0.84rem;color:#adb5bd;border:1px solid #495057"></div>
+<div id="zabbixError" style="color:#f85149;font-size:0.84rem;margin-top:8px;display:none"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Log Section (shared) -->
+<div class="log-section mt-3" id="logSection" style="display:none">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Live Log</h5>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge-progress" id="logProgress">0 / 0</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="log-box" id="logBox"></div>
+            <div class="result-footer mt-3" id="resultFooter" style="display:none">
+                <div class="d-flex align-items-center gap-3 flex-wrap mb-2">
+                    <div class="d-flex gap-3 flex-wrap" id="summaryStats"></div>
+                    <button class="btn btn-download" id="downloadBtn" onclick="downloadReport()">&#8681; Download Report</button>
+                </div>
+            </div>
+            <div class="result-footer mt-3" id="reportResultFooter" style="display:none">
+                <div class="d-flex align-items-center gap-3 flex-wrap mb-2">
+                    <div class="d-flex gap-3 flex-wrap" id="reportSummaryStats"></div>
+                    <button class="btn btn-download" id="downloadReportBtn" onclick="downloadReportReport()">&#8681; Download CSV Report</button>
+                </div>
+            </div>
+            <!-- License Results -->
+            <div class="result-footer mt-3" id="licenseResultFooter" style="display:none">
+                <div class="d-flex align-items-center gap-3 flex-wrap mb-2">
+                    <div class="d-flex gap-3 flex-wrap" id="licenseSummaryStats"></div>
+                    <button class="btn btn-download" onclick="downloadLicenseSummary()">&#8681; Download License Summary</button>
+                    <button class="btn btn-outline-info" onclick="downloadLicenseItems()">&#8681; Download License Items Detail</button>
+                </div>
+                <div id="licenseResultsContainer" class="mt-3"></div>
+            </div>
+            <!-- Analytics -->
+            <div class="analytics-section mt-3" id="analyticsSection" style="display:none">
+                <hr>
+                <h5 class="mb-3">Analytics</h5>
+                <div class="row g-2 mb-3" id="analyticsGrid"></div>
+                <div id="burstAlert" style="display:none;margin-bottom:14px"></div>
+                <div id="analyticsProvinceWrap" style="display:none">
+                    <h6 class="fw-semibold mb-2">Per Province <span style="font-weight:400;font-size:0.82rem;color:#adb5bd">— click a province to show top devices</span></h6>
+                    <div style="overflow-x:auto">
+                        <table class="analytics-table">
+                            <thead><tr><th>Province</th><th>Devices</th><th>Service</th><th>Noconf</th><th>Total</th></tr></thead>
+                            <tbody id="analyticsProvinceBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="analyticsReasonsWrap" style="display:none">
+                    <h6 class="fw-semibold mb-2">Most Common Down Reasons</h6>
+                    <div style="overflow-x:auto">
+                        <table class="analytics-table">
+                            <thead><tr><th>Reason</th><th>Count</th><th>%</th></tr></thead>
+                            <tbody id="analyticsReasonsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="analyticsIfaceWrap" style="display:none">
+                    <h6 class="fw-semibold mb-2">Interface Type Distribution</h6>
+                    <div style="overflow-x:auto">
+                        <table class="analytics-table">
+                            <thead><tr><th>Type</th><th>Count</th><th>%</th></tr></thead>
+                            <tbody id="analyticsIfaceBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="analyticsCategoryWrap" style="display:none">
+                    <h6 class="fw-semibold mb-2">Category Breakdown (OSN / SPO / HRAN)</h6>
+                    <div style="overflow-x:auto">
+                        <table class="analytics-table">
+                            <thead><tr><th>Category</th><th>Count</th><th>%</th></tr></thead>
+                            <tbody id="analyticsCategoryBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="analyticsInterfaceAggWrap" style="display:none">
+                    <h6 class="fw-semibold mb-2">Per-Interface Alarm Aggregation</h6>
+                    <div class="d-flex gap-2 flex-wrap mb-2">
+                        <span class="badge" style="background:#2c3034;color:#adb5bd;padding:4px 12px;font-size:0.84rem">Unique Interfaces: <strong id="iaTotalIface" style="color:#fff">0</strong></span>
+                        <span class="badge" style="background:#2c3034;color:#adb5bd;padding:4px 12px;font-size:0.84rem">With Multiple Alarms: <strong id="iaMultiIface" style="color:#fff">0</strong></span>
+                    </div>
+                    <div class="d-flex gap-3 flex-wrap mb-2" style="font-size:0.84rem" id="iaDist"></div>
+                    <div style="overflow-x:auto">
+                        <table class="analytics-table" style="white-space:nowrap">
+                            <thead><tr><th>NE</th><th>Interface</th><th>Alarms</th><th>Distinct Reasons</th><th>Reasons Detail</th></tr></thead>
+                            <tbody id="analyticsTopIfaceBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="analyticsSiteGroupsWrap" style="display:none">
+                    <h6 class="fw-semibold mb-2">ETH/GE Interfaces Sharing the Same Site Code</h6>
+                    <p style="font-size:0.82rem;color:#adb5bd;margin-bottom:10px">Interfaces grouped by matching <code>_XX12345</code> pattern in their description</p>
+                    <div id="analyticsSiteGroupsBody"></div>
+                </div>
+                <div id="analyticsTrunkWrap" style="display:none">
+                    <h6 class="fw-semibold mb-2">BA/BC — Eth-Trunk Member Ports Down</h6>
+                    <p style="font-size:0.82rem;color:#adb5bd;margin-bottom:10px">Physical member ports of Eth-Trunk0/33/85 that are down (on devices starting with BA/BC)</p>
+                    <div class="d-flex gap-2 flex-wrap mb-2">
+                        <span class="badge" style="background:#2c3034;color:#adb5bd;padding:4px 12px;font-size:0.84rem">Down Members: <strong id="trunkDownTotal" style="color:#fff">0</strong></span>
+                    </div>
+                    <div id="analyticsTrunkBody"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+</div>
+<footer class="text-center mt-4" style="color:#6c757d;padding:1rem 0">&copy; @IP/TX DevNet Team</footer>
+</div>
+<!-- User Modal -->
+<div id="userModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1050;align-items:center;justify-content:center" onclick="if(event.target===this)hideUserModal()">
+<div style="background:#212529;border-radius:12px;padding:24px;max-width:440px;width:90%;border:1px solid #495057;box-shadow:0 10px 40px rgba(0,0,0,0.4)">
+<h5 id="userModalTitle" style="margin-bottom:16px">Add User</h5>
+<form id="userModalForm" onsubmit="return saveUser(event)">
+<input type="hidden" id="editUsername">
+<div class="mb-2">
+<label class="form-label" style="font-size:0.84rem">Username</label>
+<input type="text" id="modalUsername" class="form-control" required autocomplete="off">
+</div>
+<div class="mb-2">
+<label class="form-label" style="font-size:0.84rem">Password <span style="color:#adb5bd;font-weight:400">(leave blank to keep on edit)</span></label>
+<input type="password" id="modalPassword" class="form-control" autocomplete="new-password">
+</div>
+<div class="mb-2">
+<label class="form-label" style="font-size:0.84rem">Display Name</label>
+<input type="text" id="modalDisplayName" class="form-control" autocomplete="off">
+</div>
+<div class="mb-3">
+<label class="form-label" style="font-size:0.84rem">Role</label>
+<select id="modalRole" class="form-select">
+<option value="user">User</option>
+<option value="admin">Admin (full access)</option>
+<option value="god">God (full access + management)</option>
+</select>
+</div>
+<div class="d-flex gap-2 justify-content-end">
+<button type="button" class="btn btn-outline-secondary" onclick="hideUserModal()">Cancel</button>
+<button type="submit" class="btn btn-primary" id="userModalSaveBtn">Save</button>
+</div>
+</form>
+</div>
+</div>
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+<script src="/static/js/bootstrap.bundle.min.js"></script>
+<script>
+function initTabs(containerId) {
+const container = document.querySelector(containerId);
+if (!container) return;
+const buttons = container.querySelectorAll('button[data-bs-toggle="tab"]');
+buttons.forEach(function(btn) {
+btn.removeAttribute('data-bs-toggle');
+btn.addEventListener('click', function(event) {
+event.preventDefault();
+const targetId = btn.getAttribute('data-bs-target');
+if (!targetId) return;
+const targetPane = document.querySelector(targetId);
+if (!targetPane) return;
+const parentTabContent = targetPane.closest('.tab-content');
+if (parentTabContent) {
+parentTabContent.querySelectorAll('.tab-pane').forEach(function(pane) {
+pane.classList.remove('active');
+});
+}
+targetPane.classList.add('active');
+buttons.forEach(function(b) { b.classList.remove('active'); });
+btn.classList.add('active');
+});
+});
+}
+window.networkCreds = null;
+function setNetworkCreds() {
+const userInput = document.getElementById('netUser');
+const passInput = document.getElementById('netPass');
+const btn = document.getElementById('netCredsBtn');
+if (userInput.disabled) {
+userInput.disabled = false;
+passInput.disabled = false;
+btn.textContent = 'Set';
+document.getElementById('netCredsStatus').style.display = 'none';
+return;
+}
+const user = userInput.value.trim();
+const pass = passInput.value;
+if (!user || !pass) { showToast('Enter both username and password'); return; }
+window.networkCreds = { username: user, password: pass };
+document.getElementById('netCredsStatus').innerHTML =
+`<span style="color:#198754">&#10003;</span> Set for <strong>${esc(user)}</strong>`;
+document.getElementById('netCredsStatus').style.display = 'inline';
+userInput.disabled = true;
+passInput.disabled = true;
+btn.textContent = 'Update';
+}
+document.addEventListener('DOMContentLoaded', function() {
+initTabs('#mainTabs');
+initTabs('#adminTabs');
+});
+/* ------------------------------------------------------------------
+Manual: add / remove rows
+------------------------------------------------------------------ */
+function addManualRow(name, host) {
+const list = document.getElementById('manualRouterList');
+const row = document.createElement('div');
+row.className = 'router-row';
+row.innerHTML = `
+<input class="f-name" type="text" name="name[]" placeholder="Name (optional)" value="${esc(name||'')}" autocomplete="off">
+<input class="f-host" type="text" name="host[]" placeholder="IP address *" required value="${esc(host||'')}" autocomplete="off">
+<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.router-row').remove()" title="Remove">&times;</button>
+`;
+list.appendChild(row);
+}
+/* ------------------------------------------------------------------
+File upload
+------------------------------------------------------------------ */
+let parsedRouters = [];
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('csvFile');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+dropZone.addEventListener('click', () => fileInput.click());
+async function handleFile(file) {
+if (!file) return;
+dropZone.classList.add('has-file');
+document.getElementById('fileName').textContent = file.name;
+document.getElementById('previewSection').style.display = 'none';
+const form = new FormData();
+form.append('file', file);
+try {
+const resp = await fetch('/parse-csv', { method: 'POST', body: form });
+const data = await resp.json();
+if (data.error) { showToast(data.error); return; }
+parsedRouters = data.routers;
+renderPreview(parsedRouters);
+} catch (e) {
+showToast('Failed to parse CSV: ' + e.message);
+}
+}
+function toggleTableRows(btn, tbodyId) {
+const tbody = document.getElementById(tbodyId);
+const hidden = tbody.style.display === 'none';
+tbody.style.display = hidden ? '' : 'none';
+btn.textContent = hidden ? 'Hide rows' : 'Show rows';
+}
+function renderPreview(routers) {
+const tbody = document.getElementById('previewBody');
+tbody.innerHTML = '';
+tbody.style.display = '';
+routers.forEach((r, i) => {
+const tr = document.createElement('tr');
+tr.innerHTML = `<td>${i+1}</td><td><strong>${esc(r.name)}</strong></td><td><code>${esc(r.ip)}</code></td><td>${esc(r.ne_type||'-')}</td><td>${esc(r.version||'-')}</td><td>${esc(r.lsr_id||'-')}</td>`;
+tbody.appendChild(tr);
+});
+const countEl = document.getElementById('previewCount');
+countEl.innerHTML = `${routers.length} router(s) parsed <button class="btn btn-outline-secondary btn-sm" style="padding:3px 10px;font-size:0.78rem;margin-left:8px" onclick="toggleTableRows(this,'previewBody')">Hide rows</button>`;
+document.getElementById('previewSection').style.display = 'block';
+}
+/* ------------------------------------------------------------------
+Reporting tab state
+------------------------------------------------------------------ */
+let reportParsedRouters = [];
+let reportProvinces = [];
+const reportDropZone = document.getElementById('reportDropZone');
+const reportFileInput = document.getElementById('reportCsvFile');
+reportDropZone.addEventListener('dragover', e => { e.preventDefault(); reportDropZone.classList.add('dragover'); });
+reportDropZone.addEventListener('dragleave', () => reportDropZone.classList.remove('dragover'));
+reportDropZone.addEventListener('drop', e => { e.preventDefault(); reportDropZone.classList.remove('dragover'); handleReportFile(e.dataTransfer.files[0]); });
+reportDropZone.addEventListener('click', () => reportFileInput.click());
+async function handleReportFile(file) {
+if (!file) return;
+reportDropZone.classList.add('has-file');
+document.getElementById('reportFileName').textContent = file.name;
+document.getElementById('reportPreviewSection').style.display = 'none';
+document.getElementById('reportOptions').style.display = 'none';
+const form = new FormData();
+form.append('file', file);
+try {
+const resp = await fetch('/parse-csv-nodes', { method: 'POST', body: form });
+const data = await resp.json();
+if (data.error) { showToast(data.error); return; }
+reportParsedRouters = data.routers;
+reportProvinces = data.provinces;
+renderReportPreview(reportParsedRouters);
+populateProvinces(reportProvinces);
+document.getElementById('reportOptions').style.display = 'block';
+} catch (e) {
+showToast('Failed to parse CSV: ' + e.message);
+}
+}
+function renderReportPreview(routers) {
+const tbody = document.getElementById('reportPreviewBody');
+tbody.innerHTML = '';
+tbody.style.display = '';
+routers.forEach((r, i) => {
+const tr = document.createElement('tr');
+tr.innerHTML = `<td>${i+1}</td><td><strong>${esc(r.name)}</strong></td><td><code>${esc(r.ip)}</code></td><td>${esc(r.ne_type||'-')}</td><td>${esc(r.version||'-')}</td>`;
+tbody.appendChild(tr);
+});
+const countEl = document.getElementById('reportPreviewCount');
+countEl.innerHTML = `${routers.length} router(s) parsed <button class="btn btn-outline-secondary btn-sm" style="padding:3px 10px;font-size:0.78rem;margin-left:8px" onclick="toggleTableRows(this,'reportPreviewBody')">Hide rows</button>`;
+document.getElementById('reportPreviewSection').style.display = 'block';
+}
+function populateProvinces(provinces) {
+const sel = document.getElementById('provinceSelect');
+sel.innerHTML = '<option value="">-- Select Province --</option>';
+provinces.forEach(p => {
+const opt = document.createElement('option');
+opt.value = p;
+opt.textContent = p;
+sel.appendChild(opt);
+});
+}
+/* ------------------------------------------------------------------
+Core: run processing
+------------------------------------------------------------------ */
+let activeSessionId = null;
+let activeSessionType = null;
+async function runManual() {
+const rows = document.querySelectorAll('#manualRouterList .router-row');
+const routers = [];
+rows.forEach(row => {
+const inputs = row.querySelectorAll('input');
+const host = inputs[1].value.trim();
+if (!window.networkCreds) { showToast('Set network credentials in the header first'); return; }
+const username = window.networkCreds.username;
+const password = window.networkCreds.password;
+if (host) {
+    routers.push({ name: inputs[0].value.trim() || host, host });
+}
+});
+if (!routers.length) { showToast('Enter at least one router with valid credentials'); return; }
+await startRun('/run-manual', { routers, username, password });
+}
+async function runBulk() {
+if (!parsedRouters.length) { showToast('Upload and parse a CSV file first'); return; }
+if (!window.networkCreds) { showToast('Set network credentials in the header first'); return; }
+await startRun('/run-bulk', { routers: parsedRouters, username: window.networkCreds.username, password: window.networkCreds.password });
+}
+function resetReportUI() {
+document.getElementById('logBox').innerHTML = '';
+document.getElementById('reportResultFooter').style.display = 'none';
+document.getElementById('resultFooter').style.display = 'none';
+document.getElementById('analyticsSection').style.display = 'none';
+document.getElementById('logSection').style.display = 'block';
+}
+function getAgeParams() {
+return {
+age_value: parseInt(document.getElementById('ageValue').value) || 2,
+age_unit: document.getElementById('ageUnit').value,
+};
+}
+async function runReport() {
+const province = document.getElementById('provinceSelect').value;
+if (!province) { showToast('Select a province'); return; }
+if (!window.networkCreds) { showToast('Set network credentials in the header first'); return; }
+const username = window.networkCreds.username;
+const password = window.networkCreds.password;
+resetReportUI();
+document.getElementById('reportRunBtn').disabled = true;
+document.getElementById('reportSpinner').style.display = 'inline-block';
+try {
+const resp = await fetch('/run-report', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(Object.assign({
+routers: reportParsedRouters,
+province,
+username,
+password,
+}, getAgeParams())),
+});
+const data = await resp.json();
+if (data.error) { showToast(data.error); document.getElementById('reportRunBtn').disabled = false; document.getElementById('reportSpinner').style.display = 'none'; return; }
+activeSessionId = data.session_id;
+activeSessionType = 'report';
+document.getElementById('logProgress').textContent = `0 / ${data.router_count}`;
+connectReportSSE(data.session_id);
+} catch (e) {
+showToast('Failed to start: ' + e.message);
+document.getElementById('reportRunBtn').disabled = false;
+document.getElementById('reportSpinner').style.display = 'none';
+}
+}
+async function runFullReport() {
+if (!window.networkCreds) { showToast('Set network credentials in the header first'); return; }
+const username = window.networkCreds.username;
+const password = window.networkCreds.password;
+if (!reportParsedRouters.length) { showToast('No routers loaded'); return; }
+resetReportUI();
+document.getElementById('fullReportRunBtn').disabled = true;
+document.getElementById('reportSpinner').style.display = 'inline-block';
+try {
+const resp = await fetch('/run-full-report', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(Object.assign({
+routers: reportParsedRouters,
+username,
+password,
+}, getAgeParams())),
+});
+const data = await resp.json();
+if (data.error) { showToast(data.error); document.getElementById('fullReportRunBtn').disabled = false; document.getElementById('reportSpinner').style.display = 'none'; return; }
+activeSessionId = data.session_id;
+activeSessionType = 'report';
+document.getElementById('logProgress').textContent = `0 / ${data.router_count}`;
+connectReportSSE(data.session_id);
+} catch (e) {
+showToast('Failed to start: ' + e.message);
+document.getElementById('fullReportRunBtn').disabled = false;
+document.getElementById('reportSpinner').style.display = 'none';
+}
+}
+async function startRun(endpoint, body) {
+document.getElementById('logBox').innerHTML = '';
+document.getElementById('resultFooter').style.display = 'none';
+document.getElementById('logSection').style.display = 'block';
+document.getElementById('manualRunBtn').disabled = true;
+document.getElementById('manualSpinner').style.display = 'inline-block';
+document.getElementById('bulkRunBtn').disabled = true;
+try {
+const resp = await fetch(endpoint, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(body),
+});
+const data = await resp.json();
+if (data.error) { showToast(data.error); resetButtons(); return; }
+activeSessionId = data.session_id;
+document.getElementById('logProgress').textContent = `0 / ${data.router_count}`;
+connectSSE(data.session_id);
+} catch (e) {
+showToast('Failed to start: ' + e.message);
+resetButtons();
+}
+}
+/* ------------------------------------------------------------------
+SSE live log
+------------------------------------------------------------------ */
+function connectSSE(sid) {
+const evtSource = new EventSource('/stream/' + sid);
+let reconnectAttempts = 0;
+evtSource.onmessage = function(e) {
+try { const entry = JSON.parse(e.data); appendLog(entry); }
+catch(_) { /* keepalive frames */ }
+};
+evtSource.addEventListener('done', function(e) {
+evtSource.close();
+const data = JSON.parse(e.data);
+onRunDone(sid, data);
+});
+evtSource.onerror = function() {
+if (reconnectAttempts++ > 3) { evtSource.close(); resetButtons(); }
+};
+}
+function appendLog(entry) {
+const box = document.getElementById('logBox');
+const div = document.createElement('div');
+div.className = 'log-' + (entry.level || 'info');
+div.innerHTML = `<span class="log-time">${esc(entry.time)}</span><span class="log-msg">${esc(entry.message)}</span>`;
+box.appendChild(div);
+box.scrollTop = box.scrollHeight;
+const m = entry.message && entry.message.match(/^\s*\[(\d+)\/(\d+)\]/);
+if (m) document.getElementById('logProgress').textContent = `${m[1]} / ${m[2]}`;
+}
+function connectReportSSE(sid) {
+const evtSource = new EventSource('/stream-report/' + sid);
+let reconnectAttempts = 0;
+evtSource.onmessage = function(e) {
+try { const entry = JSON.parse(e.data); appendLog(entry); }
+catch(_) { /* keepalive frames */ }
+};
+evtSource.addEventListener('done', function(e) {
+evtSource.close();
+const data = JSON.parse(e.data);
+onReportDone(sid, data);
+});
+evtSource.onerror = function() {
+if (reconnectAttempts++ > 3) { evtSource.close(); resetButtons(); }
+};
+}
+/* ------------------------------------------------------------------
+Run completed
+------------------------------------------------------------------ */
+async function onRunDone(sid, data) {
+resetButtons();
+activeSessionType = null;
+try {
+const resp = await fetch('/session/' + sid);
+const state = await resp.json();
+const cleared = state.report_count || 0;
+document.getElementById('summaryStats').innerHTML =
+`<span class="badge" style="background:#2c3034;color:#adb5bd;padding:6px 14px;font-size:0.84rem">Alarms processed: <strong style="color:#fff">${cleared}</strong></span>` +
+`<span class="badge" style="background:#2c3034;color:#adb5bd;padding:6px 14px;font-size:0.84rem">Status: <strong style="color:#198754">${(data.status||'done').toUpperCase()}</strong></span>`;
+if (cleared > 0) {
+document.getElementById('resultFooter').style.display = 'block';
+}
+} catch(_) {}
+}
+function downloadReport() {
+if (activeSessionId) window.location = '/download/' + activeSessionId;
+}
+async function onReportDone(sid, data) {
+document.getElementById('reportRunBtn').disabled = false;
+document.getElementById('fullReportRunBtn').disabled = false;
+document.getElementById('reportSpinner').style.display = 'none';
+activeSessionType = null;
+try {
+const resp = await fetch('/report-session/' + sid);
+const state = await resp.json();
+const svc = state.service_count || 0;
+const ncf = state.noconf_count || 0;
+document.getElementById('reportSummaryStats').innerHTML =
+`<span class="badge" style="background:#2c3034;color:#adb5bd;padding:6px 14px;font-size:0.84rem">Service interfaces: <strong style="color:#fff">${svc}</strong></span>` +
+`<span class="badge" style="background:#2c3034;color:#adb5bd;padding:6px 14px;font-size:0.84rem">Noconf interfaces: <strong style="color:#fff">${ncf}</strong></span>` +
+`<span class="badge" style="background:#2c3034;color:#adb5bd;padding:6px 14px;font-size:0.84rem">Status: <strong style="color:#198754">${(data.status||'done').toUpperCase()}</strong></span>`;
+if (svc + ncf > 0) {
+document.getElementById('reportResultFooter').style.display = 'block';
+}
+const aResp = await fetch('/report-analytics/' + sid);
+if (aResp.ok) {
+const analytics = await aResp.json();
+renderAnalytics(analytics);
+}
+} catch(_) {}
+}
+function downloadReportReport() {
+if (activeSessionId) window.location = '/download-report/' + activeSessionId;
+}
+/* ------------------------------------------------------------------
+Analytics rendering
+------------------------------------------------------------------ */
+function renderAnalytics(a) {
+const ia = a.interface_aggregation || {};
+let tm = a.trunk_members || {};
+const grid = document.getElementById('analyticsGrid');
+grid.innerHTML = `
+<div class="col"><div class="stat-card"><div class="stat-value">${a.total}</div><div class="stat-label">Total Alarms</div></div></div>
+<div class="col"><div class="stat-card"><div class="stat-value">${ia.total_interfaces || 0}</div><div class="stat-label">Unique Interfaces</div></div></div>
+<div class="col"><div class="stat-card"><div class="stat-value">${a.province_summary.length}</div><div class="stat-label">Provinces</div></div></div>
+<div class="col"><div class="stat-card"><div class="stat-value">${tm.total_down_members || 0}</div><div class="stat-label">Trunk Members Down</div></div></div>
+<div class="col"><div class="stat-card"><div class="stat-value">${ia.interfaces_with_multi || 0}</div><div class="stat-label">Interfaces with 2+ Alarms</div></div></div>
+`;
+const burstProvinces = (a.province_summary || []).filter(p => p.burst);
+const burstEl = document.getElementById('burstAlert');
+if (burstProvinces.length) {
+burstEl.style.display = 'block';
+burstEl.innerHTML = burstProvinces.map(p =>
+`<div style="background:#332b00;border:1px solid #ffcc02;border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:0.88rem;color:#ffcc02">
+<strong style="color:#ffcc02">⚠ Burst Detected</strong> — All alarms in <strong style="color:#fff">${esc(p.province)}</strong> occurred within 5 minutes
+(${esc(p.burst_start)} to ${esc(p.burst_end)})
+</div>`
+).join('');
+} else {
+burstEl.style.display = 'none';
+}
+const pBody = document.getElementById('analyticsProvinceBody');
+if (a.province_summary.length >= 1) {
+pBody.innerHTML = '';
+a.province_summary.forEach(p => {
+const tr = document.createElement('tr');
+tr.style.cursor = 'pointer';
+const burstBadge = p.burst ? ` <span style="display:inline-block;background:#dc3545;color:#fff;font-size:0.7rem;padding:1px 7px;border-radius:10px;font-weight:600;vertical-align:middle">BURST ${esc(p.burst_start)}–${esc(p.burst_end)}</span>` : '';
+tr.innerHTML = `<td><strong>${esc(p.province)}</strong>${burstBadge}</td><td>${p.devices}</td><td>${p.service}</td><td>${p.noconf}</td><td><strong>${p.total}</strong></td>`;
+const detailRow = document.createElement('tr');
+detailRow.style.display = 'none';
+detailRow.innerHTML = `<td colspan="5" style="padding:0">
+<div style="background:#2c3034;padding:8px 16px;font-size:0.82rem">
+<span style="font-weight:600;color:#adb5bd">Top devices:</span>
+${(p.top_devices||[]).map(d => `<span style="display:inline-block;margin:2px 12px 2px 0;"><code>${esc(d.name)}</code> (${d.alarms})</span>`).join('')}
+</div>
+</td>`;
+tr.addEventListener('click', () => {
+detailRow.style.display = detailRow.style.display === 'none' ? '' : 'none';
+});
+pBody.appendChild(tr);
+pBody.appendChild(detailRow);
+});
+document.getElementById('analyticsProvinceWrap').style.display = 'block';
+} else {
+document.getElementById('analyticsProvinceWrap').style.display = 'none';
+}
+const rBody = document.getElementById('analyticsReasonsBody');
+if (a.top_down_reasons && a.top_down_reasons.length) {
+rBody.innerHTML = '';
+const maxCount = a.top_down_reasons[0].count || 1;
+a.top_down_reasons.forEach(r => {
+const pct = a.total > 0 ? ((r.count / a.total) * 100).toFixed(1) : 0;
+const barW = Math.max(4, (r.count / maxCount) * 100);
+const tr = document.createElement('tr');
+tr.innerHTML = `<td>${esc(r.reason)}</td><td>${r.count}</td><td>${pct}% <span class="bar" style="width:${barW}px"></span></td>`;
+rBody.appendChild(tr);
+});
+document.getElementById('analyticsReasonsWrap').style.display = 'block';
+} else {
+document.getElementById('analyticsReasonsWrap').style.display = 'none';
+}
+if (ia && ia.total_interfaces > 0) {
+document.getElementById('iaTotalIface').textContent = ia.total_interfaces;
+document.getElementById('iaMultiIface').textContent = ia.interfaces_with_multi;
+const distEl = document.getElementById('iaDist');
+const distLabels = { '1': '1 alarm', '2': '2 alarms', '3+': '3+ alarms' };
+const distHtml = Object.entries(ia.alarm_count_distribution || {} )
+.sort((a, b) => {
+const order = { '1': 1, '2': 2, '3+': 3 };
+return (order[a[0]] || 99) - (order[b[0]] || 99);
+})
+.map(([bucket, count]) =>
+`<span class="badge" style="background:#2c3034;color:#adb5bd;padding:6px 14px;font-size:0.84rem">${distLabels[bucket] || bucket}: <strong style="color:#fff">${count}</strong></span>`
+).join(' ');
+distEl.innerHTML = distHtml || '';
+const tiBody = document.getElementById('analyticsTopIfaceBody');
+tiBody.innerHTML = '';
+(ia.top_interfaces || []).forEach(g => {
+const tr = document.createElement('tr');
+tr.innerHTML = `<td>${esc(g.ne)}</td><td><code>${esc(g.interface)}</code></td><td>${g.alarms}</td><td>${g.distinct_reasons}</td><td style="font-size:0.8rem;color:#adb5bd">${esc(g.reasons)}</td>`;
+tiBody.appendChild(tr);
+});
+document.getElementById('analyticsInterfaceAggWrap').style.display = 'block';
+} else {
+document.getElementById('analyticsInterfaceAggWrap').style.display = 'none';
+}
+const iBody = document.getElementById('analyticsIfaceBody');
+if (a.interface_types && a.interface_types.length) {
+iBody.innerHTML = '';
+const maxCount = a.interface_types[0].count || 1;
+a.interface_types.forEach(t => {
+const pct = a.total > 0 ? ((t.count / a.total) * 100).toFixed(1) : 0;
+const barW = Math.max(4, (t.count / maxCount) * 100);
+const tr = document.createElement('tr');
+tr.innerHTML = `<td>${esc(t.type)}</td><td>${t.count}</td><td>${pct}% <span class="bar" style="width:${barW}px"></span></td>`;
+iBody.appendChild(tr);
+});
+document.getElementById('analyticsIfaceWrap').style.display = 'block';
+} else {
+document.getElementById('analyticsIfaceWrap').style.display = 'none';
+}
+const cBody = document.getElementById('analyticsCategoryBody');
+if (a.category_summary && a.category_summary.length) {
+cBody.innerHTML = '';
+const maxCat = a.category_summary[0].count || 1;
+a.category_summary.forEach(c => {
+const pct = a.total > 0 ? ((c.count / a.total) * 100).toFixed(1) : 0;
+const barW = Math.max(4, (c.count / maxCat) * 100);
+const tr = document.createElement('tr');
+tr.innerHTML = `<td><strong>${esc(c.category)}</strong></td><td>${c.count}</td><td>${pct}% <span class="bar" style="width:${barW}px"></span></td>`;
+cBody.appendChild(tr);
+});
+document.getElementById('analyticsCategoryWrap').style.display = 'block';
+} else {
+document.getElementById('analyticsCategoryWrap').style.display = 'none';
+}
+const sgWrap = document.getElementById('analyticsSiteGroupsWrap');
+const sgBody = document.getElementById('analyticsSiteGroupsBody');
+if (a.site_groups && a.site_groups.length) {
+sgBody.innerHTML = '';
+a.site_groups.forEach(g => {
+const block = document.createElement('div');
+block.style.cssText = 'margin-bottom:12px;border:1px solid #495057;border-radius:8px;overflow:hidden';
+const header = document.createElement('div');
+header.style.cssText = 'background:#2c3034;padding:8px 12px;font-weight:600;font-size:0.88rem;border-bottom:1px solid #495057';
+header.innerHTML = `<code style="color:#0d6efd">${esc(g.code)}</code> — ${g.size} interface(s)`;
+block.appendChild(header);
+const table = document.createElement('table');
+table.className = 'analytics-table';
+table.innerHTML = '<thead><tr><th>NE</th><th>Interface</th><th>Type</th><th>Description</th></tr></thead>';
+const tb = document.createElement('tbody');
+g.members.forEach(m => {
+const tr = document.createElement('tr');
+tr.innerHTML = `<td>${esc(m.ne)}</td><td><code>${esc(m.interface)}</code></td><td>${m.iface_type}</td><td style="font-size:0.8rem;color:#adb5bd;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.description)}</td>`;
+tb.appendChild(tr);
+});
+table.appendChild(tb);
+block.appendChild(table);
+sgBody.appendChild(block);
+});
+sgWrap.style.display = 'block';
+} else {
+sgWrap.style.display = 'none';
+}
+const trunkWrap = document.getElementById('analyticsTrunkWrap');
+const trunkBody = document.getElementById('analyticsTrunkBody');
+tm = a.trunk_members;
+if (tm && tm.total_down_members > 0) {
+document.getElementById('trunkDownTotal').textContent = tm.total_down_members;
+trunkBody.innerHTML = '';
+tm.by_trunk.forEach(t => {
+const block = document.createElement('div');
+block.style.cssText = 'margin-bottom:12px;border:1px solid #495057;border-radius:8px;overflow:hidden';
+const header = document.createElement('div');
+header.style.cssText = 'background:#332b00;padding:8px 12px;font-weight:600;font-size:0.88rem;border-bottom:1px solid #495057;color:#ffcc02';
+header.innerHTML = `<span style="color:#ffcc02">${esc(t.trunk)}</span> — ${t.count} down member(s)`;
+block.appendChild(header);
+const table = document.createElement('table');
+table.className = 'analytics-table';
+table.innerHTML = '<thead><tr><th>NE</th><th>Interface</th><th>Type</th><th>Reason</th><th>Description</th></tr></thead>';
+const tb = document.createElement('tbody');
+t.members.forEach(m => {
+const tr = document.createElement('tr');
+tr.innerHTML = `<td>${esc(m.ne)}</td><td><code>${esc(m.interface)}</code></td><td>${m.type}</td><td style="font-size:0.8rem;color:#adb5bd">${esc(m.reason)}</td><td style="font-size:0.8rem;color:#adb5bd;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.description)}</td>`;
+tb.appendChild(tr);
+});
+table.appendChild(tb);
+block.appendChild(table);
+trunkBody.appendChild(block);
+});
+trunkWrap.style.display = 'block';
+} else {
+trunkWrap.style.display = 'none';
+}
+document.getElementById('analyticsSection').style.display = 'block';
+}
+function resetButtons() {
+document.getElementById('manualRunBtn').disabled = false;
+document.getElementById('manualSpinner').style.display = 'none';
+document.getElementById('bulkRunBtn').disabled = false;
+document.getElementById('reportRunBtn').disabled = false;
+document.getElementById('fullReportRunBtn').disabled = false;
+document.getElementById('reportSpinner').style.display = 'none';
+document.getElementById('licRunBtn').disabled = false;
+document.getElementById('licSpinner').style.display = 'none';
+}
+/* ------------------------------------------------------------------
+VRF Routing
+------------------------------------------------------------------ */
+async function checkVrfRouting() {
+    if (!window.networkCreds) { showToast('Set network credentials in the header first'); return; }
+    const username = window.networkCreds.username;
+    const password = window.networkCreds.password;
+    const config = document.getElementById('vrfConfigInput').value;
+    
+    // FIX: Read target_ip from the EXISTING BGP Route Check input field
+    const target_ip = document.getElementById('bgpTargetIp').value.trim();
+    
+    if (!config.trim()) { showToast('Paste interface configuration first'); return; }
+
+    const btn = document.getElementById('vrfParseBtn');
+    const spinner = document.getElementById('vrfSpinner');
+    const summary = document.getElementById('vrfSummary');
+    btn.disabled = true;
+    spinner.style.display = 'inline-block';
+    summary.style.display = 'none';
+
+    try {
+        const res = await fetch('/check-vrf-routing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, config, target_ip }),
+        });
+        const data = await res.json();
+if (data.error) { showToast(data.error); resetVrfButtons(); return; }
+const results = data.results || [];
+const tbody = document.getElementById('vrfResultsBody');
+tbody.innerHTML = '';
+let ok = 0, nok = 0, skipped = 0;
+results.forEach((r, i) => {
+const tr = document.createElement('tr');
+let hasRouteBadge;
+if (r.has_route === true) { hasRouteBadge = '<span style="color:#198754;font-weight:600">Yes</span>'; ok++; }
+else if (r.has_route === false) { hasRouteBadge = '<span style="color:#dc3545;font-weight:600">No</span>'; nok++; }
+else { hasRouteBadge = '<span style="color:#6c757d">N/A</span>'; skipped++; }
+tr.innerHTML = `
+<td>${i+1}</td>
+<td><code>${esc(r.interface)}</code></td>
+<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.description || '—')}</td>
+<td><strong style="color:#0d6efd">${esc(r.vpn_instance || '—')}</strong></td>
+<td><code>${esc(r.ip_address)}</code></td>
+<td>${hasRouteBadge}</td>
+<td>${r.routes_count}</td>
+<td style="font-size:0.82rem;color:#adb5bd">${esc(r.reason || '')}</td>
+`;
+tbody.appendChild(tr);
+});
+document.getElementById('vrfSummary').innerHTML =
+`<strong>${results.length}</strong> interface(s) — ` +
+`<strong style="color:#198754">${ok}</strong> with routes, ` +
+`<strong style="color:#dc3545">${nok}</strong> without, ` +
+`<strong style="color:#6c757d">${skipped}</strong> skipped`;
+document.getElementById('vrfSummary').style.display = 'inline';
+const vrfDetails = document.getElementById('vrfVrfDetailsBody');
+vrfDetails.innerHTML = '';
+if (data.vrf_count > 0) {
+document.getElementById('vrfVrfDetails').style.display = 'block';
+vrfDetails.innerHTML = `VRFs checked: <strong style="color:#fff">${data.vrf_count}</strong> on ${esc(data.router?.name || '')} (${esc(data.router?.ip || '')})`;
+} else {
+document.getElementById('vrfVrfDetails').style.display = 'none';
+}
+document.getElementById('vrfResultsCard').style.display = 'block';
+} catch (e) {
+showToast('Error: ' + e.message);
+}
+resetVrfButtons();
+}
+function resetVrfButtons() {
+document.getElementById('vrfSpinner').style.display = 'none';
+document.getElementById('vrfParseBtn').disabled = false;
+}
+/* ------------------------------------------------------------------
+BGP Route Check — VRF & Originator Lookup
+------------------------------------------------------------------ */
+async function checkBgpRoute() {
+if (!window.networkCreds) { showToast('Set network credentials in the header first'); return; }
+const username = window.networkCreds.username;
+const password = window.networkCreds.password;
+const targetIp = document.getElementById('bgpTargetIp').value.trim();
+if (!targetIp) { showToast('Enter a target IP address'); return; }
+document.getElementById('bgpCheckSpinner').style.display = 'inline-block';
+document.getElementById('bgpCheckBtn').disabled = true;
+document.getElementById('bgpResultsCard').style.display = 'none';
+document.getElementById('originatorCard').style.display = 'none';
+document.getElementById('bgpStatus').style.display = 'none';
+try {
+const resp = await fetch('/check-bgp-route', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ username, password, target_ip: targetIp }),
+});
+const data = await resp.json();
+if (data.error) { showToast(data.error); resetBgpButtons(); return; }
+document.getElementById('bgpStatus').innerHTML =
+`<strong>${data.entry_count}</strong> route(s) found for <code>${esc(data.target_ip)}</code> via ${esc(data.router.name)}`;
+document.getElementById('bgpStatus').style.display = 'block';
+renderBgpResults(data.entries);
+document.getElementById('bgpResultsCard').style.display = 'block';
+} catch (e) {
+showToast('Error: ' + e.message);
+}
+resetBgpButtons();
+}
+function resetBgpButtons() {
+document.getElementById('bgpCheckSpinner').style.display = 'none';
+document.getElementById('bgpCheckBtn').disabled = false;
+}
+function renderBgpResults(entries) {
+const container = document.getElementById('bgpResultsContainer');
+container.innerHTML = '';
+if (!entries || entries.length === 0) {
+container.innerHTML = '<div style="color:#adb5bd;padding:1rem">No BGP entries found.</div>';
+return;
+}
+// Aggregate VRFs by originator for unified "Show Interfaces"
+const originatorVrfs = {};
+let anyOriginatorVrfs = false;
+entries.forEach(entry => {
+if (entry.originator && entry.matched_vrf_names && entry.matched_vrf_names.length) {
+if (!originatorVrfs[entry.originator]) originatorVrfs[entry.originator] = new Set();
+entry.matched_vrf_names.forEach(v => originatorVrfs[entry.originator].add(v));
+anyOriginatorVrfs = true;
+}
+});
+if (anyOriginatorVrfs) {
+let toolbarHtml = '<div style="margin-bottom:12px;padding:10px 14px;background:#1c1c1c;border-radius:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
+toolbarHtml += '<span style="color:#adb5bd;font-size:0.84rem">Show Interfaces:</span>';
+Object.entries(originatorVrfs).forEach(([ip, vrfSet]) => {
+const vrfs = Array.from(vrfSet);
+const vrfList = vrfs.join(',');
+const label = `${ip} (${vrfs.join(', ')})`;
+toolbarHtml += `<button class="btn btn-outline-info btn-sm" style="padding:3px 14px;font-size:0.82rem" onclick="showOriginatorInterfaces('${esc(vrfList)}', '${esc(ip)}', '${esc(entries[0].prefix || '')}')">${esc(label)}</button>`;
+});
+toolbarHtml += '</div>';
+container.insertAdjacentHTML('beforeend', toolbarHtml);
+}
+entries.forEach((entry, idx) => {
+const card = document.createElement('div');
+card.style.cssText = 'border:1px solid #495057;border-radius:8px;margin-bottom:10px;overflow:hidden';
+const header = document.createElement('div');
+header.style.cssText = 'background:#2c3034;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer;border-bottom:1px solid #495057';
+header.onclick = () => {
+const body = card.querySelector('.bgp-entry-body');
+const arrow = header.querySelector('.bgp-arrow');
+const isOpen = body.style.display !== 'none';
+body.style.display = isOpen ? 'none' : 'block';
+if (arrow) arrow.innerHTML = isOpen ? '&#9654;' : '&#9660;';
+};
+const rdShort = entry.route_distinguisher || '?';
+const prefixShort = entry.prefix || '?';
+const vrfNames = entry.matched_vrf_names || [];
+const vrfBadges = vrfNames.map(v =>
+`<span style="display:inline-block;background:rgba(13,110,253,0.15);color:#0d6efd;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;margin:2px 4px 2px 0">${esc(v)}</span>`
+).join('');
+header.innerHTML = `
+<span style="color:#8b949e;font-size:0.78rem;min-width:20px">#${idx+1}</span>
+<div style="flex:1;min-width:0">
+<div><strong style="color:#79c0ff">RD:</strong> <code>${esc(rdShort)}</code> &mdash; <code>${esc(prefixShort)}</code></div>
+<div style="font-size:0.82rem;color:#adb5bd;margin-top:2px">Originator: <strong style="color:#fff">${esc(entry.originator || '—')}</strong></div>
+</div>
+<div style="text-align:right;font-size:0.82rem">
+${vrfBadges || '<span style="color:#6c757d">No VRF match</span>'}
+</div>
+<span class="bgp-arrow" style="color:#8b949e;font-size:0.8rem">&#9660;</span>
+`;
+card.appendChild(header);
+const body = document.createElement('div');
+body.className = 'bgp-entry-body';
+body.style.cssText = 'padding:14px;font-size:0.84rem';
+let bodyHtml = '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin-bottom:12px">';
+bodyHtml += `<div style="color:#8b949e">Route Distinguisher:</div><div><code>${esc(entry.route_distinguisher)}</code></div>`;
+bodyHtml += `<div style="color:#8b949e">Prefix:</div><div><code>${esc(entry.prefix)}</code></div>`;
+bodyHtml += `<div style="color:#8b949e">Originator:</div><div><strong style="color:#0d6efd">${esc(entry.originator || '—')}</strong></div>`;
+bodyHtml += `<div style="color:#8b949e">Nexthop:</div><div><strong style="color:#0d6efd">${esc(entry.nexthop || '—')}</strong></div>`;
+bodyHtml += '</div>';
+bodyHtml += `<div style="color:#8b949e">From:</div><div><code>${esc(entry.from || '—')}</code></div>`;
+bodyHtml += '</div>';
+// RT and VRF mapping
+const rtVrfs = entry.matched_vrfs || {};
+const rtEntries = Object.entries(rtVrfs);
+if (rtEntries.length > 0) {
+bodyHtml += '<div style="margin-bottom:10px"><strong style="color:#79c0ff">RT → VRF Mapping:</strong></div>';
+bodyHtml += '<table class="analytics-table" style="margin-bottom:10px"><thead><tr><th>RT Value</th><th>Matching VRFs</th></tr></thead><tbody>';
+rtEntries.forEach(([rt, vrfs]) => {
+bodyHtml += `<tr><td><code>${esc(rt)}</code></td><td>${vrfs.map(v => `<span style="color:#0d6efd;font-weight:600">${esc(v)}</span>`).join(', ')}</td></tr>`;
+});
+bodyHtml += '</tbody></table>';
+}
+if (entry.ext_community) {
+bodyHtml += `<div style="color:#8b949e;margin-top:6px">Ext-Community: <span style="color:#e6edf3;font-size:0.8rem">${esc(entry.ext_community)}</span></div>`;
+}
+if (entry.as_path_line) {
+bodyHtml += `<div style="color:#8b949e;margin-top:4px">AS-path: <span style="color:#e6edf3">${esc(entry.as_path_line)}</span></div>`;
+}
+bodyHtml += '</div>';
+body.innerHTML = bodyHtml;
+card.appendChild(body);
+container.appendChild(card);
+});
+}
+async function showOriginatorInterfaces(vrfList, originatorIp, prefix) {
+      if (!window.networkCreds) {
+          showToast('Set network credentials in the header first');
+          return;
+      }
+      const username = window.networkCreds.username;
+      const password = window.networkCreds.password;
+      
+      const target_ip = document.getElementById('bgpTargetIp').value.trim();
+      if (!target_ip) {
+          showToast('No target IP specified in BGP search');
+          return;
+      }
+      
+      const vrfs = vrfList.split(',').filter(Boolean);
+      if (!originatorIp || !vrfs.length) {
+          showToast('Missing IP or VRF');
+          return;
+      }
+
+      const container = document.getElementById('originatorInfo');
+      const containerBody = document.getElementById('originatorInterfacesBody');
+      const containerCard = document.getElementById('originatorCard');
+      
+      containerCard.style.display = 'block';
+      containerBody.innerHTML = '<tr><td colspan="1" style="text-align:center;color:#adb5bd;padding:2rem"><div class="spinner" style="display:inline-block"></div> Querying originator...</td></tr>';
+      container.innerHTML = `Querying originator <strong>${esc(originatorIp)}</strong> ...`;
+      document.getElementById('originatorVlanInfo').style.display = 'none';
+
+      let firstSysname = '';
+      let firstConnectIp = '';
+      let allHtml = '';
+
+      try {
+          for (const vrf of vrfs) {
+              const resp = await fetch('/show-originator-interfaces', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      username,
+                      password,
+                      originator_ip: originatorIp,
+                      target_ip: target_ip,
+                      vrf: vrf
+                  }),
+              });
+              const data = await resp.json();
+              if (data.error) {
+                  allHtml += `<tr><td style="color:#f85149;padding:1rem">${esc(data.error)}</td></tr>`;
+                  continue;
+              }
+              if (!firstSysname) {
+                  firstSysname = data.sysname || '';
+                  firstConnectIp = data.connect_ip || '';
+              }
+              const vr = data.result;
+              const borderTop = allHtml ? '2px solid #2c3034' : 'none';
+
+              if (!vr || !vr.has_specific_route) {
+                  allHtml += `<tr><td style="padding:8px 10px 4px 10px;border-bottom:none;border-top:${borderTop}">
+                      <div style="color:#ffcc00;padding:1rem;background:rgba(255,204,0,0.1);border:1px solid rgba(255,204,0,0.2);border-radius:4px;margin-bottom:10px">
+                          ⚠️ Warning: VRF <strong>${esc(vrf)}</strong> does not have a specific route for ${esc(target_ip)}
+                          <br><small>Only default or summary routes exist in this VRF</small>
+                      </div>
+                      <div style="padding:6px 10px;font-weight:600;color:#79c0ff;font-size:0.84rem">Command Output:</div>
+                      <pre style="margin:0 10px 8px 10px;padding:6px 10px;font-size:0.78rem;color:#e6edf3;background:#0d1117;border-radius:4px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;line-height:1.5">${esc(vr ? vr.raw_output : '')}</pre>
+                  </td></tr>`;
+                  continue;
+              }
+
+              let sectionHtml = `<tr><td style="padding:8px 10px 4px 10px;border-bottom:none;border-top:${borderTop}">
+              <div style="font-size:0.9rem">
+              VRF: <strong style="color:#0d6efd">${esc(vr.vrf)}</strong>
+              &mdash; <strong>${vr.route_count}</strong> route(s)
+              &mdash; interfaces: <strong style="color:#79c0ff">${(vr.interfaces||[]).join(', ')}</strong>
+              </div>`;
+              
+              const routes = vr.routes || [];
+              if (routes.length > 0) {
+                  sectionHtml += `<table style="width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:6px">
+                  <thead>
+                  <tr style="color:#8b949e;border-bottom:1px solid #2c3034">
+                  <th style="padding:6px 8px;text-align:left">Destination</th>
+                  <th style="padding:6px 8px;text-align:left">Protocol</th>
+                  <th style="padding:6px 8px;text-align:left">Pre</th>
+                  <th style="padding:6px 8px;text-align:left">Cost</th>
+                  <th style="padding:6px 8px;text-align:left">NextHop</th>
+                  <th style="padding:6px 8px;text-align:left">Interface</th>
+                  </tr>
+                  </thead>
+                  <tbody>`;
+                  routes.forEach(r => {
+                      const protoDisplay = r.proto_category ? `${esc(r.proto_category)} (<strong style="color:#79c0ff">${esc(r.proto)}</strong>)` : `<strong style="color:#79c0ff">${esc(r.proto)}</strong>`;
+                      sectionHtml += `<tr style="border-bottom:1px solid #1c1c1c">
+                      <td style="padding:5px 8px;color:#e6edf3"><code>${esc(r.destination)}/${esc(r.mask)}</code></td>
+                      <td style="padding:5px 8px;color:#e6edf3">${protoDisplay}</td>
+                      <td style="padding:5px 8px;color:#adb5bd">${esc(r.pre)}</td>
+                      <td style="padding:5px 8px;color:#adb5bd">${esc(r.cost)}</td>
+                      <td style="padding:5px 8px;color:#0d6efd"><code>${esc(r.nexthop)}</code></td>
+                      <td style="padding:5px 8px;color:#e6edf3">${esc(r.interface)}</td>
+                      </tr>`;
+                  });
+                  sectionHtml += `</tbody></table>`;
+              }
+              const configs = vr.interface_configs ? Object.entries(vr.interface_configs) : [];
+              if (vr.route_count > 0 && configs.length === 0) {
+                  sectionHtml += '<div style="color:#6c757d;padding:4px 10px 10px 20px;font-size:0.84rem">Route found but no interface config retrieved (route may use a different nexthop)</div>';
+              }
+              configs.forEach(([iface, configText]) => {
+                  sectionHtml += `<div style="padding:6px 10px 2px 20px;font-weight:600;color:#79c0ff;font-size:0.84rem"><code>${esc(iface)}</code> configuration:</div>
+                  <pre style="margin:0 10px 8px 20px;padding:6px 10px;font-size:0.78rem;color:#e6edf3;background:#0d1117;border-radius:4px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;line-height:1.5">${esc(configText)}</pre>`;
+              });
+              sectionHtml += '</td></tr>';
+              allHtml += sectionHtml;
+          }
+          containerBody.innerHTML = allHtml || '<tr><td style="color:#6c757d;padding:2rem;text-align:center">No routes found for any VRF</td></tr>';
+          const connectInfo = firstConnectIp ? ` (connected via ${esc(firstConnectIp)})` : '';
+          const sysnameInfo = firstSysname ? ` &mdash; <strong style="color:#79c0ff">${esc(firstSysname)}</strong>` : '';
+          container.innerHTML = `Originator <strong style="color:#0d6efd">${esc(originatorIp)}</strong>${sysnameInfo}${connectInfo}`;
+      } catch (e) {
+          containerBody.innerHTML = `<tr><td style="color:#f85149;padding:1rem;text-align:center">Error: ${esc(e.message)}</td></tr>`;
+}
+}
+/* ------------------------------------------------------------------
+License Check
+------------------------------------------------------------------ */
+let licParsedRouters = [];
+let licSessionId = null;
+const licDropZone = document.getElementById('licDropZone');
+const licFileInput = document.getElementById('licCsvFileOriginal');
+if (licDropZone && licFileInput) {
+    licDropZone.addEventListener('dragover', e => { e.preventDefault(); licDropZone.classList.add('dragover'); });
+    licDropZone.addEventListener('dragleave', () => licDropZone.classList.remove('dragover'));
+    licDropZone.addEventListener('drop', e => { e.preventDefault(); licDropZone.classList.remove('dragover'); handleLicFile(e.dataTransfer.files[0]); });
+    licDropZone.addEventListener('click', () => licFileInput.click());
+}
+async function handleLicFile(file) {
+if (!file) return;
+licDropZone.classList.add('has-file');
+document.getElementById('licFileName').textContent = file.name;
+document.getElementById('licPreviewSection').style.display = 'none';
+const form = new FormData();
+form.append('file', file);
+try {
+const resp = await fetch('/parse-csv', { method: 'POST', body: form });
+const data = await resp.json();
+if (data.error) { showToast(data.error); return; }
+licParsedRouters = data.routers;
+renderLicPreview(licParsedRouters);
+} catch (e) {
+showToast('Failed to parse CSV: ' + e.message);
+}
+}
+function renderLicPreview(routers) {
+const tbody = document.getElementById('licPreviewBody');
+tbody.innerHTML = '';
+tbody.style.display = '';
+routers.forEach((r, i) => {
+const tr = document.createElement('tr');
+tr.innerHTML = `<td>${i+1}</td><td><strong>${esc(r.name)}</strong></td><td><code>${esc(r.ip)}</code></td><td>${esc(r.ne_type||'-')}</td><td>${esc(r.version||'-')}</td><td>${esc(r.lsr_id||'-')}</td>`;
+tbody.appendChild(tr);
+});
+const countEl = document.getElementById('licPreviewCount');
+countEl.innerHTML = `${routers.length} router(s) parsed <button class="btn btn-outline-secondary btn-sm" style="padding:3px 10px;font-size:0.78rem;margin-left:8px" onclick="toggleTableRows(this,'licPreviewBody')">Hide rows</button>`;
+document.getElementById('licPreviewSection').style.display = 'block';
+}
+
+let matchedRoutersData = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const csvZone = document.getElementById('licCsvDropZone');
+    const csvInput = document.getElementById('licCsvFile');
+    if (csvZone && csvInput) {
+        csvZone.addEventListener('dragover', e => { e.preventDefault(); csvZone.classList.add('dragover'); });
+        csvZone.addEventListener('dragleave', () => csvZone.classList.remove('dragover'));
+        csvZone.addEventListener('drop', e => { e.preventDefault(); csvZone.classList.remove('dragover'); handleLicCsvDrop(e.dataTransfer.files[0]); });
+        csvZone.addEventListener('click', () => csvInput.click());
+        csvInput.addEventListener('change', e => handleLicCsvDrop(e.target.files[0]));
+    }
+
+    const licZone = document.getElementById('licFileDropZone');
+    const licInput = document.getElementById('licFile');
+    if (licZone && licInput) {
+        licZone.addEventListener('dragover', e => { e.preventDefault(); licZone.classList.add('dragover'); });
+        licZone.addEventListener('dragleave', () => licZone.classList.remove('dragover'));
+        licZone.addEventListener('drop', e => { e.preventDefault(); licZone.classList.remove('dragover'); handleLicFilesDrop(e.dataTransfer.files); });
+        licZone.addEventListener('click', () => licInput.click());
+        licInput.addEventListener('change', e => handleLicFilesDrop(e.target.files));
+    }
+});
+
+function handleLicCsvDrop(file) {
+    if (!file) return;
+    const zone = document.getElementById('licCsvDropZone');
+    zone.classList.add('has-file');
+    document.getElementById('licCsvFileName').textContent = file.name;
+}
+
+function handleLicFilesDrop(files) {
+    if (!files || !files.length) return;
+    const zone = document.getElementById('licFileDropZone');
+    zone.classList.add('has-file');
+    document.getElementById('licFileFileName').textContent = `${files.length} file(s) selected`;
+}
+
+async function matchLicenses() {
+    const csvInput = document.getElementById('licCsvFile');
+    const licInput = document.getElementById('licFile');
+    const csvFile = csvInput.files[0];
+    const licFiles = licInput.files;
+
+    if (!csvFile) { showToast('Upload router CSV file first'); return; }
+    if (!licFiles || !licFiles.length) { showToast('Upload license files first'); return; }
+
+    const btn = document.getElementById('matchLicensesBtn');
+    const spinner = document.getElementById('matchSpinner');
+    btn.disabled = true;
+    spinner.style.display = 'inline-block';
+
+    const form = new FormData();
+    form.append('csv_file', csvFile);
+    for (let i = 0; i < licFiles.length; i++) {
+        form.append('license_files', licFiles[i]);
+    }
+
+    try {
+        const resp = await fetch('/match-licenses', { method: 'POST', body: form });
+        const data = await resp.json();
+        if (data.error) { showToast(data.error); resetMatchButtons(); return; }
+
+        matchedRoutersData = data.matched || [];
+        renderMatchedRouters(matchedRoutersData, data.unmatched || []);
+    } catch (e) {
+        showToast('Error matching licenses: ' + e.message);
+    }
+    resetMatchButtons();
+}
+
+function resetMatchButtons() {
+    document.getElementById('matchLicensesBtn').disabled = false;
+    document.getElementById('matchSpinner').style.display = 'none';
+}
+
+function toggleSelectAllMatched(checked) {
+    const checkboxes = document.querySelectorAll('#matchedRoutersList .form-check-input');
+    checkboxes.forEach(chk => { chk.checked = checked; });
+}
+
+function renderMatchedRouters(matched, unmatched) {
+    const container = document.getElementById('matchedRoutersList');
+    container.innerHTML = '';
+
+    if (!matched.length) {
+        container.innerHTML = '<p style="color:#adb5bd">No matching routers found.</p>';
+    } else {
+        matched.forEach((r, idx) => {
+            const div = document.createElement('div');
+            div.className = 'form-check mb-2';
+            div.innerHTML = `
+                <input class="form-check-input" type="checkbox" value="${idx}" id="chk_match_${idx}" checked>
+                <label class="form-check-label" for="chk_match_${idx}">
+                    <strong>${esc(r.router_name)}</strong> (<code>${esc(r.ip)}</code>) &mdash; ESN: <code>${esc(r.esn)}</code> &mdash; File: ${esc(r.license_file_path.split(/[\\\\/]/).pop())}
+                </label>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    document.getElementById('matchedRoutersHeader').textContent = `Matched Routers (${matched.length})`;
+    document.getElementById('matchedRoutersSection').style.display = 'block';
+
+    const unmatchedContainer = document.getElementById('unmatchedLicensesList');
+    unmatchedContainer.innerHTML = '';
+    if (unmatched && unmatched.length) {
+        unmatched.forEach(esn => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item bg-dark text-warning border-secondary';
+            li.textContent = `ESN not found: ${esn}`;
+            unmatchedContainer.appendChild(li);
+        });
+        document.getElementById('unmatchedLicensesSection').style.display = 'block';
+    } else {
+        document.getElementById('unmatchedLicensesSection').style.display = 'none';
+    }
+}
+
+async function startRenewal() {
+    if (!window.networkCreds) { showToast('Set network credentials in the header first'); return; }
+    const username = window.networkCreds.username;
+    const password = window.networkCreds.password;
+
+    const checkboxes = document.querySelectorAll('#matchedRoutersList .form-check-input:checked');
+    const selected = Array.from(checkboxes).map(chk => matchedRoutersData[parseInt(chk.value)]);
+
+    if (!selected.length) { showToast('Select at least one router for renewal'); return; }
+
+    const btn = document.getElementById('startRenewalBtn');
+    const spinner = document.getElementById('renewalSpinner');
+    btn.disabled = true;
+    spinner.style.display = 'inline-block';
+
+    document.getElementById('logBox').innerHTML = '';
+    document.getElementById('logSection').style.display = 'block';
+
+    try {
+        const resp = await fetch('/start-renewal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ selected_routers: selected, username, password })
+        });
+        const data = await resp.json();
+        if (data.error) { showToast(data.error); resetRenewalButtons(); return; }
+
+        connectRenewalSSE(data.session_id);
+    } catch (e) {
+        showToast('Error starting renewal: ' + e.message);
+        resetRenewalButtons();
+    }
+}
+
+function resetRenewalButtons() {
+    document.getElementById('startRenewalBtn').disabled = false;
+    document.getElementById('renewalSpinner').style.display = 'none';
+}
+
+function connectRenewalSSE(sid) {
+    const evtSource = new EventSource('/stream-lic-renewal/' + sid);
+    evtSource.onmessage = function(e) {
+        try { const entry = JSON.parse(e.data); appendLog(entry); }
+        catch(_) {}
+    };
+    evtSource.addEventListener('done', function() {
+        evtSource.close();
+        resetRenewalButtons();
+    });
+    evtSource.onerror = function() {
+        evtSource.close();
+        resetRenewalButtons();
+    };
+}
+
+async function runLicenseCheck() {
+if (!window.networkCreds) { showToast('Set network credentials in the header first'); return; }
+const username = window.networkCreds.username;
+const password = window.networkCreds.password;
+let routers = licParsedRouters;
+if (!routers || !routers.length) { showToast('Upload a CSV file with router entries first'); return; }
+document.getElementById('logBox').innerHTML = '';
+document.getElementById('licenseResultFooter').style.display = 'none';
+document.getElementById('analyticsSection').style.display = 'none';
+document.getElementById('resultFooter').style.display = 'none';
+document.getElementById('reportResultFooter').style.display = 'none';
+document.getElementById('logSection').style.display = 'block';
+document.getElementById('licRunBtn').disabled = true;
+document.getElementById('licSpinner').style.display = 'inline-block';
+document.getElementById('licStopBtn').style.display = 'inline-block';
+try {
+const resp = await fetch('/run-license-check', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ routers, username, password }),
+});
+const data = await resp.json();
+if (data.error) { showToast(data.error); resetLicButtons(); return; }
+licSessionId = data.session_id;
+document.getElementById('logProgress').textContent = `0 / ${data.router_count}`;
+connectLicenseSSE(data.session_id);
+} catch (e) {
+showToast('Failed to start: ' + e.message);
+resetLicButtons();
+}
+}
+function connectLicenseSSE(sid) {
+const evtSource = new EventSource('/stream-license/' + sid);
+let reconnectAttempts = 0;
+evtSource.onmessage = function(e) {
+try { const entry = JSON.parse(e.data); appendLog(entry); }
+catch(_) { /* keepalive frames */ }
+};
+evtSource.addEventListener('done', function(e) {
+evtSource.close();
+const data = JSON.parse(e.data);
+onLicenseDone(sid, data);
+});
+evtSource.onerror = function() {
+if (reconnectAttempts++ > 3) { evtSource.close(); resetLicButtons(); }
+};
+}
+async function onLicenseDone(sid, data) {
+resetLicButtons();
+try {
+const repResp = await fetch('/license-report/' + sid);
+let total = 0, failed = 0, warnings = 0;
+if (repResp.ok) {
+const rep = await repResp.json();
+total = rep.summary.total_routers || 0;
+failed = rep.summary.total_failed || 0;
+warnings = rep.summary.total_item_warnings || 0;
+}
+document.getElementById('licenseSummaryStats').innerHTML =
+`<span class="badge" style="background:#2c3034;color:#adb5bd;padding:6px 14px;font-size:0.84rem">Routers: <strong style="color:#fff">${total}</strong></span>` +
+`<span class="badge" style="background:#2c3034;color:#adb5bd;padding:6px 14px;font-size:0.84rem">Failed: <strong style="color:${failed>0?'#dc3545':'#198754'}">${failed}</strong></span>` +
+`<span class="badge" style="background:#2c3034;color:#adb5bd;padding:6px 14px;font-size:0.84rem">Warnings: <strong style="color:${warnings>0?'#d29922':'#198754'}">${warnings}</strong></span>` +
+`<span class="badge" style="background:#2c3034;color:#adb5bd;padding:6px 14px;font-size:0.84rem">Status: <strong style="color:#198754">${(data.status||'done').toUpperCase()}</strong></span>`;
+if (total > 0) {
+document.getElementById('licenseResultFooter').style.display = 'block';
+await renderLicenseResults(sid);
+}
+} catch(_) {}
+}
+/* ------------------------------------------------------------------
+License Report UI (comprehensive dashboard)
+------------------------------------------------------------------ */
+async function renderLicenseResults(sid) {
+const container = document.getElementById('licenseResultsContainer');
+container.innerHTML = '<div style="text-align:center;color:#adb5bd;padding:3rem">Loading report...</div>';
+try {
+const resp = await fetch('/license-report/' + sid);
+if (!resp.ok) { container.innerHTML = '<p style="color:#f85149">Report not available.</p>'; return; }
+const report = await resp.json();
+const s = report.summary;
+const routers = report.routers || [];
+const dist = s.status_distribution || {};
+container.innerHTML = '';
+// ── Dashboard Stats Cards ──
+const statusCards = [
+{ label: 'Total Routers', value: s.total_routers, color: '#79c0ff' },
+{ label: 'Failed', value: dist.Failed || 0, color: '#f85149' },
+{ label: 'Active', value: dist.Active || 0, color: '#3fb950' },
+{ label: 'Grace', value: dist.Grace || 0, color: '#58a6ff' },
+{ label: 'Warning', value: dist.Warning || 0, color: '#d29922' },
+{ label: 'Expired', value: dist.Expired || 0, color: '#f85149' },
+{ label: 'Permanent', value: dist.Permanent || 0, color: '#8b949e' },
+];
+let cardsHtml = '<div class="row g-2 mb-3" style="display:flex;flex-wrap:wrap;gap:8px">';
+statusCards.forEach(c => {
+cardsHtml += `
+<div style="flex:1 0 110px;min-width:100px;background:#2c3034;border-radius:8px;padding:12px 14px;text-align:center;border-left:3px solid ${c.color}">
+<div style="font-size:1.6rem;font-weight:700;color:#fff">${c.value}</div>
+<div style="font-size:0.75rem;color:#adb5bd;margin-top:2px">${c.label}</div>
+</div>
+`;
+});
+cardsHtml += '</div>';
+container.insertAdjacentHTML('beforeend', cardsHtml);
+if (routers.length === 0) {
+container.insertAdjacentHTML('beforeend', '<div style="color:#adb5bd;padding:1rem">No router data available.</div>');
+return;
+}
+// ── Status Distribution Bar ──
+const totalWithStatus = (dist.Active||0) + (dist.Grace||0) + (dist.Warning||0) + (dist.Expired||0) + (dist.Permanent||0) + (dist.Failed||0);
+if (totalWithStatus > 0) {
+const barSegments = [
+{ key: 'Active', color: '#3fb950' },
+{ key: 'Grace', color: '#58a6ff' },
+{ key: 'Warning', color: '#d29922' },
+{ key: 'Expired', color: '#f85149' },
+{ key: 'Permanent', color: '#8b949e' },
+{ key: 'Failed', color: '#f85149' },
+];
+let barHtml = '<div style="margin-bottom:16px">';
+barHtml += '<div style="display:flex;height:20px;border-radius:10px;overflow:hidden">';
+barSegments.forEach(seg => {
+const count = dist[seg.key] || 0;
+const pct = totalWithStatus > 0 ? (count / totalWithStatus * 100) : 0;
+if (pct > 0) {
+barHtml += `<div style="flex:${pct};background:${seg.color};display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:600;color:#fff;min-width:${pct < 8 ? '0' : '30'}px">${pct >= 8 ? seg.key : ''}</div>`;
+}
+});
+barHtml += '</div>';
+barHtml += '<div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap;font-size:0.78rem;color:#adb5bd">';
+barSegments.forEach(seg => {
+const count = dist[seg.key] || 0;
+if (count > 0) {
+barHtml += `<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${seg.color};vertical-align:middle;margin-right:4px"></span>${seg.key}: ${count}</span>`;
+}
+});
+barHtml += '</div></div>';
+container.insertAdjacentHTML('beforeend', barHtml);
+}
+// ── Search / Filter / Sort ──
+container.insertAdjacentHTML('beforeend', `
+<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+<input type="text" id="licFilterInput" placeholder="Filter by router name or IP..." style="flex:1 1 200px;padding:8px 12px;border:1px solid #495057;border-radius:6px;background:#2c3034;color:#fff;font-size:0.84rem" oninput="applyLicenseFilters()">
+<select id="licStatusFilter" style="padding:8px 12px;border:1px solid #495057;border-radius:6px;background:#2c3034;color:#fff;font-size:0.84rem" onchange="applyLicenseFilters()">
+<option value="">All Statuses</option>
+<option value="Active">Active</option>
+<option value="Grace">Grace</option>
+<option value="Warning">Warning</option>
+<option value="Expired">Expired</option>
+<option value="Permanent">Permanent</option>
+<option value="Failed">Failed</option>
+</select>
+<select id="licSortSelect" style="padding:8px 12px;border:1px solid #495057;border-radius:6px;background:#2c3034;color:#fff;font-size:0.84rem" onchange="applyLicenseFilters()">
+<option value="index">Sort: Default</option>
+<option value="name">Sort: Router Name</option>
+<option value="ip">Sort: IP</option>
+<option value="status">Sort: Grace Status</option>
+<option value="expiry">Sort: Expiry</option>
+<option value="days">Sort: Days Remaining</option>
+<option value="warnings">Sort: Warnings</option>
+</select>
+<label style="color:#d29922;font-size:0.82rem;display:flex;align-items:center;gap:4px;cursor:pointer;padding:6px 10px;border:1px solid #495057;border-radius:6px;background:#2c3034">
+<input type="checkbox" id="licWarnOnly" onchange="applyLicenseFilters()" style="accent-color:#d29922">
+Item Warnings
+</label>
+<span style="color:#8b949e;font-size:0.82rem" id="licFilterCount"></span>
+<span id="licSortIndicator" style="font-size:0.82rem;color:#6c757d;cursor:pointer" onclick="toggleSortDir()">&#9650;</span>
+</div>
+`);
+// ── Per-Router Report ──
+window.licReportRouters = routers;
+window.licSortField = 'index';
+window.licSortDir = 'asc';
+window.licExpanded = new Set();
+const reportHtml = '<div id="licRouterCards"></div>';
+container.insertAdjacentHTML('beforeend', reportHtml);
+applyLicenseFilters();
+} catch (e) {
+container.innerHTML = `<div style="color:#f85149">Error: ${esc(e.message)}</div>`;
+}
+}
+function routerStatusBadge(status, days) {
+const map = {
+'Active': ['#0d2818', '#3fb950', 'Active'],
+'Grace': ['#0d2818', '#58a6ff', 'Grace'],
+'Warning': ['#332b00', '#d29922', 'Warning'],
+'Expired': ['#2d0a0a', '#f85149', 'Expired'],
+'Permanent': ['#1c1c1c', '#8b949e', 'Permanent'],
+'Failed': ['#2d0a0a', '#f85149', 'Failed'],
+'Unknown': ['#1c1c1c', '#8b949e', 'Unknown'],
+};
+const m = map[status] || map['Unknown'];
+let label = m[2];
+if (status === 'Warning' && days !== '' && days !== '0') label = `${days}d Warning`;
+else if (status === 'Grace' && days !== '') label = `${days}d Grace`;
+else if (status === 'Active' && days !== '') label = `${days}d Active`;
+else if (status === 'Expired') label = 'Expired';
+return `<span style="display:inline-block;background:${m[0]};color:${m[1]};padding:2px 10px;border-radius:12px;font-size:0.78rem;font-weight:600;border:1px solid ${m[1]}">${label}</span>`;
+}
+function renderRouterCards(routers) {
+const wrapper = document.getElementById('licRouterCards');
+wrapper.innerHTML = '';
+routers.forEach((r, idx) => {
+const nameKey = (r.name || '').toLowerCase();
+const wasExpanded = window.licExpanded && window.licExpanded.has(nameKey);
+const autoExpand = r.warning_items > 0;
+const isExpanded = wasExpanded || autoExpand;
+const card = document.createElement('div');
+card.className = 'lic-router-card';
+card.dataset.name = nameKey;
+card.dataset.ip = (r.ip || '').toLowerCase();
+card.dataset.status = r.overall_grace_status;
+card.innerHTML = `
+<div class="lic-router-header" onclick="toggleLicRouter(this)" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid #2c3034;transition:background .15s">
+<span style="color:#8b949e;font-size:0.78rem;min-width:24px">#${idx+1}</span>
+<div style="flex:1;min-width:0">
+<div style="font-weight:600;color:#fff;font-size:0.9rem">${esc(r.name)}</div>
+<div style="font-size:0.78rem;color:#8b949e">${esc(r.ip)}${r.product_name ? ' &middot; ' + esc(r.product_name) : ''}</div>
+</div>
+<div style="text-align:right;font-size:0.78rem;color:#8b949e;min-width:80px">
+<div>${r.overall_expiry || '—'}</div>
+<div style="font-size:0.72rem">${r.warning_items > 0 ? r.warning_items + ' warning(s)' : 'OK'}</div>
+</div>
+${routerStatusBadge(r.overall_grace_status, r.overall_days_remaining)}
+<span style="color:#8b949e;font-size:0.78rem;margin-left:4px">${isExpanded ? '&#9660;' : '&#9654;'}</span>
+</div>
+<div class="lic-router-body" style="display:${isExpanded ? 'block' : 'none'};padding:0">
+<div style="overflow-x:auto">
+<table class="analytics-table" style="white-space:nowrap;margin:0">
+<thead><tr>
+<th>Item</th><th>Type</th><th>Control</th><th>Used</th><th>State</th>
+<th>Expiry</th><th>Grace End</th><th>Days Left</th><th>Status</th><th>Description</th>
+</tr></thead>
+<tbody id="licItemsBody_${idx}"></tbody>
+</table>
+</div>
+</div>
+`;
+wrapper.appendChild(card);
+const tbody = document.getElementById('licItemsBody_' + idx);
+const items = r.items || [];
+if (items.length === 0) {
+const tr = document.createElement('tr');
+tr.innerHTML = '<td colspan="10" style="color:#8b949e;text-align:center;padding:12px">No items data</td>';
+tbody.appendChild(tr);
+} else {
+items.forEach(item => {
+const tr = document.createElement('tr');
+const status = item.grace_status || 'Unknown';
+let sc, sl;
+if (status === 'Warning') { sc = '#d29922'; sl = 'Warning'; }
+else if (status === 'Expired') { sc = '#f85149'; sl = 'Expired'; }
+else if (status === 'Grace') { sc = '#58a6ff'; sl = 'Grace'; }
+else if (status === 'Active') { sc = '#3fb950'; sl = 'Active'; }
+else { sc = '#8b949e'; sl = status; }
+tr.innerHTML = `
+<td><code>${esc(item.item_name || item.sale_name || '—')}</code></td>
+<td>${esc(item.item_type || '—')}</td>
+<td>${esc(item.control_value || '—')}</td>
+<td>${esc(item.used_value || '—')}</td>
+<td>${esc(item.item_state || '—')}</td>
+<td>${esc(item.expiry || '—')}</td>
+<td>${esc(item.grace_end || '—')}</td>
+<td><strong>${esc(item.days_remaining || '—')}</strong></td>
+<td style="color:${sc};font-weight:600">${sl}</td>
+<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#8b949e;font-size:0.8rem">${esc(item.description || '')}</td>
+`;
+tbody.appendChild(tr);
+});
+}
+});
+}
+function toggleLicRouter(header) {
+const card = header.closest('.lic-router-card');
+const body = card.querySelector('.lic-router-body');
+const arrow = header.querySelector('span:last-child');
+const name = card.dataset.name || '';
+const isOpen = body.style.display === 'block';
+body.style.display = isOpen ? 'none' : 'block';
+if (arrow) arrow.innerHTML = isOpen ? '&#9654;' : '&#9660;';
+if (isOpen) window.licExpanded.delete(name);
+else window.licExpanded.add(name);
+}
+function toggleSortDir() {
+window.licSortDir = window.licSortDir === 'asc' ? 'desc' : 'asc';
+const el = document.getElementById('licSortIndicator');
+if (el) el.innerHTML = window.licSortDir === 'asc' ? '&#9650;' : '&#9660;';
+applyLicenseFilters();
+}
+function applyLicenseFilters() {
+const query = (document.getElementById('licFilterInput').value || '').toLowerCase();
+const statusFilter = document.getElementById('licStatusFilter').value;
+const warnOnly = document.getElementById('licWarnOnly').checked;
+const sortField = document.getElementById('licSortSelect').value || 'index';
+const sortDir = window.licSortDir || 'asc';
+const routers = window.licReportRouters || [];
+let filtered = routers.filter(r => {
+const nameMatch = !query || (r.name || '').toLowerCase().includes(query);
+const ipMatch = !query || (r.ip || '').toLowerCase().includes(query);
+const statusMatch = !statusFilter || (r.overall_grace_status || '') === statusFilter;
+const warnMatch = !warnOnly || (r.warning_items || 0) > 0;
+return (nameMatch || ipMatch) && statusMatch && warnMatch;
+});
+const sortOrder = sortDir === 'asc' ? 1 : -1;
+filtered.sort((a, b) => {
+let va, vb;
+switch (sortField) {
+case 'name':
+va = (a.name || '').toLowerCase();
+vb = (b.name || '').toLowerCase();
+return va < vb ? -sortOrder : va > vb ? sortOrder : 0;
+case 'ip':
+va = (a.ip || '').toLowerCase();
+vb = (b.ip || '').toLowerCase();
+return va < vb ? -sortOrder : va > vb ? sortOrder : 0;
+case 'status': {
+const order = { 'Expired': 0, 'Warning': 1, 'Grace': 2, 'Active': 3, 'Permanent': 4, 'Unknown': 5, 'Failed': 5 };
+va = order[a.overall_grace_status] ?? 5;
+vb = order[b.overall_grace_status] ?? 5;
+return (va - vb) * sortOrder;
+}
+case 'expiry': {
+va = a.overall_expiry || '';
+vb = b.overall_expiry || '';
+if (va === 'Permanent') return sortOrder;
+if (vb === 'Permanent') return -sortOrder;
+return va < vb ? -sortOrder : va > vb ? sortOrder : 0;
+}
+case 'days':
+va = parseInt(a.overall_days_remaining) || 0;
+vb = parseInt(b.overall_days_remaining) || 0;
+return (va - vb) * sortOrder;
+case 'warnings':
+va = a.warning_items || 0;
+vb = b.warning_items || 0;
+return (va - vb) * sortOrder;
+default:
+return 0;
+}
+});
+renderRouterCards(filtered);
+updateFilterCount(routers, filtered.length);
+}
+function updateFilterCount(routers, visible) {
+const el = document.getElementById('licFilterCount');
+if (!el) return;
+const total = routers ? routers.length : 0;
+const vis = visible !== undefined ? visible : total;
+el.textContent = vis < total ? `${vis} / ${total} routers shown` : `${total} router(s)`;
+}
+function downloadLicenseSummary() {
+if (licSessionId) window.location = '/download-license-summary/' + licSessionId;
+}
+function downloadLicenseItems() {
+if (licSessionId) window.location = '/download-license-items/' + licSessionId;
+}
+async function stopLicenseCheck() {
+if (!licSessionId) return;
+document.getElementById('licStopBtn').disabled = true;
+document.getElementById('licStopBtn').textContent = 'Stopping...';
+try {
+await fetch('/cancel-license-session/' + licSessionId, { method: 'POST' });
+} catch(_) {}
+}
+function resetLicButtons() {
+document.getElementById('licRunBtn').disabled = false;
+document.getElementById('licSpinner').style.display = 'none';
+document.getElementById('licStopBtn').style.display = 'none';
+document.getElementById('licStopBtn').disabled = false;
+document.getElementById('licStopBtn').textContent = 'Stop';
+}
+/* ------------------------------------------------------------------
+Zabbix Interface Search
+------------------------------------------------------------------ */
+async function refreshZabbixDb(rebuildAll = false) {
+let groupNames;
+if (rebuildAll) {
+groupNames = Array.from(document.getElementById('zabbixGroupSelect').options).map(o => o.value);
+} else {
+const selectedOptions = Array.from(document.getElementById('zabbixGroupSelect').selectedOptions);
+groupNames = selectedOptions.map(option => option.value);
+}
+if (groupNames.length === 0) {
+showToast('Please select at least one Zabbix group.');
+return;
+}
+document.getElementById('zabbixRefreshBtn').disabled = true;
+document.getElementById('zabbixSpinner').style.display = 'inline-block';
+document.getElementById('zabbixDbInfo').innerHTML = 'Starting refresh...';
+document.getElementById('zabbixError').style.display = 'none';
+try {
+const resp = await fetch('/admin/refresh-zabbix-db', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ groups: groupNames, replace: rebuildAll }),
+});
+const data = await resp.json();
+if (data.error) {
+document.getElementById('zabbixError').textContent = data.error;
+document.getElementById('zabbixError').style.display = 'block';
+showToast(data.error);
+document.getElementById('zabbixRefreshBtn').disabled = false;
+document.getElementById('zabbixSpinner').style.display = 'none';
+return;
+}
+showToast('Zabbix DB refresh started');
+const poll = setInterval(async () => {
+try {
+const r = await fetch('/refresh-zabbix-progress');
+const d = await r.json();
+if (d.running && d.progress) {
+document.getElementById('zabbixDbInfo').innerHTML =
+`Processing ${d.progress.processed}/${d.progress.total} routers (${d.progress.percent}%)`;
+} else if (!d.running) {
+clearInterval(poll);
+document.getElementById('zabbixSpinner').style.display = 'none';
+document.getElementById('zabbixRefreshBtn').disabled = false;
+if (d.exists && d.summary) {
+const s = d.summary;
+document.getElementById('zabbixDbInfo').innerHTML =
+`<span style="color:#198754">&#10003;</span> Last Refresh: ${new Date(d.refreshed_at_iso).toLocaleString()}<br>` +
+`${s.total_routers} routers, ${s.total_logical_interfaces} interfaces, ${s.total_items} items`;
+} else {
+document.getElementById('zabbixError').textContent = 'Refresh failed — no database file found';
+document.getElementById('zabbixError').style.display = 'block';
+}
+}
+} catch (e) {
+clearInterval(poll);
+document.getElementById('zabbixError').textContent = 'Error polling: ' + e.message;
+document.getElementById('zabbixError').style.display = 'block';
+document.getElementById('zabbixRefreshBtn').disabled = false;
+document.getElementById('zabbixSpinner').style.display = 'none';
+}
+}, 2000);
+} catch (e) {
+document.getElementById('zabbixError').textContent = 'Connection error: ' + e.message;
+document.getElementById('zabbixError').style.display = 'block';
+showToast('Connection error: ' + e.message);
+document.getElementById('zabbixRefreshBtn').disabled = false;
+document.getElementById('zabbixSpinner').style.display = 'none';
+}
+}
+async function deleteZabbixDb() {
+if (!confirm('Delete the Zabbix router database? This cannot be undone.')) return;
+try {
+const resp = await fetch('/admin/delete-zabbix-db', { method: 'POST' });
+const data = await resp.json();
+if (data.error) { showToast(data.error); return; }
+document.getElementById('zabbixDbInfo').innerHTML = 'Database deleted.';
+document.getElementById('zabbixError').style.display = 'none';
+showToast('Zabbix DB deleted');
+} catch (e) {
+showToast('Error: ' + e.message);
+}
+}
+async function searchZabbix() {
+const keyword = document.getElementById('zabbixKeyword').value.trim();
+if (!keyword) { showToast('Enter a keyword to search'); return; }
+document.getElementById('zabbixSearchBtn').disabled = true;
+document.getElementById('zabbixSearchSpinner').style.display = 'inline-block';
+document.getElementById('zabbixSearchError').style.display = 'none';
+document.getElementById('zabbixResults').style.display = 'none';
+try {
+const resp = await fetch('/search-zabbix-interfaces', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ keyword }),
+});
+const data = await resp.json();
+if (data.error) {
+document.getElementById('zabbixSearchError').textContent = data.error;
+document.getElementById('zabbixSearchError').style.display = 'block';
+document.getElementById('zabbixSearchBtn').disabled = false;
+document.getElementById('zabbixSearchSpinner').style.display = 'none';
+return;
+}
+if (data.db_missing) {
+document.getElementById('zabbixSearchError').textContent = data.message + ' An admin can refresh it in the Admin tab.';
+document.getElementById('zabbixSearchError').style.display = 'block';
+document.getElementById('zabbixSearchBtn').disabled = false;
+document.getElementById('zabbixSearchSpinner').style.display = 'none';
+return;
+}
+const results = data.results || [];
+document.getElementById('zabbixSummary').innerHTML =
+`<strong>${data.count}</strong> router(s) match keyword <code>${esc(data.keyword)}</code>`;
+const tbody = document.getElementById('zabbixResultsBody');
+tbody.innerHTML = '';
+results.forEach((r, i) => {
+const ifaces = (r.matched_interfaces || []);
+const ifaceList = ifaces.map(iface =>
+iface.description
+? `<span title="${esc(iface.description)}"><strong>${esc(iface.interface_name)}</strong> (${esc(iface.description)})</span>`
+: `<strong>${esc(iface.interface_name)}</strong>`
+).join('<br>');
+const statusLabels = { '0': 'Enabled', '1': 'Disabled' };
+const tr = document.createElement('tr');
+tr.innerHTML = `
+<td>${i+1}</td>
+<td><strong>${esc(r.host)}</strong></td>
+<td>${esc(r.name)}</td>
+<td>${statusLabels[r.status] || 'Unknown'}</td>
+<td style="font-size:0.84rem;color:#79c0ff">${ifaceList || '-'}</td>
+<td>${r.item_count || 0}</td>
+`;
+tbody.appendChild(tr);
+});
+document.getElementById('zabbixResults').style.display = 'block';
+} catch (e) {
+document.getElementById('zabbixSearchError').textContent = 'Connection error: ' + e.message;
+document.getElementById('zabbixSearchError').style.display = 'block';
+}
+document.getElementById('zabbixSearchBtn').disabled = false;
+document.getElementById('zabbixSearchSpinner').style.display = 'none';
+}
+
+/* ------------------------------------------------------------------
+Zabbix Interface Search 2 (with External Link)
+------------------------------------------------------------------ */
+async function searchZabbix2() {
+  const keyword = document.getElementById('zabbixKeyword2').value.trim();
+  if (!keyword) { showToast('Enter a keyword to search'); return; }
+  
+  document.getElementById('zabbixSearchBtn2').disabled = true;
+  document.getElementById('zabbixSearchSpinner2').style.display = 'inline-block';
+  document.getElementById('zabbixSearchError2').style.display = 'none';
+  document.getElementById('zabbixResults2').style.display = 'none';
+
+  try {
+    const resp = await fetch('/search-zabbix-interfaces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword }),
+    });
+    const data = await resp.json();
+    
+    if (data.error) {
+      document.getElementById('zabbixSearchError2').textContent = data.error;
+      document.getElementById('zabbixSearchError2').style.display = 'block';
+      return;
+    }
+    if (data.db_missing) {
+      document.getElementById('zabbixSearchError2').textContent = data.message + ' An admin can refresh it in the Admin tab.';
+      document.getElementById('zabbixSearchError2').style.display = 'block';
+      return;
+    }
+
+    const results = data.results || [];
+    document.getElementById('zabbixSummary2').innerHTML =
+      `<strong>${data.count}</strong> router(s) match keyword <code>${esc(data.keyword)}</code>`;
+      
+    const tbody = document.getElementById('zabbixResultsBody2');
+    tbody.innerHTML = '';
+    results.forEach((r, i) => {
+      const ifaces = (r.matched_interfaces || []);
+      const ifaceList = ifaces.map(iface =>
+        iface.description
+          ? `<span title="${esc(iface.description)}"><strong>${esc(iface.interface_name)}</strong> (${esc(iface.description)})</span>`
+          : `<strong>${esc(iface.interface_name)}</strong>`
+      ).join('<br>');
+      const statusLabels = { '0': 'Enabled', '1': 'Disabled' };
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td><strong>${esc(r.host)}</strong></td>
+        <td>${esc(r.name)}</td>
+        <td>${statusLabels[r.status] || 'Unknown'}</td>
+        <td style="font-size:0.84rem;color:#79c0ff">${ifaceList || '-'}</td>
+        <td>${r.item_count || 0}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('zabbixResults2').style.display = 'block';
+  } catch (e) {
+    document.getElementById('zabbixSearchError2').textContent = 'Connection error: ' + e.message;
+    document.getElementById('zabbixSearchError2').style.display = 'block';
+  }
+  
+  document.getElementById('zabbixSearchBtn2').disabled = false;
+  document.getElementById('zabbixSearchSpinner2').style.display = 'none';
+}
+
+function openExternalZabbixLink() {
+  const input = document.getElementById('zabbixKeyword2');
+  const value = input.value.trim();
+  if (!value) {
+    showToast('Please enter a keyword first');
+    return;
+  }
+  if (!validateKeyword2()) {
+    return;
+  }
+  const keyword = value.toUpperCase();
+  const targetUrl = `https://10.15.90.172:3130/d/OPCOoKnI/nop-sites-status-and-traffic?var-Location=${encodeURIComponent(keyword)}`;
+  window.open(targetUrl, '_blank');
+}
+
+function validateKeyword2() {
+  const input = document.getElementById('zabbixKeyword2');
+  const info = document.getElementById('zabbixSearchInfo2');
+  const value = input.value.trim();
+  if (!value) {
+    info.textContent = 'Please enter a keyword';
+    info.style.color = '#f85149';
+    info.style.display = 'block';
+    return false;
+  }
+  const regex = /^[A-Za-z]{2}\d{4}$/;
+  if (regex.test(value)) {
+    info.textContent = 'Valid format: two letters followed by four digits';
+    info.style.color = '#198754';
+    info.style.display = 'block';
+    return true;
+  } else {
+    info.textContent = 'Invalid format: must be two letters followed by four digits';
+    info.style.color = '#f85149';
+    info.style.display = 'block';
+    return false;
+  }
+}
+
+/* ------------------------------------------------------------------
+Utilities
+------------------------------------------------------------------ */
+(async function() {
+  try {
+    const resp = await fetch('/vrf-router-info');
+    const info = await resp.json();
+    if (info.name) document.getElementById('vrfRouterLabel').textContent = info.name + ' (' + info.ip + ')';
+  } catch(_) {}
+})();
+function esc(s) {
+if (!s) return '';
+return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function showToast(msg) {
+const t = document.getElementById('toast');
+t.textContent = msg;
+t.classList.add('show');
+setTimeout(() => t.classList.remove('show'), 4000);
+}
+/* ------------------------------------------------------------------
+Authentication
+------------------------------------------------------------------ */
+let currentUser = null;
+let currentFeatures = {};
+
+function hasPerm(feature) {
+  if (!currentUser) return false;
+  if (currentUser.role === 'god') return true;
+  if (currentUser.role === 'admin') {
+    return !['user_management', 'permission_management'].includes(feature);
+  }
+  if (currentFeatures && currentFeatures[feature] && currentFeatures[feature].granted) {
+    return true;
+  }
+  if (currentUser && currentUser.permissions && currentUser.permissions[feature] === true) {
+    return true;
+  }
+  return false;
+}
+
+async function checkAuth() {
+try {
+const resp = await fetch('/me');
+const data = await resp.json();
+if (data.authenticated) {
+currentUser = data;
+currentFeatures = data.features || {};
+hideLoading();
+showApp();
+} else {
+hideLoading();
+showLogin();
+}
+} catch(e) {
+hideLoading();
+showLogin();
+}
+}
+function hideLoading() {
+document.getElementById('loadingScreen').style.display = 'none';
+}
+function showLogin() {
+document.getElementById('loginForm').reset();
+document.getElementById('authScreen').style.display = 'flex';
+document.getElementById('mainContent').classList.remove('authenticated');
+}
+async function showApp() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('mainContent').classList.add('authenticated');
+  document.getElementById('userDisplayName').textContent = currentUser.display_name || currentUser.username;
+  document.getElementById('userRoleTag').textContent = currentUser.role;
+  await applyFeatureVisibility();
+
+  if (hasPerm('user_management')) {
+    loadUsers();
+  }
+  if (hasPerm('permission_management')) {
+    loadPermissions();
+  }
+  if (hasPerm('zabbix_db_refresh')) {
+    // load initial db status
+    try {
+      const r = await fetch('/refresh-zabbix-progress');
+      const d = await r.json();
+      if (d.exists && d.summary) {
+        document.getElementById('zabbixDbInfo').innerHTML =
+          `<span style="color:#198754">&#10003;</span> Last Refresh: ${new Date(d.refreshed_at_iso).toLocaleString()}<br>` +
+          `${d.summary.total_routers} routers, ${d.summary.total_logical_interfaces} interfaces, ${d.summary.total_items} items`;
+      } else {
+        document.getElementById('zabbixDbInfo').innerHTML = 'Never refreshed. Select groups and click Refresh.';
+      }
+    } catch(_) {
+      document.getElementById('zabbixDbInfo').innerHTML = 'Could not load status.';
+    }
+  }
+}
+async function applyFeatureVisibility() {
+    const hasManual = hasPerm('alarm_clear_manual');
+    const hasBulk = hasPerm('alarm_clear_bulk');
+
+    const manualCard = document.getElementById('manualClearCard');
+    const bulkCard = document.getElementById('bulkClearCard');
+    if (manualCard) manualCard.style.display = hasManual ? '' : 'none';
+    if (bulkCard) bulkCard.style.display = hasBulk ? '' : 'none';
+
+    const alarmClearTab = document.getElementById('alarm-clear-tab');
+    if (alarmClearTab) {
+        const navItem = alarmClearTab.closest('.nav-item');
+        if (navItem) navItem.style.display = (hasManual || hasBulk) ? '' : 'none';
+    }
+
+    const hasZabbixSearch = hasPerm('zabbix_search');
+    const hasCodeSiteSearch = hasPerm('code_site_search');
+
+    const zabbixSearchCard = document.getElementById('zabbixSearchCard');
+    const codeSearchCardWrapper = document.getElementById('codeSearchCardWrapper');
+    if (zabbixSearchCard) zabbixSearchCard.style.display = hasZabbixSearch ? '' : 'none';
+    if (codeSearchCardWrapper) codeSearchCardWrapper.style.display = hasCodeSiteSearch ? '' : 'none';
+
+    const zabbixTab = document.getElementById('zabbix-tab');
+    if (zabbixTab) {
+        const navItem = zabbixTab.closest('.nav-item');
+        if (navItem) navItem.style.display = (hasZabbixSearch || hasCodeSiteSearch) ? '' : 'none';
+    }
+
+    const hasReporting = hasPerm('reporting');
+    const reportingCard = document.getElementById('reportingCard');
+    if (reportingCard) reportingCard.style.display = hasReporting ? '' : 'none';
+
+    const hasVrfRouting = hasPerm('vrf_routing');
+    const vrfRoutingCard = document.getElementById('vrfRoutingCard');
+    const bgpRouteCheckCard = document.getElementById('bgpRouteCheckCard');
+    if (vrfRoutingCard) vrfRoutingCard.style.display = hasVrfRouting ? '' : 'none';
+    if (bgpRouteCheckCard) bgpRouteCheckCard.style.display = hasVrfRouting ? '' : 'none';
+
+    const hasLicense = hasPerm('license_check');
+    const licenseCheckCard = document.getElementById('licenseCheckCard');
+    if (licenseCheckCard) licenseCheckCard.style.display = hasLicense ? '' : 'none';
+
+    const tabMap = {
+        'reporting': 'reporting-tab',
+        'vrf_routing': 'vrf-tab',
+        'license_check': 'license-tab',
+    };
+    for (const [feat, tabId] of Object.entries(tabMap)) {
+        const tabLink = document.getElementById(tabId);
+        const navItem = tabLink ? tabLink.closest('.nav-item') : null;
+        if (navItem) {
+            navItem.style.display = hasPerm(feat) ? '' : 'none';
+        }
+    }
+    // Admin nav
+    const adminNav = document.getElementById('nav-admin');
+    const hasUserMgmt = hasPerm('user_management');
+    const hasPermMgmt = hasPerm('permission_management');
+    const hasZabbixRefresh = hasPerm('zabbix_db_refresh');
+    if (adminNav) adminNav.style.display = (hasUserMgmt || hasPermMgmt || hasZabbixRefresh) ? '' : 'none';
+    
+    const navAdminUsers = document.getElementById('nav-admin-users');
+    const navAdminPerms = document.getElementById('nav-admin-perms');
+    const navAdminZabbix = document.getElementById('nav-admin-zabbix');
+    if (navAdminUsers) navAdminUsers.style.display = hasUserMgmt ? '' : 'none';
+    if (navAdminPerms) navAdminPerms.style.display = hasPermMgmt ? '' : 'none';
+    if (navAdminZabbix) navAdminZabbix.style.display = hasZabbixRefresh ? '' : 'none';
+// Set the admin sub-tab to active if any admin features are visible and it's the first one
+const adminTabsNav = document.getElementById('adminTabs');
+// Deactivate all sub-tabs first
+adminTabsNav.querySelectorAll('.nav-link').forEach(link => {
+link.classList.remove('active');
+const targetPane = document.querySelector(link.dataset.bsTarget);
+if (targetPane) targetPane.classList.remove('active');
+});
+// Find the first visible admin sub-tab and activate it
+const firstVisibleAdminTabItem = Array.from(adminTabsNav.children).find(item => item.style.display !== 'none');
+if (firstVisibleAdminTabItem) {
+const firstVisibleAdminTabLink = firstVisibleAdminTabItem.querySelector('.nav-link');
+if (firstVisibleAdminTabLink) {
+firstVisibleAdminTabLink.classList.add('active');
+const firstVisiblePane = document.querySelector(firstVisibleAdminTabLink.dataset.bsTarget);
+if (firstVisiblePane) firstVisiblePane.classList.add('active');
+}
+}
+// Call refresh-zabbix-progress if the Zabbix DB tab is visible and active
+if (hasZabbixRefresh && document.getElementById('tab-admin-zabbix').classList.contains('active')) {
+try {
+const r = await fetch('/refresh-zabbix-progress');
+const d = await r.json();
+if (d.exists && d.summary) {
+document.getElementById('zabbixDbInfo').innerHTML =
+`<span style="color:#198754">&#10003;</span> Last Refresh: ${new Date(d.refreshed_at_iso).toLocaleString()}<br>` +
+`${d.summary.total_routers} routers, ${d.summary.total_logical_interfaces} interfaces, ${d.summary.total_items} items`;
+} else {
+document.getElementById('zabbixDbInfo').innerHTML = 'Never refreshed. Select groups and click Refresh.';
+}
+} catch(_) {
+document.getElementById('zabbixDbInfo').innerHTML = 'Could not load status.';
+}
+}
+}
+async function doLogin(event) {
+event.preventDefault();
+const username = document.getElementById('loginUser').value.trim();
+const password = document.getElementById('loginPass').value;
+if (!username || !password) return;
+document.getElementById('loginBtn').disabled = true;
+document.getElementById('loginSpinner').style.display = 'inline-block';
+document.getElementById('loginError').style.display = 'none';
+try {
+const resp = await fetch('/login', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ username, password }),
+});
+const data = await resp.json();
+if (data.error) {
+document.getElementById('loginError').textContent = data.error;
+document.getElementById('loginError').style.display = 'block';
+document.getElementById('loginBtn').disabled = false;
+document.getElementById('loginSpinner').style.display = 'none';
+return;
+}
+currentUser = data;
+currentFeatures = data.features || {};
+showApp();
+} catch(e) {
+document.getElementById('loginError').textContent = 'Connection error';
+document.getElementById('loginError').style.display = 'block';
+}
+document.getElementById('loginBtn').disabled = false;
+document.getElementById('loginSpinner').style.display = 'none';
+}
+async function doLogout() {
+try {
+await fetch('/logout', { method: 'POST' });
+} catch(_) {}
+currentUser = null;
+currentFeatures = {};
+showLogin();
+}
+/* ------------------------------------------------------------------
+User Management (god only)
+------------------------------------------------------------------ */
+async function loadUsers() {
+try {
+const resp = await fetch('/admin/users');
+if (!resp.ok) return;
+const data = await resp.json();
+renderUsers(data.users || {});
+} catch(_) {}
+}
+function renderUsers(users) {
+const tbody = document.getElementById('userTableBody');
+tbody.innerHTML = '';
+const entries = Object.entries(users);
+if (!entries.length) {
+document.getElementById('noUsersMsg').style.display = 'block';
+return;
+}
+document.getElementById('noUsersMsg').style.display = 'none';
+entries.forEach(([username, info]) => {
+const tr = document.createElement('tr');
+const isSelf = currentUser && currentUser.username === username;
+tr.innerHTML = `
+<td><strong>${esc(username)}</strong>${isSelf ? ' <span style="color:#0d6efd;font-size:0.75rem">(you)</span>' : ''}</td>
+<td>${esc(info.display_name || username)}</td>
+<td><span style="color:${info.role==='god'?'#f85149':info.role==='admin'?'#0d6efd':'#adb5bd'}">${esc(info.role)}</span></td>
+<td>
+<button class="btn btn-outline-primary btn-sm" onclick="editUser('${esc(username)}')" style="padding:2px 8px;font-size:0.78rem">Edit</button>
+${info.role !== 'god' ? `<button class="btn btn-outline-danger btn-sm" onclick="deleteUser('${esc(username)}')" style="padding:2px 8px;font-size:0.78rem">Delete</button>` : ''}
+</td>
+`;
+tbody.appendChild(tr);
+});
+}
+function showAddUserModal() {
+document.getElementById('userModalTitle').textContent = 'Add User';
+document.getElementById('editUsername').value = '';
+document.getElementById('modalUsername').value = '';
+document.getElementById('modalUsername').disabled = false;
+document.getElementById('modalPassword').value = '';
+document.getElementById('modalPassword').required = true;
+document.getElementById('modalDisplayName').value = '';
+document.getElementById('modalRole').value = 'user';
+document.getElementById('userModalSaveBtn').textContent = 'Add User';
+document.getElementById('userModal').style.display = 'flex';
+}
+async function editUser(username) {
+try {
+const resp = await fetch('/admin/users');
+if (!resp.ok) return;
+const data = await resp.json();
+const info = (data.users || {})[username];
+if (!info) { showToast('User not found'); return; }
+document.getElementById('userModalTitle').textContent = `Edit User: ${username}`;
+document.getElementById('editUsername').value = username;
+document.getElementById('modalUsername').value = username;
+document.getElementById('modalUsername').disabled = true;
+document.getElementById('modalPassword').value = '';
+document.getElementById('modalPassword').required = false;
+document.getElementById('modalDisplayName').value = info.display_name || '';
+document.getElementById('modalRole').value = info.role || 'user';
+document.getElementById('userModalSaveBtn').textContent = 'Save Changes';
+document.getElementById('userModal').style.display = 'flex';
+} catch(_) {
+showToast('Failed to load user data');
+}
+}
+function hideUserModal() {
+document.getElementById('userModal').style.display = 'none';
+}
+async function saveUser(event) {
+event.preventDefault();
+const editUsername = document.getElementById('editUsername').value;
+const username = document.getElementById('modalUsername').value.trim();
+const password = document.getElementById('modalPassword').value;
+const displayName = document.getElementById('modalDisplayName').value.trim();
+const role = document.getElementById('modalRole').value;
+const isEdit = !!editUsername;
+try {
+let resp;
+if (isEdit) {
+resp = await fetch('/admin/users/' + encodeURIComponent(editUsername), {
+method: 'PUT',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ password: password || null, display_name: displayName || null, role }),
+});
+} else {
+resp = await fetch('/admin/users', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ username, password, display_name: displayName, role }),
+});
+}
+const data = await resp.json();
+if (data.error) { showToast(data.error); return; }
+hideUserModal();
+loadUsers();
+showToast(isEdit ? 'User updated' : 'User created');
+} catch(e) {
+showToast('Error: ' + e.message);
+}
+}
+async function deleteUser(username) {
+if (!confirm(`Delete user "${username}"?`)) return;
+try {
+const resp = await fetch('/admin/users/' + encodeURIComponent(username), { method: 'DELETE' });
+const data = await resp.json();
+if (data.error) { showToast(data.error); return; }
+loadUsers();
+showToast('User deleted');
+} catch(e) {
+showToast('Error: ' + e.message);
+}
+}
+/* ------------------------------------------------------------------
+Permission Management (god only)
+------------------------------------------------------------------ */
+const FEATURE_LIST = [
+  'alarm_clear_manual',
+  'alarm_clear_bulk',
+  'reporting',
+  'vrf_routing',
+  'license_check',
+  'zabbix_search',
+  'code_site_search',
+  'user_management',
+  'permission_management',
+  'zabbix_db_refresh',
+];
+const FEATURE_LABELS = {
+  'alarm_clear_manual': 'Manual Clear',
+  'alarm_clear_bulk': 'Bulk CSV',
+  'reporting': 'Reporting',
+  'vrf_routing': 'VRF Routing',
+  'license_check': 'License',
+  'zabbix_search': 'Zabbix Search',
+  'code_site_search': 'Code SITE Search',
+  'user_management': 'User Mgmt',
+  'permission_management': 'Perm Mgmt',
+  'zabbix_db_refresh': 'Zabbix DB Refresh',
+};
+async function loadPermissions() {
+try {
+const resp = await fetch('/admin/permissions');
+if (!resp.ok) return;
+const data = await resp.json();
+renderPermissions(data.users || {});
+} catch(_) {}
+}
+function effectivePerm(info, feature) {
+if (info.role === 'god') return true;
+if (info.role === 'admin') {
+return !['user_management', 'permission_management'].includes(feature);
+}
+return (info.permissions || {})[feature] === true;
+}
+function togglePerm(username, feature, event) {
+const badge = event.currentTarget;
+const isOn = badge.classList.contains('on');
+badge.classList.toggle('on', !isOn);
+badge.classList.toggle('off', isOn);
+badge.querySelector('.badge-icon').textContent = isOn ? '\u2717' : '\u2713';
+}
+function renderPermissions(users) {
+const container = document.getElementById('permCards');
+container.innerHTML = '';
+const entries = Object.entries(users);
+if (!entries.length) {
+document.getElementById('noPermUsersMsg').style.display = 'block';
+return;
+}
+document.getElementById('noPermUsersMsg').style.display = 'none';
+entries.forEach(([username, info]) => {
+const card = document.createElement('div');
+card.className = 'perm-card';
+card.innerHTML = `
+<div class="perm-card-header">
+<div>
+<span class="perm-card-user">${esc(username)}</span>
+<span class="perm-card-role">${esc(info.role)}</span>
+</div>
+<button class="btn btn-outline-primary btn-sm perm-save-btn" onclick="savePerms('${esc(username)}')" style="padding:3px 14px;font-size:0.8rem">Save</button>
+</div>
+<div class="perm-badges">
+${FEATURE_LIST.map(f => {
+const on = effectivePerm(info, f);
+return `<div class="perm-badge ${on ? 'on' : 'off'}" onclick="togglePerm('${esc(username)}','${f}',event)" data-user="${esc(username)}" data-feat="${f}">
+<span class="badge-icon">${on ? '\u2713' : '\u2717'}</span>
+${esc(FEATURE_LABELS[f] || f)}
+</div>`;
+}).join('')}
+</div>
+`;
+container.appendChild(card);
+});
+}
+async function savePerms(username) {
+const cards = document.getElementById('permCards');
+const card = [...cards.children].find(c => c.querySelector('.perm-card-user')?.textContent === username);
+if (!card) return;
+const permissions = {};
+card.querySelectorAll('.perm-badge').forEach(b => {
+const feat = b.getAttribute('data-feat');
+permissions[feat] = b.classList.contains('on');
+});
+try {
+const resp = await fetch('/admin/permissions/' + encodeURIComponent(username), {
+method: 'PUT',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ permissions }),
+});
+const data = await resp.json();
+if (data.error) { showToast(data.error); return; }
+showToast('Permissions saved for ' + username);
+} catch(e) {
+showToast('Error: ' + e.message);
+}
+}
+/* ------------------------------------------------------------------
+Init
+------------------------------------------------------------------ */
+document.addEventListener('DOMContentLoaded', function() {
+checkAuth();
+});
+</script>
+</body>
+</html>

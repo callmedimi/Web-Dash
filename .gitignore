@@ -1,0 +1,37 @@
+# Python cache and compiled files
+__pycache__/
+services/__pycache__/
+*.py[cod]
+*$py.class
+zabbix_router_db.json
+
+# Virtual environments (NEVER push your venv)
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables and secrets
+.env
+.env.local
+users.json
+.secret_key
+alarm-clearing.tar
+zabbix_config.ini
+
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# SECURITY: Your logs showed a 'users.json' file. 
+# If this contains passwords, API keys, or sensitive user data, ignore it!
+users.json 
+
+# Logs
+*.log

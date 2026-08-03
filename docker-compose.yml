@@ -1,0 +1,9 @@
+services:
+  alarm-clearing:
+    image: alarm-clearing:latest
+    container_name: alarm-clearing
+    ports:
+      - "7676:5000"
+    volumes:
+      - .:/app
+    restart: unless-stopped
