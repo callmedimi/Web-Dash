@@ -34,6 +34,7 @@ from check_vrf_routing import (
 from license_check import check_license_on_router
 from license_renewal_logic import LicenseRenewalProcessor
 from services.zabbix_service import ZabbixService, create_zabbix_service
+from services.license_db import add_renewal_report, get_all_renewal_reports
 from auth import (
     authenticate, login_required, permission_required, get_accessible_features,
     get_all_users, create_user, update_user, delete_user,
@@ -72,6 +73,9 @@ def create_lic_renewal_session() -> str:
             "error": None,
             "router_count": 0,
             "completed_count": 0,
+            "pending_confirmations": {},
+            "confirmation_events": {},
+            "confirmation_results": {},
         }
     return sid
 
@@ -1358,21 +1362,107 @@ def start_renewal():
         def _log(msg, level="info"):
             push_lic_renewal_log(sid, msg, level)
 
+        def _confirm(router_name, issues):
+            sess = get_lic_renewal_session(sid)
+            if not sess:
+                return False
+            evt = threading.Event()
+            cid = uuid.uuid4().hex[:8]
+            sess["pending_confirmations"][cid] = {
+                "router_name": router_name,
+                "issues": issues,
+            }
+            sess["confirmation_events"][cid] = evt
+            
+            # Notify frontend via log queue event
+            push_lic_renewal_log(sid, f"NEED_CONFIRMATION:{cid}:{router_name}:{json.dumps(issues)}", "warn")
+            
+            # Wait for user response (timeout 5 minutes)
+            got_resp = evt.wait(timeout=300)
+            result = sess["confirmation_results"].get(cid, False)
+            
+            # Clean up
+            sess["pending_confirmations"].pop(cid, None)
+            sess["confirmation_events"].pop(cid, None)
+            sess["confirmation_results"].pop(cid, None)
+            
+            return got_resp and result
+
         processor = LicenseRenewalProcessor(
             routers_data=[],
             license_files_paths=[],
             network_creds={"username": username, "password": password},
-            log_callback=_log
+            log_callback=_log,
+            confirm_callback=_confirm
         )
         reports = processor.run_renewal(selected_routers)
         sess["report_data"] = reports
         finish_lic_renewal_session(sid)
+
+        add_renewal_report(sid, reports, datetime.now().isoformat())
 
     t = threading.Thread(target=_worker, daemon=True)
     t.start()
     return jsonify({"session_id": sid, "router_count": len(selected_routers)})
 
 
+@app.route("/download-renewal-report/<sid>")
+@login_required
+def download_renewal_report(sid):
+    report = get_renewal_report(sid)
+    rows = []
+    if report:
+        rows = report.get('report_data', [])
+    else:
+        sess = get_lic_renewal_session(sid)
+        if sess and sess.get("report_data"):
+            rows = sess["report_data"]
+    
+    if not rows:
+        return "Report not found or empty", 404
+    
+    out = io.StringIO()
+    fieldnames = ['router_name', 'ip', 'esn', 'license_file', 'current_expiry', 'new_expiry', 'status', 'details']
+    if rows and isinstance(rows[0], dict):
+        for k in rows[0].keys():
+            if k not in fieldnames:
+                fieldnames.append(k)
+    writer = csv.DictWriter(out, fieldnames=fieldnames, extrasaction='ignore')
+    writer.writeheader()
+    writer.writerows(rows)
+
+    mem = io.BytesIO(out.getvalue().encode("utf-8-sig"))
+    mem.seek(0)
+    return send_file(
+        mem,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"renewal_report_{sid}.csv",
+    )
+
+
+
+
+
+@app.route("/confirm-renewal/<sid>", methods=["POST"])
+@login_required
+def confirm_renewal(sid):
+    data = request.get_json(force=True)
+    cid = data.get("confirmation_id")
+    action = data.get("action")  # 'proceed' or 'skip'
+
+    sess = get_lic_renewal_session(sid)
+    if not sess:
+        return jsonify({"error": "Session not found"}), 404
+
+    if cid not in sess.get("confirmation_events", {}):
+        return jsonify({"error": "Confirmation request not found or expired"}), 404
+
+    sess["confirmation_results"][cid] = (action == "proceed")
+    evt = sess["confirmation_events"][cid]
+    evt.set()
+
+    return jsonify({"status": "received", "action": action})
 @app.route("/stream-lic-renewal/<sid>")
 @login_required
 def stream_lic_renewal(sid):
@@ -1723,4 +1813,4 @@ def search_zabbix_ip():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)
+    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)

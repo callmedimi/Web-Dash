@@ -19,6 +19,7 @@ DEFAULT_FEATURES = [
     "user_management",
     "permission_management",
     "zabbix_db_refresh",
+    "license_renewal_admin",
 ]
 
 FEATURE_LABELS = {
@@ -32,6 +33,7 @@ FEATURE_LABELS = {
     "user_management": "User Management (God only)",
     "permission_management": "Permission Management (God only)",
     "zabbix_db_refresh": "Zabbix DB Refresh",
+    "license_renewal_admin": "License Renewal Admin (God, Admin only)",
 }
 
 
@@ -89,7 +91,7 @@ def user_has_access(user_info: dict, feature: str) -> bool:
     if role == "god":
         return True
     if role == "admin":
-        return feature not in ("user_management", "permission_management", "zabbix_db_refresh")
+        return feature not in ("user_management", "permission_management", "zabbix_db_refresh", "license_renewal_admin")
     perms = user_info.get("permissions", {})
     return perms.get(feature, False)
 

@@ -870,6 +870,9 @@ Matches RT values to VRFs and shows the originator router.
 <li class="nav-item" role="presentation" id="nav-admin-zabbix" style="display:none">
 <button class="nav-link" id="admin-zabbix-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-zabbix" type="button" role="tab">Zabbix DB</button>
 </li>
+<li class="nav-item" role="presentation" id="nav-admin-renewal-reports" style="display:none">
+<button class="nav-link" id="admin-renewal-reports-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-renewal-reports" type="button" role="tab">Renewal Reports</button>
+</li>
 </ul>
 <div class="tab-content">
 <!-- Users Management -->
@@ -925,6 +928,20 @@ The database is used by the Zabbix Interface Search tab.
 <div id="zabbixError" style="color:#f85149;font-size:0.84rem;margin-top:8px;display:none"></div>
 </div>
 </div>
+</div>
+<!-- License Renewal Reports -->
+<div class="tab-pane" id="tab-admin-renewal-reports" role="tabpanel">
+<div class="d-flex justify-content-between align-items-center mb-2">
+<h6 class="mb-0" style="font-weight:600">License Renewal Reports</h6>
+<button class="btn btn-primary btn-sm" onclick="loadRenewalReports()">Refresh Reports</button>
+</div>
+<div style="overflow-x:auto">
+<table class="preview-table" id="renewalReportsTable">
+<thead><tr><th>ID</th><th>Timestamp</th><th>Matched Routers</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody id="renewalReportsTableBody"></tbody>
+</table>
+</div>
+<div id="noRenewalReportsMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No renewal reports found.</div>
 </div>
 </div>
 </div>
@@ -1394,6 +1411,11 @@ const div = document.createElement('div');
 div.className = 'log-' + (entry.level || 'info');
 div.innerHTML = `<span class="log-time">${esc(entry.time)}</span><span class="log-msg">${esc(entry.message)}</span>`;
 box.appendChild(div);
+
+while (box.childNodes.length > 1000) {
+    box.removeChild(box.firstChild);
+}
+
 box.scrollTop = box.scrollHeight;
 const m = entry.message && entry.message.match(/^\s*\[(\d+)\/(\d+)\]/);
 if (m) document.getElementById('logProgress').textContent = `${m[1]} / ${m[2]}`;
@@ -2184,20 +2206,144 @@ function resetRenewalButtons() {
     document.getElementById('renewalSpinner').style.display = 'none';
 }
 
+let renewalPromptQueue = [];
+let isShowingRenewalPrompt = false;
+
 function connectRenewalSSE(sid) {
+    renewalPromptQueue = [];
+    isShowingRenewalPrompt = false;
+
+    // Show result footer container for download button upon completion
+    let renewalFooter = document.getElementById('renewalResultFooter');
+    if (!renewalFooter) {
+        const logSec = document.getElementById('logSection');
+        renewalFooter = document.createElement('div');
+        renewalFooter.id = 'renewalResultFooter';
+        renewalFooter.className = 'mt-3 d-flex align-items-center gap-2';
+        renewalFooter.style.display = 'none';
+        renewalFooter.innerHTML = `
+            <a id="downloadRenewalReportBtn" class="btn btn-success btn-sm" href="#" target="_blank">
+                📥 Download Renewal Report (.csv)
+            </a>
+        `;
+        logSec.appendChild(renewalFooter);
+    }
+    renewalFooter.style.display = 'none';
+
     const evtSource = new EventSource('/stream-lic-renewal/' + sid);
     evtSource.onmessage = function(e) {
-        try { const entry = JSON.parse(e.data); appendLog(entry); }
+        try {
+            const entry = JSON.parse(e.data);
+            if (entry.message && entry.message.startsWith("NEED_CONFIRMATION:")) {
+                const firstColon = entry.message.indexOf(":");
+                const secondColon = entry.message.indexOf(":", firstColon + 1);
+                const thirdColon = entry.message.indexOf(":", secondColon + 1);
+                
+                const cid = entry.message.substring(firstColon + 1, secondColon);
+                const rName = entry.message.substring(secondColon + 1, thirdColon);
+                const issuesJson = entry.message.substring(thirdColon + 1);
+                
+                let issuesList = [];
+                try { issuesList = JSON.parse(issuesJson); } catch(_) {}
+                
+                enqueueRenewalPrompt({ sid, cid, rName, issuesList });
+            } else {
+                appendLog(entry);
+            }
+        }
         catch(_) {}
     };
     evtSource.addEventListener('done', function() {
         evtSource.close();
         resetRenewalButtons();
+        
+        const dlBtn = document.getElementById('downloadRenewalReportBtn');
+        if (dlBtn) dlBtn.href = '/download-renewal-report/' + sid;
+        if (renewalFooter) renewalFooter.style.display = 'flex';
     });
     evtSource.onerror = function() {
         evtSource.close();
         resetRenewalButtons();
+        
+        const dlBtn = document.getElementById('downloadRenewalReportBtn');
+        if (dlBtn) dlBtn.href = '/download-renewal-report/' + sid;
+        if (renewalFooter) renewalFooter.style.display = 'flex';
     };
+}
+
+function enqueueRenewalPrompt(item) {
+    renewalPromptQueue.push(item);
+    processNextRenewalPrompt();
+}
+
+function processNextRenewalPrompt() {
+    if (isShowingRenewalPrompt || renewalPromptQueue.length === 0) return;
+    isShowingRenewalPrompt = true;
+
+    const item = renewalPromptQueue.shift();
+    showRenewalConfirmationModal(item.sid, item.cid, item.rName, item.issuesList);
+}
+
+function showRenewalConfirmationModal(sid, cid, routerName, issues) {
+    let overlay = document.getElementById('renewalModalOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'renewalModalOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:15px;';
+        document.body.appendChild(overlay);
+    }
+    
+    let issuesHtml = issues.map(i => {
+        let text = typeof i === 'string' ? esc(i) : esc(JSON.stringify(i));
+        if (text.includes('\n')) {
+            return `<li style="margin-bottom:8px;word-break:break-word;"><pre style="background:#111;color:#ffda6a;padding:8px;border-radius:4px;font-family:monospace;white-space:pre;overflow-x:auto;margin-top:4px;">${text}</pre></li>`;
+        }
+        return `<li style="margin-bottom:4px;word-break:break-word;">${text}</li>`;
+    }).join('');
+    overlay.innerHTML = `
+        <div style="background:#1e1e1e;color:#fff;border:1px solid #ffc107;border-radius:8px;max-width:700px;width:100%;box-shadow:0 10px 25px rgba(0,0,0,0.8);overflow:hidden;animation:fadeIn 0.2s ease-in-out;">
+            <div style="background:#2c2200;color:#ffc107;padding:14px 18px;font-weight:bold;font-size:1.05rem;border-bottom:1px solid #443500;display:flex;justify-content:space-between;align-items:center;">
+                <span>⚠️ Renewal Confirmation Required</span>
+                <span class="badge bg-warning text-dark" style="font-size:0.75rem;">${renewalPromptQueue.length + 1} Remaining</span>
+            </div>
+            <div style="padding:18px;max-height:60vh;overflow-y:auto;">
+                <div style="font-size:1rem;margin-bottom:10px;">
+                    Router: <strong style="color:#0dcaf0;">${esc(routerName)}</strong>
+                </div>
+                <div style="font-size:0.88rem;color:#ddd;margin-bottom:8px;">
+                    The following safety checks failed:
+                    <ul style="margin:8px 0 0 18px;padding:0;color:#ffda6a;">${issuesHtml}</ul>
+                </div>
+            </div>
+            <div style="background:#141414;padding:12px 18px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #2a2a2a;">
+                <button class="btn btn-outline-secondary btn-sm px-3" onclick="handleRenewalChoice('${sid}', '${cid}', 'skip')">Skip Router</button>
+                <button class="btn btn-warning btn-sm px-3" style="font-weight:600;" onclick="handleRenewalChoice('${sid}', '${cid}', 'proceed')">Proceed Renewal</button>
+            </div>
+        </div>
+    `;
+    overlay.style.display = 'flex';
+}
+
+async function handleRenewalChoice(sid, cid, action) {
+    const overlay = document.getElementById('renewalModalOverlay');
+    if (overlay) {
+        const btns = overlay.querySelectorAll('button');
+        btns.forEach(b => b.disabled = true);
+    }
+
+    try {
+        await fetch('/confirm-renewal/' + sid, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmation_id: cid, action: action })
+        });
+    } catch (e) {
+        showToast('Failed to send choice: ' + e.message);
+    } finally {
+        if (overlay) overlay.style.display = 'none';
+        isShowingRenewalPrompt = false;
+        processNextRenewalPrompt();
+    }
 }
 
 async function runLicenseCheck() {
@@ -2851,9 +2997,10 @@ let currentFeatures = {};
 function hasPerm(feature) {
   if (!currentUser) return false;
   if (currentUser.role === 'god') return true;
-  if (currentUser.role === 'admin') {
-    return !['user_management', 'permission_management'].includes(feature);
-  }
+    if (currentUser.role === 'admin') {
+        // Admins can't manage users, permissions, zabbix refresh, or license renewal admin
+        return !['user_management', 'permission_management', 'zabbix_db_refresh', 'license_renewal_admin'].includes(feature);
+    }
   if (currentFeatures && currentFeatures[feature] && currentFeatures[feature].granted) {
     return true;
   }
@@ -2979,14 +3126,18 @@ async function applyFeatureVisibility() {
     const hasUserMgmt = hasPerm('user_management');
     const hasPermMgmt = hasPerm('permission_management');
     const hasZabbixRefresh = hasPerm('zabbix_db_refresh');
-    if (adminNav) adminNav.style.display = (hasUserMgmt || hasPermMgmt || hasZabbixRefresh) ? '' : 'none';
+    const hasLicenseRenewalAdmin = hasPerm('license_renewal_admin');
+    if (adminNav) adminNav.style.display = (hasUserMgmt || hasPermMgmt || hasZabbixRefresh || hasLicenseRenewalAdmin) ? '' : 'none';
     
     const navAdminUsers = document.getElementById('nav-admin-users');
     const navAdminPerms = document.getElementById('nav-admin-perms');
     const navAdminZabbix = document.getElementById('nav-admin-zabbix');
+    const navAdminRenewalReports = document.getElementById('nav-admin-renewal-reports');
     if (navAdminUsers) navAdminUsers.style.display = hasUserMgmt ? '' : 'none';
     if (navAdminPerms) navAdminPerms.style.display = hasPermMgmt ? '' : 'none';
     if (navAdminZabbix) navAdminZabbix.style.display = hasZabbixRefresh ? '' : 'none';
+    if (navAdminRenewalReports) navAdminRenewalReports.style.display = hasLicenseRenewalAdmin ? '' : 'none';
+
 // Set the admin sub-tab to active if any admin features are visible and it's the first one
 const adminTabsNav = document.getElementById('adminTabs');
 // Deactivate all sub-tabs first
@@ -3006,6 +3157,9 @@ if (firstVisiblePane) firstVisiblePane.classList.add('active');
 }
 }
 // Call refresh-zabbix-progress if the Zabbix DB tab is visible and active
+if (hasPerm('license_renewal_admin')) {
+    loadRenewalReports();
+}
 if (hasZabbixRefresh && document.getElementById('tab-admin-zabbix').classList.contains('active')) {
 try {
 const r = await fetch('/refresh-zabbix-progress');
@@ -3191,6 +3345,7 @@ const FEATURE_LIST = [
   'user_management',
   'permission_management',
   'zabbix_db_refresh',
+  'license_renewal_admin', // Added
 ];
 const FEATURE_LABELS = {
   'alarm_clear_manual': 'Manual Clear',
@@ -3203,6 +3358,7 @@ const FEATURE_LABELS = {
   'user_management': 'User Mgmt',
   'permission_management': 'Perm Mgmt',
   'zabbix_db_refresh': 'Zabbix DB Refresh',
+  'license_renewal_admin': 'Renewal Admin', // Added
 };
 async function loadPermissions() {
 try {
