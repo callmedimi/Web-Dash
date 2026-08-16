@@ -931,88 +931,101 @@ The database is used by the Zabbix Interface Search tab.
 </div>
 <!-- License Renewal Reports -->
 <div class="tab-pane" id="tab-admin-renewal-reports" role="tabpanel">
-<div class="d-flex justify-content-between align-items-center mb-2">
-<h6 class="mb-0" style="font-weight:600">License Renewal Reports</h6>
-<div class="d-flex align-items-center gap-2">
-<label class="mb-0" style="font-size:0.8rem">Sort:</label>
-<select id="reportsSortOrder" class="form-select form-select-sm" style="width:auto" onchange="renderRenewalReportsTable()">
-<option value="desc">Newest First</option>
-<option value="asc">Oldest First</option>
-</select>
-<label class="mb-0" style="font-size:0.8rem">Page size:</label>
-<select id="reportsPageSize" class="form-select form-select-sm" style="width:auto" onchange="reportsPageIndex=1;renderRenewalReportsTable()">
-<option value="10">10</option>
-<option value="25">25</option>
-<option value="50">50</option>
-<option value="100">100</option>
-</select>
-<button class="btn btn-primary btn-sm" onclick="loadRenewalReports()">Refresh Reports</button>
-</div>
-</div>
-<div style="overflow-x:auto">
-<table class="preview-table" id="renewalReportsTable">
-<thead><tr><th></th><th>ID</th><th>Timestamp</th><th>Matched Routers</th><th>Status</th><th>Actions</th></tr></thead>
-<tbody id="renewalReportsTableBody"></tbody>
-</table>
-</div>
-<div id="reportsPaginationNav" class="d-flex justify-content-between align-items-center mt-2" style="font-size:0.85rem"></div>
-<div id="noRenewalReportsMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No renewal reports found.</div>
 
-<div class="mt-4">
-<div class="d-flex justify-content-between align-items-center mb-2">
-<h6 class="mb-0" style="font-weight:600">Renewed Licenses by Router</h6>
-<div class="d-flex align-items-center gap-2">
-<label class="mb-0" style="font-size:0.8rem">Sort by:</label>
-<select id="licensesSortField" class="form-select form-select-sm" style="width:auto" onchange="renderRenewedLicensesTable()">
-<option value="renewal_date">Renewal Date</option>
-<option value="expiry_date">Expiry Date</option>
-<option value="router_name">Router Name</option>
-</select>
-<select id="licensesSortOrder" class="form-select form-select-sm" style="width:auto" onchange="renderRenewedLicensesTable()">
-<option value="desc">Descending</option>
-<option value="asc">Ascending</option>
-</select>
-<label class="mb-0" style="font-size:0.8rem">Page size:</label>
-<select id="licensesPageSize" class="form-select form-select-sm" style="width:auto" onchange="licensesPageIndex=1;renderRenewedLicensesTable()">
-<option value="10">10</option>
-<option value="25">25</option>
-<option value="50">50</option>
-<option value="100">100</option>
-</select>
-</div>
-</div>
-<div style="overflow-x:auto">
-<table class="preview-table" id="renewedLicensesTable">
-<thead><tr><th></th><th>Router (NE Name)</th><th>ESN</th><th>Total Licenses</th><th>Latest Expiry</th><th>Latest Renewal</th></tr></thead>
-<tbody id="renewedLicensesTableBody"></tbody>
-</table>
-</div>
-<div id="licensesPaginationNav" class="d-flex justify-content-between align-items-center mt-2" style="font-size:0.85rem"></div>
-<div id="noRenewedLicensesMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No renewed license records found.</div>
+<!-- Section 1: License Renewal Reports -->
+<div class="card bg-secondary bg-opacity-10 mb-3 border-secondary">
+  <div class="card-header d-flex justify-content-between align-items-center py-2 style-header" style="cursor:pointer" onclick="toggleSectionBody('secBodyRenewalReports', 'secIconRenewalReports')">
+    <h6 class="mb-0 fw-bold"><span id="secIconRenewalReports">&#9660;</span> License Renewal Reports</h6>
+    <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation()">
+      <label class="mb-0" style="font-size:0.8rem">Sort:</label>
+      <select id="reportsSortOrder" class="form-select form-select-sm" style="width:auto" onchange="renderRenewalReportsTable()">
+        <option value="desc">Newest First</option>
+        <option value="asc">Oldest First</option>
+      </select>
+      <label class="mb-0" style="font-size:0.8rem">Page size:</label>
+      <select id="reportsPageSize" class="form-select form-select-sm" style="width:auto" onchange="reportsPageIndex=1;renderRenewalReportsTable()">
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="loadRenewalReports()">Refresh Reports</button>
+    </div>
+  </div>
+  <div class="card-body p-3" id="secBodyRenewalReports">
+    <div style="overflow-x:auto">
+      <table class="preview-table" id="renewalReportsTable">
+        <thead><tr><th></th><th>ID</th><th>Timestamp</th><th>Matched Routers</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="renewalReportsTableBody"></tbody>
+      </table>
+    </div>
+    <div id="reportsPaginationNav" class="d-flex justify-content-between align-items-center mt-2" style="font-size:0.85rem"></div>
+    <div id="noRenewalReportsMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No renewal reports found.</div>
+  </div>
 </div>
 
-<div class="mt-4">
-<div class="d-flex justify-content-between align-items-center mb-2">
-<h6 class="mb-0" style="font-weight:600">License Archive Files (Directory)</h6>
-<div class="d-flex align-items-center gap-2">
-<label class="mb-0" style="font-size:0.8rem">Page size:</label>
-<select id="archivePageSize" class="form-select form-select-sm" style="width:auto" onchange="archivePageIndex=1;renderArchiveFilesTable()">
-<option value="10">10</option>
-<option value="25">25</option>
-<option value="50">50</option>
-<option value="100">100</option>
-</select>
+<!-- Section 2: Renewed Licenses by Router -->
+<div class="card bg-secondary bg-opacity-10 mb-3 border-secondary">
+  <div class="card-header d-flex justify-content-between align-items-center py-2 style-header" style="cursor:pointer" onclick="toggleSectionBody('secBodyRenewedLicenses', 'secIconRenewedLicenses')">
+    <h6 class="mb-0 fw-bold"><span id="secIconRenewedLicenses">&#9660;</span> Renewed Licenses by Router</h6>
+    <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation()">
+      <label class="mb-0" style="font-size:0.8rem">Sort by:</label>
+      <select id="licensesSortField" class="form-select form-select-sm" style="width:auto" onchange="renderRenewedLicensesTable()">
+        <option value="renewal_date">Renewal Date</option>
+        <option value="expiry_date">Expiry Date</option>
+        <option value="router_name">Router Name</option>
+      </select>
+      <select id="licensesSortOrder" class="form-select form-select-sm" style="width:auto" onchange="renderRenewedLicensesTable()">
+        <option value="desc">Descending</option>
+        <option value="asc">Ascending</option>
+      </select>
+      <label class="mb-0" style="font-size:0.8rem">Page size:</label>
+      <select id="licensesPageSize" class="form-select form-select-sm" style="width:auto" onchange="licensesPageIndex=1;renderRenewedLicensesTable()">
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+    </div>
+  </div>
+  <div class="card-body p-3" id="secBodyRenewedLicenses">
+    <div style="overflow-x:auto">
+      <table class="preview-table" id="renewedLicensesTable">
+        <thead><tr><th></th><th>Router (NE Name)</th><th>ESN</th><th>Total Licenses</th><th>Latest Expiry</th><th>Latest Renewal</th></tr></thead>
+        <tbody id="renewedLicensesTableBody"></tbody>
+      </table>
+    </div>
+    <div id="licensesPaginationNav" class="d-flex justify-content-between align-items-center mt-2" style="font-size:0.85rem"></div>
+    <div id="noRenewedLicensesMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No renewed license records found.</div>
+  </div>
 </div>
+
+<!-- Section 3: License Archive Files (Directory) -->
+<div class="card bg-secondary bg-opacity-10 mb-3 border-secondary">
+  <div class="card-header d-flex justify-content-between align-items-center py-2 style-header" style="cursor:pointer" onclick="toggleSectionBody('secBodyArchiveFiles', 'secIconArchiveFiles')">
+    <h6 class="mb-0 fw-bold"><span id="secIconArchiveFiles">&#9660;</span> License Archive Files (Directory)</h6>
+    <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation()">
+      <label class="mb-0" style="font-size:0.8rem">Page size:</label>
+      <select id="archivePageSize" class="form-select form-select-sm" style="width:auto" onchange="archivePageIndex=1;renderArchiveFilesTable()">
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+    </div>
+  </div>
+  <div class="card-body p-3" id="secBodyArchiveFiles">
+    <div style="overflow-x:auto">
+      <table class="preview-table" id="licenseArchiveFilesTable">
+        <thead><tr><th></th><th>File Name</th><th>Size</th><th>Last Modified</th><th>Action</th></tr></thead>
+        <tbody id="licenseArchiveFilesTableBody"></tbody>
+      </table>
+    </div>
+    <div id="archivePaginationNav" class="d-flex justify-content-between align-items-center mt-2" style="font-size:0.85rem"></div>
+    <div id="noLicenseArchiveFilesMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No files found in license archive directory.</div>
+  </div>
 </div>
-<div style="overflow-x:auto">
-<table class="preview-table" id="licenseArchiveFilesTable">
-<thead><tr><th></th><th>File Name</th><th>Size</th><th>Last Modified</th><th>Action</th></tr></thead>
-<tbody id="licenseArchiveFilesTableBody"></tbody>
-</table>
-</div>
-<div id="archivePaginationNav" class="d-flex justify-content-between align-items-center mt-2" style="font-size:0.85rem"></div>
-<div id="noLicenseArchiveFilesMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No files found in license archive directory.</div>
-</div>
+
 </div>
 </div>
 </div>
@@ -3038,6 +3051,19 @@ function validateKeyword2() {
     return false;
   }
 }
+function toggleSectionBody(bodyId, iconId) {
+  const body = document.getElementById(bodyId);
+  const icon = document.getElementById(iconId);
+  if (!body) return;
+  if (body.style.display === 'none') {
+    body.style.display = '';
+    if (icon) icon.innerHTML = '&#9660;';
+  } else {
+    body.style.display = 'none';
+    if (icon) icon.innerHTML = '&#9654;';
+  }
+}
+
 let cachedRenewalReports = [];
 let cachedRenewedLicenses = [];
 let cachedArchiveFiles = [];

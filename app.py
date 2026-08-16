@@ -1406,9 +1406,34 @@ def start_renewal():
     return jsonify({"session_id": sid, "router_count": len(selected_routers)})
 
 
-@app.route("/download-renewal-report/<sid>")
+@app.route("/download-renewal-report/<path:sid>")
 @login_required
 def download_renewal_report(sid):
+    safe_filename = os.path.basename(sid)
+    reports_dir = os.path.join(os.path.dirname(__file__), "reports")
+    file_path = os.path.join(reports_dir, safe_filename)
+
+    if os.path.isfile(file_path):
+        return send_file(
+            file_path,
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name=safe_filename
+        )
+
+    # Fallback lookup in report_dir for matching filename pattern or JSON session/DB
+    if os.path.isdir(reports_dir):
+        for fname in os.listdir(reports_dir):
+            if sid in fname or fname.endswith(f"{sid}.csv"):
+                fp = os.path.join(reports_dir, fname)
+                if os.path.isfile(fp):
+                    return send_file(
+                        fp,
+                        mimetype="text/csv",
+                        as_attachment=True,
+                        download_name=fname
+                    )
+
     report = get_renewal_report(sid)
     rows = []
     if report:
@@ -1433,11 +1458,12 @@ def download_renewal_report(sid):
 
     mem = io.BytesIO(out.getvalue().encode("utf-8-sig"))
     mem.seek(0)
+    safe_name = re.sub(r'[^\w\-]', '_', sid)
     return send_file(
         mem,
         mimetype="text/csv",
         as_attachment=True,
-        download_name=f"renewal_report_{sid}.csv",
+        download_name=f"license_renewal_report_{safe_name}.csv",
     )
 
 
