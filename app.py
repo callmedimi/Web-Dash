@@ -34,7 +34,7 @@ from check_vrf_routing import (
 from license_check import check_license_on_router
 from license_renewal_logic import LicenseRenewalProcessor
 from services.zabbix_service import ZabbixService, create_zabbix_service
-from services.license_db import add_renewal_report, get_all_renewal_reports
+from services.license_db import add_renewal_report, get_all_renewal_reports, get_renewal_report
 from auth import (
     authenticate, login_required, permission_required, get_accessible_features,
     get_all_users, create_user, update_user, delete_user,
@@ -1395,11 +1395,13 @@ def start_renewal():
             log_callback=_log,
             confirm_callback=_confirm
         )
-        reports = processor.run_renewal(selected_routers)
+        reports, csv_file = processor.run_renewal(selected_routers)
         sess["report_data"] = reports
+        if csv_file:
+            sess["csv_file"] = csv_file
         finish_lic_renewal_session(sid)
 
-        add_renewal_report(sid, reports, datetime.now().isoformat())
+        add_renewal_report(sid, reports, datetime.now().isoformat(), csv_file=csv_file)
 
     t = threading.Thread(target=_worker, daemon=True)
     t.start()
@@ -1411,8 +1413,9 @@ def start_renewal():
 def download_renewal_report(sid):
     safe_filename = os.path.basename(sid)
     reports_dir = os.path.join(os.path.dirname(__file__), "reports")
-    file_path = os.path.join(reports_dir, safe_filename)
 
+    # 1. Direct file check in reports directory
+    file_path = os.path.join(reports_dir, safe_filename)
     if os.path.isfile(file_path):
         return send_file(
             file_path,
@@ -1421,7 +1424,19 @@ def download_renewal_report(sid):
             download_name=safe_filename
         )
 
-    # Fallback lookup in report_dir for matching filename pattern or JSON session/DB
+    # 2. Check if DB record defines associated csv_file
+    report = get_renewal_report(sid)
+    if report and report.get("csv_file"):
+        db_csv_path = os.path.join(reports_dir, report["csv_file"])
+        if os.path.isfile(db_csv_path):
+            return send_file(
+                db_csv_path,
+                mimetype="text/csv",
+                as_attachment=True,
+                download_name=report["csv_file"]
+            )
+
+    # 3. Fallback lookup in reports directory for matching ID in filename
     if os.path.isdir(reports_dir):
         for fname in os.listdir(reports_dir):
             if sid in fname or fname.endswith(f"{sid}.csv"):
@@ -1434,7 +1449,7 @@ def download_renewal_report(sid):
                         download_name=fname
                     )
 
-    report = get_renewal_report(sid)
+    # 4. Dynamic CSV generation from JSON DB report_data or session
     rows = []
     if report:
         rows = report.get('report_data', [])

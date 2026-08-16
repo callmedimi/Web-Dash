@@ -926,7 +926,7 @@ class LicenseRenewalProcessor:
                     with self.lock:
                         self.report_rows.append({"router_name": router['router_name'], "status": "Exception", "details": str(exc)})
         self.log("License renewal process finished.")
-        self._generate_csv_report(self.report_rows)
+        csv_filename = self._generate_csv_report(self.report_rows)
 
         # Summary of skipped / needs review
         skipped_items = [r for r in self.report_rows if 'Skipped' in r.get('status', '') or r.get('status') == 'Failed']
@@ -942,7 +942,7 @@ class LicenseRenewalProcessor:
         else:
             self.log("✨ All selected routers processed cleanly with no review flags.", "success")
 
-        return self.report_rows
+        return self.report_rows, csv_filename
 
     def _archive_license_file(self, license_file_path: str, router_name: str, esn: str, expiry_date: str):
         archive_dir = self.settings.get('license_archive_dir', 'license_archive')
@@ -978,7 +978,7 @@ class LicenseRenewalProcessor:
     def _generate_csv_report(self, report_data: List[Dict], filename: str = None):
         if not report_data:
             self.log("No data to generate report.", "info")
-            return
+            return None
 
         report_dir = self.settings.get('report_dir', 'reports')
         os.makedirs(report_dir, exist_ok=True)
@@ -996,5 +996,7 @@ class LicenseRenewalProcessor:
                 writer.writeheader()
                 writer.writerows(report_data)
             self.log(f"CSV report generated at {filename}", "success")
+            return os.path.basename(filename)
         except Exception as e:
             self.log(f"Error generating CSV report: {e}", "error")
+            return None

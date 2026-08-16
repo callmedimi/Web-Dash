@@ -18,13 +18,16 @@ def _write_db(data):
         with open(_db_file, "w") as f:
             json.dump(data, f, indent=4)
 
-def add_renewal_report(report_id: str, report_data: list[dict], timestamp: str):
+def add_renewal_report(report_id: str, report_data: list[dict], timestamp: str, csv_file: str = None):
     db = _read_db()
-    db["renewals"].append({
+    entry = {
         "id": report_id,
         "timestamp": timestamp,
         "report_data": report_data
-    })
+    }
+    if csv_file:
+        entry["csv_file"] = csv_file
+    db["renewals"].append(entry)
     _write_db(db)
 
 def get_all_renewal_reports():
