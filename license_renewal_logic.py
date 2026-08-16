@@ -872,14 +872,16 @@ class LicenseRenewalProcessor:
                 activation_success, activation_output = self.activate_license(conn, new_filename)
                 if activation_success:
                     self.log(f"🎉 License activated successfully on {router_name}!", "success")
-                    self._archive_license_file(license_file_path, router_name, esn, new_expiry)
+                    archived_name = self._archive_license_file(license_file_path, router_name, esn, new_expiry)
                     return {
                         'router_name': router_name,
                         'ip': ip,
                         'esn': esn,
                         'license_file': license_file_name,
+                        'archived_file': archived_name,
                         'current_expiry': current_expiry,
                         'new_expiry': new_expiry,
+                        'renewal_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         'status': 'Completed',
                         'details': 'Activated'
                     }
@@ -968,8 +970,10 @@ class LicenseRenewalProcessor:
                 with open(license_file_path, 'rb') as src, open(archive_path, 'wb') as dst:
                     dst.write(src.read())
             self.log(f"License file archived to {archive_path}", "info")
+            return archive_filename
         except Exception as e:
             self.log(f"Error archiving license file {license_file_path}: {e}", "error")
+            return None
 
     def _generate_csv_report(self, report_data: List[Dict], filename: str = None):
         if not report_data:

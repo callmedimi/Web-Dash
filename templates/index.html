@@ -871,7 +871,7 @@ Matches RT values to VRFs and shows the originator router.
 <button class="nav-link" id="admin-zabbix-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-zabbix" type="button" role="tab">Zabbix DB</button>
 </li>
 <li class="nav-item" role="presentation" id="nav-admin-renewal-reports" style="display:none">
-<button class="nav-link" id="admin-renewal-reports-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-renewal-reports" type="button" role="tab">Renewal Reports</button>
+<button class="nav-link" id="admin-renewal-reports-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-renewal-reports" type="button" role="tab" onclick="loadRenewalReports()">Renewal Reports</button>
 </li>
 </ul>
 <div class="tab-content">
@@ -933,15 +933,86 @@ The database is used by the Zabbix Interface Search tab.
 <div class="tab-pane" id="tab-admin-renewal-reports" role="tabpanel">
 <div class="d-flex justify-content-between align-items-center mb-2">
 <h6 class="mb-0" style="font-weight:600">License Renewal Reports</h6>
+<div class="d-flex align-items-center gap-2">
+<label class="mb-0" style="font-size:0.8rem">Sort:</label>
+<select id="reportsSortOrder" class="form-select form-select-sm" style="width:auto" onchange="renderRenewalReportsTable()">
+<option value="desc">Newest First</option>
+<option value="asc">Oldest First</option>
+</select>
+<label class="mb-0" style="font-size:0.8rem">Page size:</label>
+<select id="reportsPageSize" class="form-select form-select-sm" style="width:auto" onchange="reportsPageIndex=1;renderRenewalReportsTable()">
+<option value="10">10</option>
+<option value="25">25</option>
+<option value="50">50</option>
+<option value="100">100</option>
+</select>
 <button class="btn btn-primary btn-sm" onclick="loadRenewalReports()">Refresh Reports</button>
+</div>
 </div>
 <div style="overflow-x:auto">
 <table class="preview-table" id="renewalReportsTable">
-<thead><tr><th>ID</th><th>Timestamp</th><th>Matched Routers</th><th>Status</th><th>Actions</th></tr></thead>
+<thead><tr><th></th><th>ID</th><th>Timestamp</th><th>Matched Routers</th><th>Status</th><th>Actions</th></tr></thead>
 <tbody id="renewalReportsTableBody"></tbody>
 </table>
 </div>
+<div id="reportsPaginationNav" class="d-flex justify-content-between align-items-center mt-2" style="font-size:0.85rem"></div>
 <div id="noRenewalReportsMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No renewal reports found.</div>
+
+<div class="mt-4">
+<div class="d-flex justify-content-between align-items-center mb-2">
+<h6 class="mb-0" style="font-weight:600">Renewed Licenses by Router</h6>
+<div class="d-flex align-items-center gap-2">
+<label class="mb-0" style="font-size:0.8rem">Sort by:</label>
+<select id="licensesSortField" class="form-select form-select-sm" style="width:auto" onchange="renderRenewedLicensesTable()">
+<option value="renewal_date">Renewal Date</option>
+<option value="expiry_date">Expiry Date</option>
+<option value="router_name">Router Name</option>
+</select>
+<select id="licensesSortOrder" class="form-select form-select-sm" style="width:auto" onchange="renderRenewedLicensesTable()">
+<option value="desc">Descending</option>
+<option value="asc">Ascending</option>
+</select>
+<label class="mb-0" style="font-size:0.8rem">Page size:</label>
+<select id="licensesPageSize" class="form-select form-select-sm" style="width:auto" onchange="licensesPageIndex=1;renderRenewedLicensesTable()">
+<option value="10">10</option>
+<option value="25">25</option>
+<option value="50">50</option>
+<option value="100">100</option>
+</select>
+</div>
+</div>
+<div style="overflow-x:auto">
+<table class="preview-table" id="renewedLicensesTable">
+<thead><tr><th></th><th>Router (NE Name)</th><th>ESN</th><th>Total Licenses</th><th>Latest Expiry</th><th>Latest Renewal</th></tr></thead>
+<tbody id="renewedLicensesTableBody"></tbody>
+</table>
+</div>
+<div id="licensesPaginationNav" class="d-flex justify-content-between align-items-center mt-2" style="font-size:0.85rem"></div>
+<div id="noRenewedLicensesMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No renewed license records found.</div>
+</div>
+
+<div class="mt-4">
+<div class="d-flex justify-content-between align-items-center mb-2">
+<h6 class="mb-0" style="font-weight:600">License Archive Files (Directory)</h6>
+<div class="d-flex align-items-center gap-2">
+<label class="mb-0" style="font-size:0.8rem">Page size:</label>
+<select id="archivePageSize" class="form-select form-select-sm" style="width:auto" onchange="archivePageIndex=1;renderArchiveFilesTable()">
+<option value="10">10</option>
+<option value="25">25</option>
+<option value="50">50</option>
+<option value="100">100</option>
+</select>
+</div>
+</div>
+<div style="overflow-x:auto">
+<table class="preview-table" id="licenseArchiveFilesTable">
+<thead><tr><th></th><th>File Name</th><th>Size</th><th>Last Modified</th><th>Action</th></tr></thead>
+<tbody id="licenseArchiveFilesTableBody"></tbody>
+</table>
+</div>
+<div id="archivePaginationNav" class="d-flex justify-content-between align-items-center mt-2" style="font-size:0.85rem"></div>
+<div id="noLicenseArchiveFilesMsg" style="color:#adb5bd;padding:2rem;text-align:center;display:none">No files found in license archive directory.</div>
+</div>
 </div>
 </div>
 </div>
@@ -2966,6 +3037,402 @@ function validateKeyword2() {
     info.style.display = 'block';
     return false;
   }
+}
+let cachedRenewalReports = [];
+let cachedRenewedLicenses = [];
+let cachedArchiveFiles = [];
+
+let reportsPageIndex = 1;
+let licensesPageIndex = 1;
+let archivePageIndex = 1;
+
+async function loadRenewalReports() {
+  reportsPageIndex = 1;
+  licensesPageIndex = 1;
+  archivePageIndex = 1;
+
+  try {
+    const archResp = await fetch('/admin/license-archive-files');
+    if (archResp.ok) {
+      cachedArchiveFiles = await archResp.json() || [];
+    } else {
+      cachedArchiveFiles = [];
+    }
+  } catch(_) {
+    cachedArchiveFiles = [];
+  }
+  renderArchiveFilesTable();
+
+  try {
+    const resp = await fetch('/admin/renewal-reports');
+    if (!resp.ok) throw new Error('Failed to fetch reports');
+    cachedRenewalReports = await resp.json() || [];
+
+    const routerMap = {};
+    cachedRenewalReports.forEach(r => {
+      const data = r.report_data || [];
+      data.forEach(item => {
+        const rName = item.router_name || 'Unknown';
+        const esn = item.esn || '';
+        let matchedArchive = item.archived_file || '';
+
+        if (!matchedArchive && cachedArchiveFiles.length > 0) {
+          const cleanName = rName.replace(/[^\w\-]/g, '_').toLowerCase();
+          const cleanEsn = esn.replace(/[^\w]/g, '').toLowerCase();
+          const found = cachedArchiveFiles.find(af => {
+            const lowerF = af.filename.toLowerCase();
+            return (cleanName && lowerF.includes(cleanName)) || (cleanEsn && lowerF.includes(cleanEsn));
+          });
+          if (found) matchedArchive = found.filename;
+        }
+
+        const licInfo = {
+          expiry_date: item.new_expiry || item.current_expiry || '',
+          renewal_date: item.renewal_date || (r.timestamp ? new Date(r.timestamp).toLocaleString() : ''),
+          license_file: item.license_file || '',
+          archived_file: matchedArchive,
+          status: item.status || ''
+        };
+
+        if (!routerMap[rName]) {
+          routerMap[rName] = {
+            router_name: rName,
+            esn: esn,
+            licenses: []
+          };
+        }
+        if (esn && !routerMap[rName].esn) routerMap[rName].esn = esn;
+        routerMap[rName].licenses.push(licInfo);
+      });
+    });
+
+    cachedRenewedLicenses = Object.values(routerMap);
+
+    renderRenewalReportsTable();
+    renderRenewedLicensesTable();
+  } catch(e) {
+    const table = document.getElementById('renewalReportsTable');
+    const noMsg = document.getElementById('noRenewalReportsMsg');
+    if (table) table.style.display = 'none';
+    if (noMsg) {
+      noMsg.textContent = 'Error loading renewal reports: ' + e.message;
+      noMsg.style.display = 'block';
+    }
+  }
+}
+
+function renderPaginationNav(containerId, totalItems, pageSize, currentPage, onPageChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (totalItems <= 0) {
+    container.innerHTML = '';
+    return;
+  }
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIdx = (currentPage - 1) * pageSize + 1;
+  const endIdx = Math.min(currentPage * pageSize, totalItems);
+
+  container.innerHTML = `
+    <div>Showing ${startIdx} to ${endIdx} of ${totalItems} entries</div>
+    <div class="btn-group btn-group-sm">
+      <button class="btn btn-outline-secondary" ${currentPage <= 1 ? 'disabled' : ''} onclick="${onPageChange}(${currentPage - 1})">Prev</button>
+      <button class="btn btn-outline-secondary" disabled>Page ${currentPage} / ${totalPages}</button>
+      <button class="btn btn-outline-secondary" ${currentPage >= totalPages ? 'disabled' : ''} onclick="${onPageChange}(${currentPage + 1})">Next</button>
+    </div>
+  `;
+}
+
+function changeReportsPage(newPage) {
+  reportsPageIndex = newPage;
+  renderRenewalReportsTable();
+}
+
+function changeLicensesPage(newPage) {
+  licensesPageIndex = newPage;
+  renderRenewedLicensesTable();
+}
+
+function changeArchivePage(newPage) {
+  archivePageIndex = newPage;
+  renderArchiveFilesTable();
+}
+
+function renderRenewalReportsTable() {
+  const tbody = document.getElementById('renewalReportsTableBody');
+  const noMsg = document.getElementById('noRenewalReportsMsg');
+  const table = document.getElementById('renewalReportsTable');
+  const sortOrder = document.getElementById('reportsSortOrder') ? document.getElementById('reportsSortOrder').value : 'desc';
+  const pageSize = parseInt(document.getElementById('reportsPageSize') ? document.getElementById('reportsPageSize').value : 10, 10);
+
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!cachedRenewalReports || cachedRenewalReports.length === 0) {
+    if (table) table.style.display = 'none';
+    if (noMsg) noMsg.style.display = 'block';
+    renderPaginationNav('reportsPaginationNav', 0, pageSize, 1, 'changeReportsPage');
+    return;
+  }
+
+  if (table) table.style.display = '';
+  if (noMsg) noMsg.style.display = 'none';
+
+  const sorted = [...cachedRenewalReports].sort((a, b) => {
+    const ta = new Date(a.timestamp || 0).getTime();
+    const tb = new Date(b.timestamp || 0).getTime();
+    return sortOrder === 'asc' ? ta - tb : tb - ta;
+  });
+
+  const totalItems = sorted.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  if (reportsPageIndex > totalPages) reportsPageIndex = totalPages;
+  const pageData = sorted.slice((reportsPageIndex - 1) * pageSize, reportsPageIndex * pageSize);
+
+  pageData.forEach((r, idx) => {
+    const data = r.report_data || [];
+    const total = data.length;
+    const success = data.filter(x => ['success', 'ok', 'completed'].includes((x.status || '').toLowerCase())).length;
+    const collapseId = 'reportCollapse_' + idx;
+
+    const trMain = document.createElement('tr');
+    trMain.className = 'align-middle';
+    trMain.style.cursor = 'pointer';
+    trMain.onclick = function(e) {
+      if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+      const el = document.getElementById(collapseId);
+      if (el) {
+        const isShown = el.classList.contains('show');
+        if (isShown) el.classList.remove('show');
+        else el.classList.add('show');
+      }
+    };
+    trMain.innerHTML = `
+      <td>
+        <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" onclick="event.stopPropagation(); const el=document.getElementById('${collapseId}'); if(el){el.classList.toggle('show');}">&#9654;</button>
+      </td>
+      <td>${esc(r.id)}</td>
+      <td>${esc(r.timestamp ? new Date(r.timestamp).toLocaleString() : '')}</td>
+      <td>${total}</td>
+      <td><span class="badge bg-${success === total && total > 0 ? 'success' : 'warning'}">${success}/${total} Success</span></td>
+      <td><a class="btn btn-outline-info btn-sm py-0 px-2" href="/download-renewal-report/${encodeURIComponent(r.id)}">&#8681; CSV</a></td>
+    `;
+    tbody.appendChild(trMain);
+
+    const trSub = document.createElement('tr');
+    let rowsHtml = data.map(item => `
+      <tr>
+        <td>${esc(item.router_name || '')}</td>
+        <td>${esc(item.esn || '')}</td>
+        <td>${esc(item.current_expiry || '')}</td>
+        <td>${esc(item.new_expiry || '')}</td>
+        <td><span class="badge bg-${['completed','success','ok'].includes((item.status||'').toLowerCase()) ? 'success' : 'warning'}">${esc(item.status || '')}</span></td>
+        <td>${esc(item.details || '')}</td>
+      </tr>
+    `).join('');
+
+    trSub.innerHTML = `
+      <td colspan="6" class="p-0 border-0">
+        <div class="collapse bg-dark p-3 rounded" id="${collapseId}">
+          <h6 class="mb-2 text-info" style="font-size:0.85rem">Report Details (${total} routers)</h6>
+          <table class="preview-table mb-0" style="font-size:0.85rem">
+            <thead>
+              <tr><th>Router Name</th><th>ESN</th><th>Current Expiry</th><th>New Expiry</th><th>Status</th><th>Details</th></tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(trSub);
+  });
+
+  renderPaginationNav('reportsPaginationNav', totalItems, pageSize, reportsPageIndex, 'changeReportsPage');
+}
+
+function renderArchiveFilesTable() {
+  const archTbody = document.getElementById('licenseArchiveFilesTableBody');
+  const archNoMsg = document.getElementById('noLicenseArchiveFilesMsg');
+  const archTable = document.getElementById('licenseArchiveFilesTable');
+  const pageSize = parseInt(document.getElementById('archivePageSize') ? document.getElementById('archivePageSize').value : 10, 10);
+
+  if (!archTbody) return;
+  archTbody.innerHTML = '';
+
+  if (!cachedArchiveFiles || cachedArchiveFiles.length === 0) {
+    if (archTable) archTable.style.display = 'none';
+    if (archNoMsg) archNoMsg.style.display = 'block';
+    renderPaginationNav('archivePaginationNav', 0, pageSize, 1, 'changeArchivePage');
+    return;
+  }
+
+  if (archTable) archTable.style.display = '';
+  if (archNoMsg) archNoMsg.style.display = 'none';
+
+  const totalItems = cachedArchiveFiles.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  if (archivePageIndex > totalPages) archivePageIndex = totalPages;
+  const pageData = cachedArchiveFiles.slice((archivePageIndex - 1) * pageSize, archivePageIndex * pageSize);
+
+  pageData.forEach((f, idx) => {
+    const sizeKb = (f.size / 1024).toFixed(1) + ' KB';
+    const modDate = f.modified ? new Date(f.modified).toLocaleString() : '';
+    const collapseId = 'archCollapse_' + idx;
+
+    const trMain = document.createElement('tr');
+    trMain.className = 'align-middle';
+    trMain.style.cursor = 'pointer';
+    trMain.onclick = function(e) {
+      if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+      const el = document.getElementById(collapseId);
+      if (el) {
+        const isShown = el.classList.contains('show');
+        if (isShown) el.classList.remove('show');
+        else el.classList.add('show');
+      }
+    };
+    trMain.innerHTML = `
+      <td>
+        <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" onclick="event.stopPropagation(); const el=document.getElementById('${collapseId}'); if(el){el.classList.toggle('show');}">&#9654;</button>
+      </td>
+      <td>${esc(f.filename)}</td>
+      <td>${sizeKb}</td>
+      <td>${esc(modDate)}</td>
+      <td><a class="btn btn-outline-success btn-sm py-0 px-2" href="/download-archived-license/${encodeURIComponent(f.filename)}">&#8681; Download File</a></td>
+    `;
+    archTbody.appendChild(trMain);
+
+    const trSub = document.createElement('tr');
+    trSub.innerHTML = `
+      <td colspan="5" class="p-0 border-0">
+        <div class="collapse bg-dark p-3 rounded" id="${collapseId}">
+          <h6 class="mb-2 text-info" style="font-size:0.85rem">Archive Metadata</h6>
+          <div style="font-size:0.82rem;color:#adb5bd">
+            <strong>Full Name:</strong> ${esc(f.filename)}<br>
+            <strong>Size:</strong> ${f.size} bytes (${sizeKb})<br>
+            <strong>Last Modified:</strong> ${esc(modDate)}
+          </div>
+        </div>
+      </td>
+    `;
+    archTbody.appendChild(trSub);
+  });
+
+  renderPaginationNav('archivePaginationNav', totalItems, pageSize, archivePageIndex, 'changeArchivePage');
+}
+
+function renderRenewedLicensesTable() {
+  const licTbody = document.getElementById('renewedLicensesTableBody');
+  const licNoMsg = document.getElementById('noRenewedLicensesMsg');
+  const licTable = document.getElementById('renewedLicensesTable');
+  const field = document.getElementById('licensesSortField') ? document.getElementById('licensesSortField').value : 'renewal_date';
+  const order = document.getElementById('licensesSortOrder') ? document.getElementById('licensesSortOrder').value : 'desc';
+  const pageSize = parseInt(document.getElementById('licensesPageSize') ? document.getElementById('licensesPageSize').value : 10, 10);
+
+  if (!licTbody) return;
+  licTbody.innerHTML = '';
+
+  if (!cachedRenewedLicenses || cachedRenewedLicenses.length === 0) {
+    if (licTable) licTable.style.display = 'none';
+    if (licNoMsg) licNoMsg.style.display = 'block';
+    renderPaginationNav('licensesPaginationNav', 0, pageSize, 1, 'changeLicensesPage');
+    return;
+  }
+
+  if (licTable) licTable.style.display = '';
+  if (licNoMsg) licNoMsg.style.display = 'none';
+
+  const sorted = [...cachedRenewedLicenses].sort((a, b) => {
+    let getLatestVal = (r, key) => {
+      let dates = r.licenses.map(l => new Date(l[key]).getTime() || 0);
+      return dates.length ? Math.max(...dates) : 0;
+    };
+    if (field === 'renewal_date' || field === 'expiry_date') {
+      const timeA = getLatestVal(a, field);
+      const timeB = getLatestVal(b, field);
+      return order === 'asc' ? timeA - timeB : timeB - timeA;
+    }
+    return order === 'asc' ? String(a.router_name).localeCompare(String(b.router_name)) : String(b.router_name).localeCompare(String(a.router_name));
+  });
+
+  const totalItems = sorted.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  if (licensesPageIndex > totalPages) licensesPageIndex = totalPages;
+  const pageData = sorted.slice((licensesPageIndex - 1) * pageSize, licensesPageIndex * pageSize);
+
+  pageData.forEach((routerData, idx) => {
+    const licenses = routerData.licenses || [];
+    const sortedLics = [...licenses].sort((a, b) => {
+      const timeA = new Date(a[field] || 0).getTime() || 0;
+      const timeB = new Date(b[field] || 0).getTime() || 0;
+      return order === 'asc' ? timeA - timeB : timeB - timeA;
+    });
+
+    const latestExpiry = sortedLics[0] ? sortedLics[0].expiry_date : 'N/A';
+    const latestRenewal = sortedLics[0] ? sortedLics[0].renewal_date : 'N/A';
+    const collapseId = 'routerLicCollapse_' + idx;
+
+    const trMain = document.createElement('tr');
+    trMain.className = 'align-middle';
+    trMain.style.cursor = 'pointer';
+    trMain.onclick = function(e) {
+      if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+      const el = document.getElementById(collapseId);
+      if (el) {
+        const isShown = el.classList.contains('show');
+        if (isShown) el.classList.remove('show');
+        else el.classList.add('show');
+      }
+    };
+    trMain.innerHTML = `
+      <td>
+        <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" onclick="event.stopPropagation(); const el=document.getElementById('${collapseId}'); if(el){el.classList.toggle('show');}">&#9654;</button>
+      </td>
+      <td class="fw-semibold">${esc(routerData.router_name)}</td>
+      <td>${esc(routerData.esn)}</td>
+      <td><span class="badge bg-info">${licenses.length} File(s)</span></td>
+      <td>${esc(latestExpiry)}</td>
+      <td>${esc(latestRenewal)}</td>
+    `;
+    licTbody.appendChild(trMain);
+
+    const trSub = document.createElement('tr');
+    let licRowsHtml = sortedLics.map(lic => {
+      const downloadTarget = lic.archived_file || lic.license_file;
+      const fileNameDisplay = lic.archived_file || lic.license_file || 'N/A';
+      const fileDownload = downloadTarget 
+        ? `<a class="btn btn-outline-success btn-sm py-0 px-2" href="/download-archived-license/${encodeURIComponent(downloadTarget)}">&#8681; Download File</a>`
+        : `<span class="text-muted" style="font-size:0.8rem">N/A</span>`;
+      return `
+        <tr>
+          <td>${esc(fileNameDisplay)}</td>
+          <td>${esc(lic.expiry_date)}</td>
+          <td>${esc(lic.renewal_date)}</td>
+          <td>${fileDownload}</td>
+        </tr>
+      `;
+    }).join('');
+
+    trSub.innerHTML = `
+      <td colspan="6" class="p-0 border-0">
+        <div class="collapse bg-dark p-3 rounded" id="${collapseId}">
+          <h6 class="mb-2 text-info" style="font-size:0.85rem">License Files for ${esc(routerData.router_name)}</h6>
+          <table class="preview-table mb-0" style="font-size:0.85rem">
+            <thead>
+              <tr><th>License File Name</th><th>Expiry Date</th><th>Renewal Date</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              ${licRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </td>
+    `;
+    licTbody.appendChild(trSub);
+  });
+
+  renderPaginationNav('licensesPaginationNav', totalItems, pageSize, licensesPageIndex, 'changeLicensesPage');
 }
 
 /* ------------------------------------------------------------------

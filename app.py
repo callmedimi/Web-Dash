@@ -1706,6 +1706,51 @@ def admin_refresh_zabbix_db():
     return jsonify({"status": "started", "message": f"{action} started for groups: {', '.join(group_names)}"}), 202
 
 
+@app.route("/admin/renewal-reports", methods=["GET"])
+@permission_required("license_renewal_admin")
+def admin_get_renewal_reports():
+    reports = get_all_renewal_reports()
+    return jsonify(reports)
+
+
+@app.route("/admin/license-archive-files", methods=["GET"])
+@permission_required("license_renewal_admin")
+def admin_get_license_archive_files():
+    archive_dir = os.path.join(os.path.dirname(__file__), "license_archive")
+    if not os.path.isdir(archive_dir):
+        return jsonify([])
+    files = []
+    for f in os.listdir(archive_dir):
+        fp = os.path.join(archive_dir, f)
+        if os.path.isfile(fp):
+            stat = os.stat(fp)
+            files.append({
+                "filename": f,
+                "size": stat.st_size,
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
+    return jsonify(files)
+
+
+@app.route("/download-archived-license/<filename>", methods=["GET"])
+@login_required
+def download_archived_license(filename):
+    safe_filename = os.path.basename(filename)
+    archive_dir = os.path.join(os.path.dirname(__file__), "license_archive")
+    file_path = os.path.join(archive_dir, safe_filename)
+    if not os.path.isfile(file_path):
+        # Fallback to checking root or uploaded location if exact match exists by base name
+        if os.path.isfile(safe_filename):
+            file_path = safe_filename
+        else:
+            return "License file not found", 404
+    return send_file(
+        file_path,
+        as_attachment=True,
+        download_name=safe_filename
+    )
+
+
 @app.route("/admin/delete-zabbix-db", methods=["POST"])
 @permission_required("zabbix_db_refresh")
 def admin_delete_zabbix_db():
