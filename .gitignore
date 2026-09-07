@@ -10,6 +10,9 @@ venv/
 env/
 ENV/
 .venv
+.kilo/
+.continue/
+.claude/
 
 # Environment variables and secrets
 .env
