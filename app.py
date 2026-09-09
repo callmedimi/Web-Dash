@@ -39,6 +39,14 @@ from auth import (
     authenticate, login_required, permission_required, get_accessible_features,
     get_all_users, create_user, update_user, delete_user,
 )
+from site_arp_service import (
+    lookup_site_arp_mac_details,
+    parse_ne_csv_content,
+    start_collector_job,
+    get_collector_job_status,
+    stop_collector_job,
+    TARGET_NE_PREFIXES,
+)
 
 app = Flask(__name__)
 _secret_key_file = os.path.join(os.path.dirname(__file__), ".secret_key")
@@ -1896,6 +1904,104 @@ def search_zabbix_ip():
     except Exception as e:
         app.logger.exception("Zabbix search failed")
         return jsonify({"error": f"Search failed: {e}"}), 500
+
+
+@app.route("/search-site-arp-mac", methods=["POST"])
+@permission_required("zabbix_search")
+def search_site_arp_mac():
+    data = request.get_json(force=True)
+    site_code = (data.get("site_code") or data.get("keyword") or "").strip()
+
+    if not site_code:
+        return jsonify({"error": "Site code is required", "success": False}), 400
+
+    try:
+        result = lookup_site_arp_mac_details(site_code)
+        return jsonify(result)
+    except Exception as e:
+        app.logger.exception("Site ARP/MAC lookup failed")
+        return jsonify({"error": f"Lookup failed: {e}", "success": False}), 500
+
+
+@app.route("/admin/parse-ne-csv", methods=["POST"])
+@login_required
+def admin_parse_ne_csv():
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "Empty filename"}), 400
+
+    content = f.read()
+    matched, skipped, total = parse_ne_csv_content(content)
+    return jsonify({
+        "matched": matched,
+        "matched_count": len(matched),
+        "skipped_count": len(skipped),
+        "total_count": total,
+        "prefixes": TARGET_NE_PREFIXES,
+    })
+
+
+@app.route("/admin/run-arp-mac-collector", methods=["POST"])
+@login_required
+def admin_run_arp_mac_collector():
+    username = ""
+    password = ""
+    threads = 10
+    routers = []
+
+    if request.content_type and "multipart/form-data" in request.content_type:
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        try:
+            threads = int(request.form.get("threads", 10))
+        except Exception:
+            threads = 10
+
+        if "file" in request.files and request.files["file"].filename:
+            content = request.files["file"].read()
+            matched, _, _ = parse_ne_csv_content(content)
+            routers = matched
+    else:
+        data = request.get_json(silent=True) or {}
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
+        try:
+            threads = int(data.get("threads", 10))
+        except Exception:
+            threads = 10
+        routers = data.get("routers", [])
+
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
+
+    if not routers:
+        return jsonify({"error": f"No target routers found starting with {', '.join(TARGET_NE_PREFIXES)}"}), 400
+
+    started = start_collector_job(routers, username, password, max_workers=threads)
+    if not started:
+        return jsonify({"error": "Collector job is already running"}), 409
+
+    return jsonify({
+        "status": "started",
+        "message": f"Collector started for {len(routers)} routers",
+        "router_count": len(routers),
+    })
+
+
+@app.route("/admin/arp-mac-collector-status", methods=["GET"])
+@login_required
+def admin_arp_mac_collector_status():
+    status = get_collector_job_status()
+    return jsonify(status)
+
+
+@app.route("/admin/arp-mac-collector-stop", methods=["POST"])
+@login_required
+def admin_arp_mac_collector_stop():
+    stop_collector_job()
+    return jsonify({"status": "stopping"})
 
 
 if __name__ == "__main__":

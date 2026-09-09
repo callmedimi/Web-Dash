@@ -814,42 +814,76 @@ Matches RT values to VRFs and shows the originator router.
            <strong style="color:#0d6efd"> Routers</strong> host group.
            Includes a button to open the search keyword in an external tool.
          </p>
-         <div class="d-flex gap-2 align-items-center flex-wrap mb-3">
-           <input type="text" id="zabbixKeyword2" class="form-control"
-                  style="flex:1 1 300px;min-width:200px"
-                  placeholder="Enter CodeSite (e.g. TH1234)"
-                  autocomplete="off"
-                  onkeydown="if(event.key==='Enter')searchZabbix2()"
-                  oninput="validateKeyword2()">
-           <button class="btn btn-primary" id="zabbixSearchBtn2" onclick="searchZabbix2()">Search</button>
-           <div class="spinner" id="zabbixSearchSpinner2" style="display:none"></div>
-         </div>
-         <div id="zabbixSearchInfo2" style="font-size:0.82rem;color:#6c757d;margin-bottom:8px;display:none"></div>
-         <div id="zabbixSearchError2" style="color:#f85149;font-size:0.88rem;margin-bottom:12px;display:none"></div>
-         
-         <div id="zabbixResults2" style="display:none">
-           <hr>
-           <div id="zabbixSummary2" style="font-size:0.88rem;color:#adb5bd;margin-bottom:10px"></div>
-           
-           <!-- NEW BUTTON USING USER INPUT -->
-           <div class="mb-3 d-flex align-items-center gap-2">
-             <button class="btn btn-outline-info" id="zabbixExternalBtn2" onclick="openExternalZabbixLink()">
-               &#128279; Open Dashboard 
-             </button>
-             <span style="font-size:0.8rem;color:#6c757d">Finds Specific Site Dashboard</span>
-           </div>
+          <div class="d-flex gap-2 align-items-center flex-wrap mb-3">
+            <input type="text" id="zabbixKeyword2" class="form-control"
+                   style="flex:1 1 300px;min-width:200px"
+                   placeholder="Enter CodeSite (e.g. TH1234)"
+                   autocomplete="off"
+                   onkeydown="if(event.key==='Enter')searchZabbix2()"
+                   oninput="validateKeyword2()">
+            <button class="btn btn-primary" id="zabbixSearchBtn2" onclick="searchZabbix2()">Search</button>
+            <button class="btn btn-outline-warning" id="siteArpMacBtn" onclick="searchSiteArpMac()">Lookup ARP / MAC</button>
+            <div class="spinner" id="zabbixSearchSpinner2" style="display:none"></div>
+          </div>
+          <div id="zabbixSearchInfo2" style="font-size:0.82rem;color:#6c757d;margin-bottom:8px;display:none"></div>
+          <div id="zabbixSearchError2" style="color:#f85149;font-size:0.88rem;margin-bottom:12px;display:none"></div>
+          
+          <div id="zabbixResults2" style="display:none">
+            <hr>
+            <div id="zabbixSummary2" style="font-size:0.88rem;color:#adb5bd;margin-bottom:10px"></div>
+            
+            <!-- NEW BUTTON USING USER INPUT -->
+            <div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
+              <button class="btn btn-outline-info" id="zabbixExternalBtn2" onclick="openExternalZabbixLink()">
+                &#128279; Open Dashboard 
+              </button>
+              <button class="btn btn-outline-warning" onclick="searchSiteArpMac()">
+                &#128269; View ARP &amp; MAC Details
+              </button>
+              <span style="font-size:0.8rem;color:#6c757d">Finds Specific Site Dashboard &amp; ARP/MAC records</span>
+            </div>
 
-           <div style="overflow-x:auto">
-             <table class="preview-table" style="white-space:nowrap">
-               <thead>
-                 <tr>
-                   <th>#</th><th>Host</th><th>Name</th><th>Status</th><th>Matched Interfaces</th><th>Interface Count</th>
-                 </tr>
-               </thead>
-               <tbody id="zabbixResultsBody2"></tbody>
-             </table>
-           </div>
-         </div>
+            <div style="overflow-x:auto">
+              <table class="preview-table" style="white-space:nowrap">
+                <thead>
+                  <tr>
+                    <th>#</th><th>Host</th><th>Name</th><th>Status</th><th>Matched Interfaces</th><th>Interface Count</th>
+                  </tr>
+                </thead>
+                <tbody id="zabbixResultsBody2"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ARP & MAC Lookup Results -->
+          <div id="siteArpMacSection" style="display:none">
+            <hr>
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+              <div id="siteArpMacSummary" style="font-size:0.88rem;color:#adb5bd"></div>
+              <button class="btn btn-outline-secondary btn-sm" onclick="exportSiteArpMacCsv()">&#8681; Export CSV</button>
+            </div>
+            <div id="siteArpMacError" style="color:#f85149;font-size:0.88rem;margin-bottom:12px;display:none"></div>
+            <div style="overflow-x:auto">
+              <table class="preview-table" style="white-space:nowrap">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Site_Code</th>
+                    <th>VRF</th>
+                    <th>VRF_IP</th>
+                    <th>Vlan</th>
+                    <th>Site_Model</th>
+                    <th>NE</th>
+                    <th>NE_IP</th>
+                    <th>ARP_MAC</th>
+                    <th>ARP_Interface</th>
+                    <th>Link</th>
+                  </tr>
+                </thead>
+                <tbody id="siteArpMacBody"></tbody>
+              </table>
+            </div>
+          </div>
        </div>
      </div>
    </div>
@@ -869,6 +903,9 @@ Matches RT values to VRFs and shows the originator router.
 </li>
 <li class="nav-item" role="presentation" id="nav-admin-zabbix" style="display:none">
 <button class="nav-link" id="admin-zabbix-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-zabbix" type="button" role="tab">Zabbix DB</button>
+</li>
+<li class="nav-item" role="presentation" id="nav-admin-arp-mac" style="display:none">
+<button class="nav-link" id="admin-arp-mac-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-arp-mac" type="button" role="tab">ARP &amp; MAC Collector</button>
 </li>
 <li class="nav-item" role="presentation" id="nav-admin-renewal-reports" style="display:none">
 <button class="nav-link" id="admin-renewal-reports-tab" data-bs-toggle="tab" data-bs-target="#tab-admin-renewal-reports" type="button" role="tab" onclick="loadRenewalReports()">Renewal Reports</button>
@@ -1026,6 +1063,60 @@ The database is used by the Zabbix Interface Search tab.
   </div>
 </div>
 
+</div>
+
+<!-- ARP & MAC Collector Tab Pane -->
+<div class="tab-pane" id="tab-admin-arp-mac" role="tabpanel">
+  <p style="color:#adb5bd;font-size:0.88rem;margin-bottom:14px">
+    Upload an NE info CSV file. The collector targets routers starting with
+    <strong style="color:#0d6efd">IL</strong>, <strong style="color:#0d6efd">BR</strong>,
+    <strong style="color:#0d6efd">BA</strong>, or <strong style="color:#0d6efd">BC</strong>,
+    fetches ARP and MAC tables via SSH, and creates or updates <code style="color:#79c0ff">arp_mac.csv</code>.
+  </p>
+
+  <div class="card p-3 mb-3" style="background:#161b22;border:1px solid #30363d">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-6">
+        <label for="neCsvUpload" class="form-label" style="font-weight:600;font-size:0.85rem">Upload NE Info CSV:</label>
+        <input type="file" id="neCsvUpload" class="form-control" accept=".csv" onchange="onNeCsvSelected()">
+      </div>
+      <div class="col-md-2">
+        <label for="collectorThreads" class="form-label" style="font-weight:600;font-size:0.85rem">Threads:</label>
+        <input type="number" id="collectorThreads" class="form-control" value="10" min="1" max="50">
+      </div>
+      <div class="col-md-4 d-flex gap-2">
+        <button class="btn btn-primary w-100" id="arpMacUpdateBtn" onclick="runArpMacCollector()">
+          &#9881; Update arp_mac.csv
+        </button>
+        <button class="btn btn-outline-danger" id="arpMacStopBtn" onclick="stopArpMacCollector()" style="display:none">
+          Stop
+        </button>
+      </div>
+    </div>
+    
+    <div id="neCsvParseInfo" style="font-size:0.84rem;color:#adb5bd;margin-top:10px;display:none"></div>
+    <div id="arpMacCollectError" style="color:#f85149;font-size:0.88rem;margin-top:10px;display:none"></div>
+  </div>
+
+  <!-- Progress Bar & Status -->
+  <div id="arpMacProgressBox" style="display:none" class="mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <span id="arpMacProgressLabel" style="font-size:0.84rem;font-weight:600">Processing...</span>
+      <span id="arpMacProgressPercent" style="font-size:0.84rem;color:#79c0ff">0%</span>
+    </div>
+    <div class="progress" style="height:8px;background-color:#21262d">
+      <div id="arpMacProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Realtime Logs -->
+  <div class="card p-2" style="background:#0d1117;border:1px solid #30363d">
+    <div class="d-flex justify-content-between align-items-center px-2 py-1">
+      <span style="font-size:0.82rem;font-weight:600;color:#8b949e">Collector Output Log</span>
+      <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.75rem" onclick="document.getElementById('arpMacLogBox').innerHTML=''">Clear</button>
+    </div>
+    <div id="arpMacLogBox" style="max-height:260px;overflow-y:auto;font-family:monospace;font-size:0.8rem;padding:8px;color:#c9d1d9;white-space:pre-wrap"></div>
+  </div>
 </div>
 </div>
 </div>
@@ -2959,6 +3050,15 @@ async function searchZabbix2() {
   document.getElementById('zabbixSearchError2').style.display = 'none';
   document.getElementById('zabbixResults2').style.display = 'none';
 
+  // Clear previous ARP & MAC search results
+  const siteArpSection = document.getElementById('siteArpMacSection');
+  if (siteArpSection) siteArpSection.style.display = 'none';
+  const siteArpBody = document.getElementById('siteArpMacBody');
+  if (siteArpBody) siteArpBody.innerHTML = '';
+  const siteArpSummary = document.getElementById('siteArpMacSummary');
+  if (siteArpSummary) siteArpSummary.innerHTML = '';
+  currentSiteArpMacRows = [];
+
   try {
     const resp = await fetch('/search-zabbix-interfaces', {
       method: 'POST',
@@ -3049,6 +3149,316 @@ function validateKeyword2() {
     info.style.color = '#f85149';
     info.style.display = 'block';
     return false;
+  }
+}
+
+/* ------------------------------------------------------------------
+Site ARP & MAC Cross-Reference Lookup
+------------------------------------------------------------------ */
+let currentSiteArpMacRows = [];
+
+async function searchSiteArpMac() {
+  const input = document.getElementById('zabbixKeyword2');
+  const siteCode = (input ? input.value : '').trim();
+  if (!siteCode) {
+    showToast('Please enter a CodeSite to search');
+    return;
+  }
+
+  const btn = document.getElementById('siteArpMacBtn');
+  const spinner = document.getElementById('zabbixSearchSpinner2');
+  const errEl = document.getElementById('siteArpMacError');
+  const section = document.getElementById('siteArpMacSection');
+  const summary = document.getElementById('siteArpMacSummary');
+  const tbody = document.getElementById('siteArpMacBody');
+
+  if (btn) btn.disabled = true;
+  if (spinner) spinner.style.display = 'inline-block';
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  if (summary) { summary.innerHTML = ''; }
+  if (tbody) { tbody.innerHTML = ''; }
+  if (section) { section.style.display = 'none'; }
+  currentSiteArpMacRows = [];
+
+  try {
+    const resp = await fetch('/search-site-arp-mac', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ site_code: siteCode }),
+    });
+    const data = await resp.json();
+
+    if (!data.success) {
+      const msg = data.error || 'No matching records found.';
+      showToast(msg);
+      if (errEl) {
+        errEl.textContent = msg;
+        errEl.style.display = 'block';
+      }
+      if (summary) {
+        summary.innerHTML = `<span style="color:#f85149">Site: <strong>${esc(siteCode)}</strong> &mdash; ${esc(msg)}</span>`;
+      }
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#6c757d;padding:16px">${esc(msg)}</td></tr>`;
+      }
+      if (section) section.style.display = 'block';
+      return;
+    }
+
+    const results = data.results || [];
+    currentSiteArpMacRows = results;
+    const count = data.count || results.length;
+
+    let macList = (data.macs || []).map(m => `<code>${esc(m)}</code>`).join(', ');
+    if (summary) {
+      summary.innerHTML = `Found <strong>${count}</strong> record(s) for Site <strong>${esc(siteCode)}</strong> ${macList ? `&bull; MAC: ${macList}` : ''}`;
+    }
+
+    if (tbody) {
+      tbody.innerHTML = '';
+      if (results.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#6c757d;padding:16px">No ARP/MAC records found for this site.</td></tr>`;
+      } else {
+        results.forEach((r, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${i + 1}</td>
+            <td><strong>${esc(r.Site_Code || '')}</strong></td>
+            <td>${esc(r.VRF || '-')}</td>
+            <td>${esc(r.VRF_IP || r.IP || '')}</td>
+            <td>${esc(r.Vlan || '-')}</td>
+            <td><span class="badge bg-secondary">${esc(r.Site_Model || r.Model || '')}</span></td>
+            <td><strong>${esc(r.NE || '')}</strong></td>
+            <td>${esc(r.NE_IP || '')}</td>
+            <td><code>${esc(r.ARP_MAC || '')}</code></td>
+            <td style="color:#79c0ff">${esc(r.ARP_Interface || '')}</td>
+            <td>${esc(r.Link || r.MAC_Port || '-')}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    if (section) section.style.display = 'block';
+  } catch (e) {
+    if (errEl) {
+      errEl.textContent = 'Connection error: ' + e.message;
+      errEl.style.display = 'block';
+    }
+    if (section) section.style.display = 'block';
+  } finally {
+    if (btn) btn.disabled = false;
+    if (spinner) spinner.style.display = 'none';
+  }
+}
+
+function exportSiteArpMacCsv() {
+  if (!currentSiteArpMacRows || !currentSiteArpMacRows.length) {
+    showToast('No records to export');
+    return;
+  }
+  const headers = ['Site_Code', 'VRF', 'VRF_IP', 'Vlan', 'Site_Model', 'NE', 'NE_IP', 'ARP_MAC', 'ARP_Interface', 'Link'];
+  const rows = [headers.join(',')];
+  currentSiteArpMacRows.forEach(r => {
+    const line = headers.map(h => {
+      let rawVal = r[h];
+      if (rawVal === undefined) {
+        if (h === 'VRF_IP') rawVal = r.IP;
+        else if (h === 'Site_Model') rawVal = r.Model;
+        else if (h === 'Link') rawVal = r.MAC_Port;
+      }
+      const val = (rawVal || '').toString().replace(/"/g, '""');
+      return `"${val}"`;
+    });
+    rows.push(line.join(','));
+  });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `site_arp_mac_${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ------------------------------------------------------------------
+Admin: ARP & MAC Collector Execution
+------------------------------------------------------------------ */
+let parsedCollectorRouters = [];
+let collectorPollInterval = null;
+
+async function onNeCsvSelected() {
+  const fileInput = document.getElementById('neCsvUpload');
+  const infoEl = document.getElementById('neCsvParseInfo');
+  const errEl = document.getElementById('arpMacCollectError');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  parsedCollectorRouters = [];
+
+  if (!fileInput || !fileInput.files.length) {
+    if (infoEl) infoEl.style.display = 'none';
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const resp = await fetch('/admin/parse-ne-csv', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await resp.json();
+    if (data.error) {
+      if (errEl) { errEl.textContent = data.error; errEl.style.display = 'block'; }
+      return;
+    }
+
+    parsedCollectorRouters = data.matched || [];
+    if (infoEl) {
+      infoEl.innerHTML = `<strong>${data.total_count}</strong> total NE(s) in CSV. ` +
+        `<span style="color:#198754"><strong>${data.matched_count}</strong> match target prefixes (${(data.prefixes || []).join(', ')})</span>. ` +
+        `<span style="color:#6c757d">${data.skipped_count} skipped.</span>`;
+      infoEl.style.display = 'block';
+    }
+  } catch (e) {
+    if (errEl) {
+      errEl.textContent = 'Failed to parse CSV: ' + e.message;
+      errEl.style.display = 'block';
+    }
+  }
+}
+
+async function runArpMacCollector() {
+  const errEl = document.getElementById('arpMacCollectError');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+  if (!window.networkCreds) {
+    showToast('Set network credentials in the header first');
+    return;
+  }
+
+  const fileInput = document.getElementById('neCsvUpload');
+  if ((!parsedCollectorRouters || !parsedCollectorRouters.length) && (!fileInput || !fileInput.files.length)) {
+    showToast('Please upload an NE info CSV file first');
+    return;
+  }
+
+  const threadsVal = parseInt(document.getElementById('collectorThreads').value, 10) || 10;
+  const updateBtn = document.getElementById('arpMacUpdateBtn');
+  const stopBtn = document.getElementById('arpMacStopBtn');
+  const progressBox = document.getElementById('arpMacProgressBox');
+  const logBox = document.getElementById('arpMacLogBox');
+
+  if (updateBtn) updateBtn.disabled = true;
+  if (stopBtn) stopBtn.style.display = 'inline-block';
+  if (progressBox) progressBox.style.display = 'block';
+  if (logBox) logBox.innerHTML = '';
+
+  let bodyData;
+  let headers = {};
+
+  if (parsedCollectorRouters && parsedCollectorRouters.length > 0) {
+    bodyData = JSON.stringify({
+      username: window.networkCreds.username,
+      password: window.networkCreds.password,
+      threads: threadsVal,
+      routers: parsedCollectorRouters,
+    });
+    headers['Content-Type'] = 'application/json';
+  } else {
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('username', window.networkCreds.username);
+    formData.append('password', window.networkCreds.password);
+    formData.append('threads', threadsVal.toString());
+    bodyData = formData;
+  }
+
+  try {
+    const resp = await fetch('/admin/run-arp-mac-collector', {
+      method: 'POST',
+      headers: headers,
+      body: bodyData,
+    });
+    const data = await resp.json();
+    if (data.error) {
+      showToast(data.error);
+      if (errEl) { errEl.textContent = data.error; errEl.style.display = 'block'; }
+      if (updateBtn) updateBtn.disabled = false;
+      if (stopBtn) stopBtn.style.display = 'none';
+      return;
+    }
+
+    showToast('ARP & MAC collection started');
+    startCollectorPolling();
+  } catch (e) {
+    if (errEl) {
+      errEl.textContent = 'Request error: ' + e.message;
+      errEl.style.display = 'block';
+    }
+    if (updateBtn) updateBtn.disabled = false;
+    if (stopBtn) stopBtn.style.display = 'none';
+  }
+}
+
+function startCollectorPolling() {
+  if (collectorPollInterval) clearInterval(collectorPollInterval);
+  collectorPollInterval = setInterval(async () => {
+    try {
+      const resp = await fetch('/admin/arp-mac-collector-status');
+      const data = await resp.json();
+
+      const progressBar = document.getElementById('arpMacProgressBar');
+      const progressPercent = document.getElementById('arpMacProgressPercent');
+      const progressLabel = document.getElementById('arpMacProgressLabel');
+      const logBox = document.getElementById('arpMacLogBox');
+      const updateBtn = document.getElementById('arpMacUpdateBtn');
+      const stopBtn = document.getElementById('arpMacStopBtn');
+
+      const total = data.total || 0;
+      const completed = data.completed || 0;
+      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      if (progressBar) progressBar.style.width = `${pct}%`;
+      if (progressPercent) progressPercent.textContent = `${pct}%`;
+      if (progressLabel) {
+        progressLabel.textContent = `Completed: ${completed} / ${total} NEs | Rows: ${data.rows_collected || 0} ${data.current_router ? `| Current: ${data.current_router}` : ''}`;
+      }
+
+      if (logBox && data.logs && data.logs.length) {
+        logBox.textContent = data.logs.join('\n');
+        logBox.scrollTop = logBox.scrollHeight;
+      }
+
+      if (data.status === 'done' || data.status === 'stopped' || data.status === 'error') {
+        clearInterval(collectorPollInterval);
+        collectorPollInterval = null;
+        if (updateBtn) updateBtn.disabled = false;
+        if (stopBtn) stopBtn.style.display = 'none';
+
+        if (data.status === 'done') {
+          showToast(`Collector complete: ${data.rows_collected} records updated in arp_mac.csv`);
+        } else if (data.status === 'stopped') {
+          showToast('Collector stopped by user');
+        } else if (data.status === 'error') {
+          showToast('Collector failed: ' + (data.error || 'Unknown error'));
+        }
+      }
+    } catch (e) {
+      console.error('Polling error', e);
+    }
+  }, 1500);
+}
+
+async function stopArpMacCollector() {
+  try {
+    await fetch('/admin/arp-mac-collector-stop', { method: 'POST' });
+    showToast('Stopping collector...');
+  } catch (e) {
+    showToast('Error stopping collector: ' + e.message);
   }
 }
 function toggleSectionBody(bodyId, iconId) {
@@ -3620,15 +4030,18 @@ async function applyFeatureVisibility() {
     const hasPermMgmt = hasPerm('permission_management');
     const hasZabbixRefresh = hasPerm('zabbix_db_refresh');
     const hasLicenseRenewalAdmin = hasPerm('license_renewal_admin');
-    if (adminNav) adminNav.style.display = (hasUserMgmt || hasPermMgmt || hasZabbixRefresh || hasLicenseRenewalAdmin) ? '' : 'none';
+    const hasArpMacCollector = hasZabbixRefresh || hasUserMgmt;
+    if (adminNav) adminNav.style.display = (hasUserMgmt || hasPermMgmt || hasZabbixRefresh || hasLicenseRenewalAdmin || hasArpMacCollector) ? '' : 'none';
     
     const navAdminUsers = document.getElementById('nav-admin-users');
     const navAdminPerms = document.getElementById('nav-admin-perms');
     const navAdminZabbix = document.getElementById('nav-admin-zabbix');
+    const navAdminArpMac = document.getElementById('nav-admin-arp-mac');
     const navAdminRenewalReports = document.getElementById('nav-admin-renewal-reports');
     if (navAdminUsers) navAdminUsers.style.display = hasUserMgmt ? '' : 'none';
     if (navAdminPerms) navAdminPerms.style.display = hasPermMgmt ? '' : 'none';
     if (navAdminZabbix) navAdminZabbix.style.display = hasZabbixRefresh ? '' : 'none';
+    if (navAdminArpMac) navAdminArpMac.style.display = hasArpMacCollector ? '' : 'none';
     if (navAdminRenewalReports) navAdminRenewalReports.style.display = hasLicenseRenewalAdmin ? '' : 'none';
 
 // Set the admin sub-tab to active if any admin features are visible and it's the first one
