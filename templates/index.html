@@ -480,6 +480,9 @@ body { padding: 8px; }
 <li class="nav-item" role="presentation">
 <button class="nav-link" id="zabbix-tab" data-bs-toggle="tab" data-bs-target="#tab-zabbix" type="button" role="tab">Zabbix Search</button>
 </li>
+<li class="nav-item" role="presentation">
+<button class="nav-link" id="session-extractor-tab" data-bs-toggle="tab" data-bs-target="#tab-session-extractor" type="button" role="tab">Session Extractor</button>
+</li>
 <li class="nav-item" role="presentation" id="nav-admin" style="display:none">
 <button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#tab-admin" type="button" role="tab">Admin</button>
 </li>
@@ -888,6 +891,99 @@ Matches RT values to VRFs and shows the originator router.
      </div>
    </div>
 </div> <!-- Closes tab-zabbix -->
+
+<!-- Session Extractor Tab -->
+<div class="tab-pane" id="tab-session-extractor" role="tabpanel">
+    <div class="card mb-3" id="sessionExtractorCard">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">SecureCRT Session Extractor</h5>
+            <span class="badge bg-primary">CSV &rarr; Sessions.zip</span>
+        </div>
+        <div class="card-body">
+            <p style="color:#adb5bd;font-size:0.88rem;margin-bottom:12px">
+                Upload a CSV file (e.g. NCE/U2000 export with <code>NE Name</code>, <code>NE IP Address</code>, and <code>Subnet Path</code>) to generate SecureCRT SSH2 session configuration files organized in folder hierarchies.
+            </p>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-8">
+                    <div class="drop-zone" id="sessionDropZone" style="cursor:pointer">
+                        <div class="placeholder">
+                            <div class="icon">&#128196;</div>
+                            <p>Drag &amp; drop your CSV file here, or <span class="browse-link" onclick="document.getElementById('sessionCsvFile').click()">browse</span></p>
+                            <p style="font-size:0.82rem;color:#6c757d;margin-top:4px">Expected columns: NE Name, NE IP Address, Subnet Path</p>
+                        </div>
+                        <div class="file-name" id="sessionFileName" style="display:none"></div>
+                    </div>
+                    <input type="file" id="sessionCsvFile" accept=".csv" style="display:none" onchange="handleSessionFile(this.files[0])">
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3" style="background:#212529;border:1px solid #373b3e;border-radius:6px;height:100%">
+                        <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">Default SSH Username (Optional)</label>
+                        <input type="text" id="sessionDefaultUser" class="form-control mb-2" placeholder="e.g. admin" autocomplete="off">
+                        <small style="color:#6c757d;font-size:0.78rem">Inserted into <code>S:"Username"=...</code> in each session file. Leave blank to inherit network user or leave empty.</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subnet Paths & Selection Section (hidden until CSV parsed) -->
+            <div id="sessionSubnetSection" style="display:none">
+                <hr style="border-color:#373b3e">
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div>
+                        <h6 class="mb-1" style="color:#f8f9fa;font-weight:600">Subnet Paths Selection</h6>
+                        <span id="sessionSummaryText" style="font-size:0.84rem;color:#adb5bd"></span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllSubnets(true)">Select All</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllSubnets(false)">Deselect All</button>
+                        <button type="button" class="btn btn-success btn-sm px-3" id="sessionDownloadBtn" onclick="downloadSessionsZip()">
+                            &#128229; Download Sessions (.zip)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter / Search input -->
+                <div class="input-group mb-3" style="max-width:400px">
+                    <span class="input-group-text bg-dark border-secondary text-secondary" style="font-size:0.85rem">&#128269;</span>
+                    <input type="text" id="subnetSearchInput" class="form-control" placeholder="Filter Subnet Paths..." oninput="filterSubnets(this.value)">
+                </div>
+
+                <!-- Subnets Checklist Container -->
+                <div class="card mb-3" style="border:1px solid #373b3e;background:#1e2124">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center" style="background:#25292d">
+                        <span style="font-size:0.82rem;font-weight:600;color:#adb5bd" id="subnetSelectedCount">0 selected</span>
+                        <span style="font-size:0.78rem;color:#6c757d">Checked paths will be included in the zip download</span>
+                    </div>
+                    <div class="card-body p-2" style="max-height:350px;overflow-y:auto" id="subnetListContainer">
+                        <!-- Checkbox list dynamically populated here -->
+                    </div>
+                </div>
+
+                <!-- Preview Section (Toggleable) -->
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span style="font-size:0.84rem;color:#adb5bd" id="sessionRouterCount"></span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" style="padding:2px 10px;font-size:0.78rem" onclick="toggleTableRows(this,'sessionPreviewBody')">Show parsed devices</button>
+                    </div>
+                    <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+                        <table class="preview-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>NE Name</th>
+                                    <th>IP Address</th>
+                                    <th>Subnet Path</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sessionPreviewBody" style="display:none"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Admin Tab -->
 <div class="tab-pane" id="tab-admin" role="tabpanel">
@@ -4016,6 +4112,7 @@ async function applyFeatureVisibility() {
         'reporting': 'reporting-tab',
         'vrf_routing': 'vrf-tab',
         'license_check': 'license-tab',
+        'session_extractor': 'session-extractor-tab',
     };
     for (const [feat, tabId] of Object.entries(tabMap)) {
         const tabLink = document.getElementById(tabId);
@@ -4248,6 +4345,7 @@ const FEATURE_LIST = [
   'license_check',
   'zabbix_search',
   'code_site_search',
+  'session_extractor',
   'user_management',
   'permission_management',
   'zabbix_db_refresh',
@@ -4261,6 +4359,7 @@ const FEATURE_LABELS = {
   'license_check': 'License',
   'zabbix_search': 'Zabbix Search',
   'code_site_search': 'Code SITE Search',
+  'session_extractor': 'Session Extractor',
   'user_management': 'User Mgmt',
   'permission_management': 'Perm Mgmt',
   'zabbix_db_refresh': 'Zabbix DB Refresh',
@@ -4343,6 +4442,235 @@ showToast('Permissions saved for ' + username);
 showToast('Error: ' + e.message);
 }
 }
+/* ------------------------------------------------------------------
+Session Extractor Tab
+------------------------------------------------------------------ */
+let sessionExtractorSid = null;
+let sessionExtractorSubnets = [];
+let sessionExtractorRouters = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const sDropZone = document.getElementById('sessionDropZone');
+    const sFileInput = document.getElementById('sessionCsvFile');
+    if (sDropZone && sFileInput) {
+        sDropZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            sDropZone.classList.add('dragover');
+        });
+        sDropZone.addEventListener('dragleave', () => {
+            sDropZone.classList.remove('dragover');
+        });
+        sDropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            sDropZone.classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleSessionFile(e.dataTransfer.files[0]);
+            }
+        });
+        sDropZone.addEventListener('click', () => sFileInput.click());
+    }
+});
+
+async function handleSessionFile(file) {
+    if (!file) return;
+    const dropZone = document.getElementById('sessionDropZone');
+    const fileNameEl = document.getElementById('sessionFileName');
+    const subnetSection = document.getElementById('sessionSubnetSection');
+
+    dropZone.classList.add('has-file');
+    fileNameEl.textContent = file.name;
+    fileNameEl.style.display = 'block';
+    subnetSection.style.display = 'none';
+
+    const form = new FormData();
+    form.append('file', file);
+
+    const placeholder = dropZone.querySelector('.placeholder');
+    const origPlaceholderHtml = placeholder ? placeholder.innerHTML : '';
+    if (placeholder) {
+        placeholder.innerHTML = '<div class="spinner-border text-primary my-2" role="status"></div><p>Parsing CSV file...</p>';
+    }
+
+    try {
+        const resp = await fetch('/session-extractor/parse', {
+            method: 'POST',
+            body: form
+        });
+        const data = await resp.json();
+        if (data.error) {
+            showToast(data.error);
+            dropZone.classList.remove('has-file');
+            fileNameEl.style.display = 'none';
+            return;
+        }
+
+        sessionExtractorSid = data.sid;
+        sessionExtractorSubnets = data.subnets || [];
+        sessionExtractorRouters = data.routers || [];
+
+        renderSubnetSection(data);
+    } catch (e) {
+        showToast('Failed to parse CSV: ' + e.message);
+        dropZone.classList.remove('has-file');
+        fileNameEl.style.display = 'none';
+    } finally {
+        if (placeholder) {
+            placeholder.innerHTML = origPlaceholderHtml;
+        }
+    }
+}
+
+function renderSubnetSection(data) {
+    const summaryText = document.getElementById('sessionSummaryText');
+    summaryText.innerHTML = `Found <strong class="text-white">${data.total_routers}</strong> devices across <strong class="text-white">${data.subnets.length}</strong> subnet path(s).`;
+
+    const container = document.getElementById('subnetListContainer');
+    container.innerHTML = '';
+
+    data.subnets.forEach((sub, idx) => {
+        const item = document.createElement('div');
+        item.className = 'subnet-item d-flex justify-content-between align-items-center py-2 px-2 border-bottom border-secondary border-opacity-25';
+        item.dataset.path = sub.path.toLowerCase();
+
+        item.innerHTML = `
+            <div class="form-check mb-0">
+                <input class="form-check-input subnet-checkbox" type="checkbox" id="sub_chk_${idx}" value="${esc(sub.path)}" data-count="${sub.count}" checked onchange="updateSubnetSelectionStats()">
+                <label class="form-check-label font-monospace" for="sub_chk_${idx}" style="font-size:0.86rem;color:#e9ecef;cursor:pointer">
+                    ${esc(sub.path)}
+                </label>
+            </div>
+            <span class="badge bg-secondary rounded-pill" style="font-size:0.75rem">${sub.count} device${sub.count > 1 ? 's' : ''}</span>
+        `;
+        container.appendChild(item);
+    });
+
+    const searchInput = document.getElementById('subnetSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    // Render Preview Table
+    const tbody = document.getElementById('sessionPreviewBody');
+    tbody.innerHTML = '';
+    (data.routers || []).forEach((r, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i+1}</td><td><strong>${esc(r.name)}</strong></td><td><code>${esc(r.ip)}</code></td><td><span class="badge bg-dark text-light border border-secondary">${esc(r.subnet_path)}</span></td>`;
+        tbody.appendChild(tr);
+    });
+    document.getElementById('sessionRouterCount').textContent = `${data.total_routers} device(s) total (showing ${Math.min(data.total_routers, (data.routers || []).length)} in preview)`;
+
+    updateSubnetSelectionStats();
+    document.getElementById('sessionSubnetSection').style.display = 'block';
+}
+
+function filterSubnets(query) {
+    const q = (query || '').trim().toLowerCase();
+    const items = document.querySelectorAll('#subnetListContainer .subnet-item');
+    items.forEach(item => {
+        const path = item.dataset.path || '';
+        item.style.display = path.includes(q) ? '' : 'none';
+    });
+}
+
+function selectAllSubnets(selectAll) {
+    const items = document.querySelectorAll('#subnetListContainer .subnet-item');
+    items.forEach(item => {
+        if (item.style.display !== 'none') {
+            const cb = item.querySelector('.subnet-checkbox');
+            if (cb) cb.checked = selectAll;
+        }
+    });
+    updateSubnetSelectionStats();
+}
+
+function updateSubnetSelectionStats() {
+    const allCheckboxes = document.querySelectorAll('.subnet-checkbox');
+    const checkedBoxes = document.querySelectorAll('.subnet-checkbox:checked');
+    let totalDevices = 0;
+    checkedBoxes.forEach(cb => {
+        totalDevices += parseInt(cb.getAttribute('data-count') || '0', 10);
+    });
+
+    const statusEl = document.getElementById('subnetSelectedCount');
+    if (statusEl) {
+        statusEl.innerHTML = `<span class="text-primary fw-bold">${checkedBoxes.length}</span> of ${allCheckboxes.length} subnets selected (<span class="text-info fw-bold">${totalDevices}</span> sessions)`;
+    }
+
+    const downloadBtn = document.getElementById('sessionDownloadBtn');
+    if (downloadBtn) {
+        downloadBtn.disabled = checkedBoxes.length === 0;
+    }
+}
+
+async function downloadSessionsZip() {
+    if (!sessionExtractorSid) {
+        showToast('No active session. Please upload a CSV first.');
+        return;
+    }
+
+    const checkedBoxes = document.querySelectorAll('.subnet-checkbox:checked');
+    const selectedSubnets = Array.from(checkedBoxes).map(cb => cb.value);
+
+    if (selectedSubnets.length === 0) {
+        showToast('Please select at least one subnet path to download.');
+        return;
+    }
+
+    const btn = document.getElementById('sessionDownloadBtn');
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Generating Zip...';
+
+    const defaultUser = (document.getElementById('sessionDefaultUser')?.value || '').trim() ||
+                        (document.getElementById('netUser')?.value || '').trim();
+
+    try {
+        const resp = await fetch('/session-extractor/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sid: sessionExtractorSid,
+                selected_subnets: selectedSubnets,
+                username: defaultUser
+            })
+        });
+
+        if (!resp.ok) {
+            let errMsg = 'Download failed';
+            try {
+                const errData = await resp.json();
+                errMsg = errData.error || errMsg;
+            } catch (_) {}
+            showToast(errMsg);
+            return;
+        }
+
+        const blob = await resp.blob();
+        let filename = 'sessions.zip';
+        const disposition = resp.headers.get('Content-Disposition');
+        if (disposition && disposition.includes('filename=')) {
+            const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (match && match[1]) {
+                filename = match[1].replace(/['"]/g, '');
+            }
+        }
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        showToast(`Downloaded ${filename} successfully!`);
+    } catch (e) {
+        showToast('Error generating zip: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+    }
+}
+
 /* ------------------------------------------------------------------
 Init
 ------------------------------------------------------------------ */
