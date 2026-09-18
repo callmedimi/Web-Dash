@@ -55,7 +55,6 @@ from ptp_troubleshoot_service import (
     search_candidate_routers,
     resolve_router_info,
     run_ptp_troubleshoot_traceback,
-    run_simulated_ptp_troubleshoot,
 )
 
 app = Flask(__name__)
@@ -180,7 +179,7 @@ def finish_ptp_session(sid: str, result: dict | None = None, error: str | None =
     sess["log_queue"].put(None)
 
 
-def _run_ptp_worker(sid: str, target: str, username: str, password: str, mock_mode: bool = False, max_hops: int = 5):
+def _run_ptp_worker(sid: str, target: str, username: str, password: str, max_hops: int = 5):
     def _log(msg: str, level: str = "info"):
         push_ptp_log(sid, msg, level)
 
@@ -196,8 +195,6 @@ def _run_ptp_worker(sid: str, target: str, username: str, password: str, mock_mo
             password=password,
             log_callback=_log,
             max_hops=max_hops,
-            mock_mode=mock_mode,
-            simulate_on_unreachable=True,
         )
         finish_ptp_session(sid, result=report)
     except Exception as exc:
@@ -2210,7 +2207,6 @@ def ptp_start_troubleshoot():
     target = (data.get("target") or data.get("host") or "").strip()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
-    mock_mode = bool(data.get("mock_mode", False))
 
     try:
         max_hops = int(data.get("max_hops", 5))
@@ -2220,17 +2216,13 @@ def ptp_start_troubleshoot():
     if not target:
         return jsonify({"error": "Target router name, Site Code, or IP is required"}), 400
 
-    target_upper = target.upper()
-    is_simulation = mock_mode or "SIMULAT" in target_upper or "DEMO" in target_upper
-
-    # For live non-simulation tests, require router credentials
-    if not is_simulation and (not username or not password):
+    if not username or not password:
         return jsonify({"error": "Router credentials (Username and Password) are required for live SSH diagnostic."}), 400
 
     sid = create_ptp_session(target)
     worker_t = threading.Thread(
         target=_run_ptp_worker,
-        args=(sid, target, username, password, is_simulation, max_hops),
+        args=(sid, target, username, password, max_hops),
         daemon=True,
     )
     worker_t.start()
@@ -2239,7 +2231,6 @@ def ptp_start_troubleshoot():
         "status": "started",
         "session_id": sid,
         "target": target,
-        "is_simulation": is_simulation,
     })
 
 

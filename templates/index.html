@@ -1035,22 +1035,22 @@ Matches RT values to VRFs and shows the originator router.
 
             <div class="row g-3 align-items-end mb-3">
                 <!-- Target Device Input & Autocomplete -->
-                <div class="col-lg-5 col-md-6 position-relative">
+                <div class="col-lg-8 col-md-7 position-relative">
                     <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">Target Router / Site Code / IP <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text bg-dark border-secondary text-secondary">&#128269;</span>
-                        <input type="text" id="ptpTargetInput" class="form-control" placeholder="e.g. BAKJEST_KJ0044 or 10.220.14.44" value="BAKJEST_KJ0044" autocomplete="off" oninput="onPtpTargetInput(this.value)">
+                        <input type="text" id="ptpTargetInput" class="form-control" placeholder="e.g. BAKJEST_KJ0044, KJ0044, or 10.220.14.44" value="" autocomplete="off" oninput="onPtpTargetInput(this.value)">
                         <button class="btn btn-outline-secondary" type="button" onclick="triggerPtpQuickSearch()" title="Search device inventory">&#8635;</button>
                     </div>
                     <!-- Autocomplete Dropdown List -->
                     <div id="ptpCandidateDropdown" class="list-group position-absolute w-100 shadow-lg" style="display:none; z-index:1050; max-height:260px; overflow-y:auto; background:#212529; border:1px solid #495057;"></div>
-                    <div id="ptpSelectedBadge" class="mt-1">
-                        <span class="badge bg-secondary" id="ptpSelectedInfo">Selected: BAKJEST_KJ0044 (Simulated Demo Router)</span>
+                    <div id="ptpSelectedBadge" class="mt-1" style="display:none">
+                        <span class="badge bg-secondary" id="ptpSelectedInfo">Selected: None</span>
                     </div>
                 </div>
 
                 <!-- Traceback Max Hops -->
-                <div class="col-lg-2 col-md-3">
+                <div class="col-lg-4 col-md-5">
                     <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">Max Trace Hops</label>
                     <select id="ptpMaxHops" class="form-select">
                         <option value="3">3 Hops</option>
@@ -1058,30 +1058,19 @@ Matches RT values to VRFs and shows the originator router.
                         <option value="8">8 Hops</option>
                     </select>
                 </div>
-
-                <!-- Dry-Run / Simulation Mode Toggle Switch -->
-                <div class="col-lg-5 col-md-3">
-                    <div class="form-check form-switch p-2 ps-5 rounded" style="background:#212529; border:1px solid #373b3e">
-                        <input class="form-check-input" type="checkbox" id="ptpDryRunSwitch" checked onchange="togglePtpDryRun(this.checked)">
-                        <label class="form-check-label" for="ptpDryRunSwitch" style="font-size:0.85rem;font-weight:600;color:#f8f9fa">
-                            Dry-Run / Simulated Test Mode
-                        </label>
-                        <div style="font-size:0.75rem;color:#adb5bd">
-                            Offline test using live fleet data (BAKJEST_KJ0044 &rarr; BRKJKB_KJ0105). No SSH credentials required.
-                        </div>
-                    </div>
-                </div>
             </div>
 
-            <!-- SSH Credentials Row (Visible for live runs, collapses for dry-run) -->
-            <div id="ptpCredentialsRow" class="row g-3 mb-3" style="display:none">
+            <!-- SSH Credentials Row (Live Network SSH Operations) -->
+            <div id="ptpCredentialsRow" class="row g-3 mb-3">
                 <div class="col-md-6">
-                    <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">Engineer TACACS+ / SSH Username</label>
+                    <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">Engineer TACACS+ / SSH Username <span class="text-danger">*</span></label>
                     <input type="text" id="ptpUsername" class="form-control" placeholder="TACACS+ / SSH Username" autocomplete="off">
+                    <div style="font-size:0.75rem;color:#6c757d;margin-top:2px">Leave blank to inherit global network user from top bar</div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">SSH Password</label>
+                    <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">SSH Password <span class="text-danger">*</span></label>
                     <input type="password" id="ptpPassword" class="form-control" placeholder="Password" autocomplete="off">
+                    <div style="font-size:0.75rem;color:#6c757d;margin-top:2px">Leave blank to inherit global network password from top bar</div>
                 </div>
             </div>
 
@@ -4921,29 +4910,21 @@ async function downloadSessionsZip() {
 /* ------------------------------------------------------------------
 PTP Troubleshoot Logic
 ------------------------------------------------------------------ */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 let ptpSearchTimer = null;
 let currentPtpSessionId = null;
 let ptpEventSource = null;
 let ptpReportData = null;
 let activeHopIndex = 0;
-
-function togglePtpDryRun(checked) {
-    const credsRow = document.getElementById('ptpCredentialsRow');
-    if (credsRow) {
-        credsRow.style.display = checked ? 'none' : 'flex';
-    }
-    const targetInput = document.getElementById('ptpTargetInput');
-    const selectedBadge = document.getElementById('ptpSelectedInfo');
-    if (checked) {
-        if (!targetInput.value || targetInput.value === '') {
-            targetInput.value = 'BAKJEST_KJ0044';
-        }
-        if (selectedBadge) {
-            selectedBadge.textContent = 'Selected: ' + targetInput.value + ' (Simulated Demo Mode)';
-            document.getElementById('ptpSelectedBadge').style.display = 'block';
-        }
-    }
-}
 
 function onPtpTargetInput(val) {
     clearTimeout(ptpSearchTimer);
@@ -5056,12 +5037,12 @@ function resetPtpForm() {
         ptpPollTimer = null;
     }
     const targetInput = document.getElementById('ptpTargetInput');
-    if (targetInput) targetInput.value = 'BAKJEST_KJ0044';
-    const dryRun = document.getElementById('ptpDryRunSwitch');
-    if (dryRun) {
-        dryRun.checked = true;
-        togglePtpDryRun(true);
-    }
+    if (targetInput) targetInput.value = '';
+    const uInput = document.getElementById('ptpUsername');
+    if (uInput) uInput.value = '';
+    const pInput = document.getElementById('ptpPassword');
+    if (pInput) pInput.value = '';
+
     document.getElementById('ptpSelectedBadge').style.display = 'none';
     document.getElementById('ptpProgressCard').style.display = 'none';
     document.getElementById('ptpReportContainer').style.display = 'none';
@@ -5071,28 +5052,32 @@ function resetPtpForm() {
 
 async function startPtpTroubleshoot() {
     const target = (document.getElementById('ptpTargetInput')?.value || '').trim();
-    const isDryRun = document.getElementById('ptpDryRunSwitch')?.checked || false;
     const maxHops = parseInt(document.getElementById('ptpMaxHops')?.value || '5', 10);
 
     let username = (document.getElementById('ptpUsername')?.value || '').trim();
     let password = document.getElementById('ptpPassword')?.value || '';
 
-    // If live non-simulation, check header network credentials if tab inputs are empty
-    if (!isDryRun) {
-        if (!username && window.networkCreds?.username) {
-            username = window.networkCreds.username;
-        }
-        if (!password && window.networkCreds?.password) {
-            password = window.networkCreds.password;
-        }
-        if (!username || !password) {
-            showToast('Enter TACACS+ / SSH Username and Password for live diagnostic.');
-            return;
-        }
+    // Inherit from global header credentials if tab inputs are left blank
+    if (!username && window.networkCreds?.username) {
+        username = window.networkCreds.username;
+    }
+    if (!password && window.networkCreds?.password) {
+        password = window.networkCreds.password;
+    }
+    if (!username) {
+        username = (document.getElementById('netUser')?.value || '').trim();
+    }
+    if (!password) {
+        password = document.getElementById('netPass')?.value || '';
     }
 
     if (!target) {
         showToast('Please enter a target router name, Site Code, or IP address.');
+        return;
+    }
+
+    if (!username || !password) {
+        showToast('TACACS+ / SSH Username and Password are required for live router diagnostics.');
         return;
     }
 
@@ -5121,7 +5106,7 @@ async function startPtpTroubleshoot() {
     spinner.style.display = 'inline-block';
     liveBadge.className = 'badge bg-info text-dark';
     liveBadge.textContent = 'RUNNING';
-    statusInd.innerHTML = '<span class="text-info">&#9679; Troubleshooting in progress...</span>';
+    statusInd.innerHTML = '<span class="text-info">&#9679; Live troubleshooting in progress...</span>';
 
     try {
         const resp = await fetch('/ptp/start-troubleshoot', {
@@ -5132,7 +5117,6 @@ async function startPtpTroubleshoot() {
                 target: target,
                 username: username,
                 password: password,
-                mock_mode: isDryRun,
                 max_hops: maxHops,
             })
         });

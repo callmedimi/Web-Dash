@@ -1154,203 +1154,6 @@ def _format_handover_ticket(
 # ---------------------------------------------------------------------------
 # Upstream Traceback SSH Diagnostic Engine
 # ---------------------------------------------------------------------------
-def run_simulated_ptp_troubleshoot(
-    target_identifier: str = "BAKJEST_KJ0044",
-    log_callback: Optional[Callable[[str, str], None]] = None,
-    delay_seconds: float = 0.2,
-) -> Dict[str, Any]:
-    """
-    Executes a high-fidelity simulated PTP diagnostic workflow based on live network fleet data.
-    Simulates Hop 0 (Target node with high T2-T1 offset) and Hop 1 (Parent node in-sync),
-    emitting realistic CLI execution logs and parsing real VRP output.
-    """
-    import time
-
-    def _log(msg: str, level: str = "info"):
-        if log_callback:
-            log_callback(msg, level)
-        logger.info("[%s] %s", level.upper(), msg)
-        if delay_seconds > 0:
-            time.sleep(delay_seconds)
-
-    target_name = (target_identifier or "").strip() or "BAKJEST_KJ0044"
-    target_ip = "10.220.14.44"
-
-    _log(f"[SIMULATION / DRY-RUN] Starting automated PTP diagnostic for {target_name} ({target_ip}) ...", "highlight")
-    _log("Simulation mode active: Emulating live SSH session to Huawei VRP NE router ...", "info")
-
-    # Hop 0: Target Router
-    _log(f"Hop 0: Connecting to {target_name} ({target_ip}) via SSH ...", "info")
-    _log(f"Hop 0: Connected successfully to {target_name}", "success")
-    _log("Hop 0: Fetching PTP operational status ('display ptp all') ...", "info")
-
-    hop0_ptp_raw = """
-PTP state         :enable               Domain  value     :24
-Device type       :T-BC                 Local clock ID    :f0258efffed62931
-Time lock success :yes                  PTP profile       :G.8275.1 V2.0
-Grand clock ID    :84c807fffb38b101     Receive number    :GigabitEthernet0/2/0
-Parent clock ID   :6ce874fffebda31f     Parent portnumber :30473
-Step removed      :2                    Clock class       :6
-Time Source       :0x20                 Realtime(T2-T1)   :557721
-Pathdelay         :0
-"""
-    hop0_ptp = parse_display_ptp_all(hop0_ptp_raw)
-    slave_if = hop0_ptp.get("receive_number") or "GigabitEthernet0/2/0"
-    _log(
-        f"Hop 0: Device Type={hop0_ptp.get('device_type')}, Clock Class={hop0_ptp.get('clock_class')}, "
-        f"Realtime(T2-T1)={hop0_ptp.get('realtime_t2_t1')} ns, Slave Interface={slave_if}",
-        "info"
-    )
-
-    _log(f"Hop 0: Checking slave interface health ('display interface {slave_if}') ...", "info")
-    hop0_iface_raw = f"""
-{slave_if} current state : UP
-Line protocol current state : UP
-Description: TO_BRKJKB_KJ0105_GE0/7/9
-Transceiver Identifier: SFP+
-WaveLength: 1310.00nm, Transmission Distance: 10km
-Rx Power:  -4.57dBm, Working range: [-14.400,  0.499]dBm
-Tx Power:  -4.12dBm, Working range: [-8.198,  0.499]dBm
-    Last 300 seconds input rate 234120 bits/sec, 192 packets/sec
-    Last 300 seconds output rate 412010 bits/sec, 310 packets/sec
-    0 input errors, 0 CRC, 0 drops
-    0 output errors, 0 drops
-"""
-    hop0_iface = parse_display_interface(hop0_iface_raw)
-    _log(
-        f"Hop 0: Optical status={hop0_iface.get('optical_status')} "
-        f"(Rx={hop0_iface.get('rx_power_dbm')} dBm, Tx={hop0_iface.get('tx_power_dbm')} dBm, CRC={hop0_iface.get('crc_errors')})",
-        "info"
-    )
-
-    _log("Hop 0: Checking system clock PLL & SSM ('display clock source') ...", "info")
-    hop0_clock_raw = """
-System trace source State:   lock mode
-Current system trace source: ptp
-Frequency lock success:      yes
-Source     Pri(sys/2m-1)   In-SSM   Out-SSM   State     Ref
-GE0/2/0    ---/---         dnu      dnu       normal    no
-ptp        1  /---         prc      --        normal    yes
-"""
-    hop0_clock = parse_display_clock_source(hop0_clock_raw)
-
-    _log("Hop 0: Checking active sync alarms ...", "info")
-    hop0_alarm_raw = "The ptp time offset sum is abnormal. (hwPtpTimeOffsetSumP2P=16238, hwPtpAlarmThresholdOffsetSum=500)"
-    hop0_alarms = parse_display_alarm_active(hop0_alarm_raw)
-
-    _log(f"Hop 0: Querying LLDP neighbor on slave interface {slave_if} ...", "info")
-    hop0_lldp_raw = f"""
-Local Intf           Neighbor Dev    Neighbor Intf        Exptime (sec)
-{slave_if} BRKJKB_KJ0105   GigabitEthernet0/7/9 91
-"""
-    hop0_neighbors = parse_lldp_neighbor_brief(hop0_lldp_raw, target_local_iface=slave_if)
-    primary_neigh = hop0_neighbors[0] if hop0_neighbors else {"neighbor_device": "BRKJKB_KJ0105", "neighbor_interface": "GigabitEthernet0/7/9"}
-    primary_neigh["neighbor_ip"] = "10.220.10.105"
-    _log(f"Hop 0: Detected upstream neighbor via LLDP: {primary_neigh.get('neighbor_device')} ({primary_neigh.get('neighbor_interface')})", "info")
-
-    hop0_record = {
-        "hop": 0,
-        "name": target_name,
-        "host": target_ip,
-        "site_code": "KJ0044",
-        "model": "Huawei NetEngine 40E",
-        "ptp": hop0_ptp,
-        "clock_source": hop0_clock,
-        "interface": hop0_iface,
-        "alarms": hop0_alarms,
-        "lldp": primary_neigh,
-        "error": None,
-    }
-    hop0_eval = evaluate_hop_health(hop0_record)
-    hop0_record["evaluation"] = hop0_eval
-    _log(f"Hop 0 Evaluation: Status={hop0_eval.get('status')}", "highlight")
-
-    # Hop 1: Upstream Parent Node
-    parent_name = "BRKJKB_KJ0105"
-    parent_ip = "10.220.10.105"
-    _log(f"Hop 1: Connecting to Upstream Parent {parent_name} ({parent_ip}) via SSH ...", "info")
-    _log(f"Hop 1: Connected successfully to {parent_name}", "success")
-    _log("Hop 1: Fetching PTP operational status ('display ptp all') ...", "info")
-
-    hop1_ptp_raw = """
-PTP state         :enabled              Domain  value     :24
-Device type       :T-BC                 Local clock ID    :6ce874fffebda31f
-Grand clock ID    :84c807fffb38b101     Receive number    :GigabitEthernet0/1/0
-Parent clock ID   :0c41e9fffee42306     Step removed      :1
-Clock class       :6                    Realtime(T2-T1)   :473
-Pathdelay         :0
-"""
-    hop1_ptp = parse_display_ptp_all(hop1_ptp_raw)
-    parent_slave_if = hop1_ptp.get("receive_number") or "GigabitEthernet0/1/0"
-    _log(
-        f"Hop 1: Device Type={hop1_ptp.get('device_type')}, Clock Class={hop1_ptp.get('clock_class')}, "
-        f"Realtime(T2-T1)={hop1_ptp.get('realtime_t2_t1')} ns, Slave Interface={parent_slave_if}",
-        "info"
-    )
-
-    _log(f"Hop 1: Checking slave interface health ('display interface {parent_slave_if}') ...", "info")
-    hop1_iface_raw = f"""
-{parent_slave_if} current state : UP
-Line protocol current state : UP
-Description: TO_ROOT_GW_IRRHAC
-Transceiver Identifier: 10GBASE-LR
-WaveLength: 1310.00nm, Transmission Distance: 10km
-Rx Power:  -5.10dBm, Working range: [-14.400,  0.499]dBm
-Tx Power:  -3.80dBm, Working range: [-8.198,  0.499]dBm
-    0 input errors, 0 CRC, 0 drops
-    0 output errors, 0 drops
-"""
-    hop1_iface = parse_display_interface(hop1_iface_raw)
-    _log(
-        f"Hop 1: Optical status={hop1_iface.get('optical_status')} "
-        f"(Rx={hop1_iface.get('rx_power_dbm')} dBm, Tx={hop1_iface.get('tx_power_dbm')} dBm, CRC={hop1_iface.get('crc_errors')})",
-        "info"
-    )
-
-    _log("Hop 1: Checking system clock PLL & SSM ('display clock source') ...", "info")
-    hop1_clock_raw = """
-System trace source State:   lock mode
-Current system trace source: ptp
-Frequency lock success:      yes
-Source     Pri(sys/2m-1)   In-SSM   Out-SSM   State     Ref
-ptp        1  /---         prc      --        normal    yes
-"""
-    hop1_clock = parse_display_clock_source(hop1_clock_raw)
-    hop1_alarms = []
-
-    hop1_record = {
-        "hop": 1,
-        "name": parent_name,
-        "host": parent_ip,
-        "site_code": "KJ0105",
-        "model": "Huawei NetEngine 40E",
-        "ptp": hop1_ptp,
-        "clock_source": hop1_clock,
-        "interface": hop1_iface,
-        "alarms": hop1_alarms,
-        "lldp": {"local_interface": parent_slave_if, "neighbor_device": "IRRHAC_GM01", "neighbor_interface": "GE0/0/1"},
-        "error": None,
-    }
-    hop1_eval = evaluate_hop_health(hop1_record)
-    hop1_record["evaluation"] = hop1_eval
-    _log(f"Hop 1 Evaluation: Status={hop1_eval.get('status')}", "success")
-    _log("Hop 1: Reached clock distribution root / Grandmaster gateway (Step removed: 1)", "success")
-
-    hop_chain = [hop0_record, hop1_record]
-
-    _log("Generating Root Cause Analysis (RCA) and Team Demarcation ...", "info")
-    demarcation = generate_demarcation_and_rca(hop_chain)
-    _log(f"Troubleshooting Complete! Result: {demarcation.get('overall_status')} -> {demarcation.get('responsible_team')}", "highlight")
-
-    return {
-        "target": {"name": target_name, "host": target_ip, "site_code": "KJ0044", "model": "Huawei NetEngine 40E", "source": "Simulated Inventory"},
-        "hop_count": len(hop_chain),
-        "hop_chain": hop_chain,
-        "demarcation": demarcation,
-        "is_simulation": True,
-    }
-
-
 def run_ptp_troubleshoot_traceback(
     target_identifier: str,
     username: str,
@@ -1359,13 +1162,11 @@ def run_ptp_troubleshoot_traceback(
     max_hops: int = DEFAULT_MAX_HOPS,
     connect_timeout: int = DEFAULT_CONNECT_TIMEOUT,
     command_timeout: int = DEFAULT_COMMAND_TIMEOUT,
-    mock_mode: bool = False,
-    simulate_on_unreachable: bool = True,
 ) -> Dict[str, Any]:
     """
-    Executes automated PTP diagnostic and recursive upstream traceback:
+    Executes automated live PTP diagnostic and recursive upstream traceback:
     Hop 0 (Target) -> Hop 1 (Parent) -> ... -> Root (GM / BITS)
-    Supports mock/dry-run simulation mode for local offline testing.
+    Connects to Huawei VRP routers via SSH using authenticated engineer credentials.
     """
     import netmiko
 
@@ -1373,11 +1174,6 @@ def run_ptp_troubleshoot_traceback(
         if log_callback:
             log_callback(msg, level)
         logger.info("[%s] %s", level.upper(), msg)
-
-    # Check for direct simulation request
-    target_upper = (target_identifier or "").strip().upper()
-    if mock_mode or "SIMULAT" in target_upper or "DEMO" in target_upper:
-        return run_simulated_ptp_troubleshoot(target_identifier, log_callback=log_callback)
 
     _log(f"Initiating PTP automated troubleshooting for target '{target_identifier}' ...", "highlight")
 
@@ -1556,11 +1352,6 @@ def run_ptp_troubleshoot_traceback(
         except Exception as exc:
             err_msg = str(exc)
             _log(f"Hop {hop_index}: Live SSH connection failed on {current_name} ({current_host}): {err_msg}", "warn")
-
-            if hop_index == 0 and simulate_on_unreachable:
-                _log("Local environment cannot reach live router over SSH.", "warn")
-                _log("Switching to high-fidelity Dry-Run / Simulated diagnostic test with fleet data...", "highlight")
-                return run_simulated_ptp_troubleshoot(target_identifier=current_name, log_callback=log_callback)
 
             hop_record["error"] = err_msg
             hop_record["evaluation"] = {
