@@ -1060,20 +1060,6 @@ Matches RT values to VRFs and shows the originator router.
                 </div>
             </div>
 
-            <!-- SSH Credentials Row (Live Network SSH Operations) -->
-            <div id="ptpCredentialsRow" class="row g-3 mb-3">
-                <div class="col-md-6">
-                    <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">Engineer TACACS+ / SSH Username <span class="text-danger">*</span></label>
-                    <input type="text" id="ptpUsername" class="form-control" placeholder="TACACS+ / SSH Username" autocomplete="off">
-                    <div style="font-size:0.75rem;color:#6c757d;margin-top:2px">Leave blank to inherit global network user from top bar</div>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">SSH Password <span class="text-danger">*</span></label>
-                    <input type="password" id="ptpPassword" class="form-control" placeholder="Password" autocomplete="off">
-                    <div style="font-size:0.75rem;color:#6c757d;margin-top:2px">Leave blank to inherit global network password from top bar</div>
-                </div>
-            </div>
-
             <!-- Action Buttons -->
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top border-secondary">
                 <div class="text-muted" style="font-size:0.8rem">
@@ -5038,10 +5024,6 @@ function resetPtpForm() {
     }
     const targetInput = document.getElementById('ptpTargetInput');
     if (targetInput) targetInput.value = '';
-    const uInput = document.getElementById('ptpUsername');
-    if (uInput) uInput.value = '';
-    const pInput = document.getElementById('ptpPassword');
-    if (pInput) pInput.value = '';
 
     document.getElementById('ptpSelectedBadge').style.display = 'none';
     document.getElementById('ptpProgressCard').style.display = 'none';
@@ -5054,30 +5036,21 @@ async function startPtpTroubleshoot() {
     const target = (document.getElementById('ptpTargetInput')?.value || '').trim();
     const maxHops = parseInt(document.getElementById('ptpMaxHops')?.value || '5', 10);
 
-    let username = (document.getElementById('ptpUsername')?.value || '').trim();
-    let password = document.getElementById('ptpPassword')?.value || '';
+    // Retrieve network credentials from global storage / inputs
+    const username = (window.networkCreds?.username || document.getElementById('netUser')?.value || '').trim();
+    const password = window.networkCreds?.password || document.getElementById('netPass')?.value || '';
 
-    // Inherit from global header credentials if tab inputs are left blank
-    if (!username && window.networkCreds?.username) {
-        username = window.networkCreds.username;
+    if (!username || !password) {
+        showToast('Please set your Network Credentials in the top bar before initiating diagnostics.');
+        return;
     }
-    if (!password && window.networkCreds?.password) {
-        password = window.networkCreds.password;
-    }
-    if (!username) {
-        username = (document.getElementById('netUser')?.value || '').trim();
-    }
-    if (!password) {
-        password = document.getElementById('netPass')?.value || '';
+
+    if (!window.networkCreds) {
+        window.networkCreds = { username: username, password: password };
     }
 
     if (!target) {
         showToast('Please enter a target router name, Site Code, or IP address.');
-        return;
-    }
-
-    if (!username || !password) {
-        showToast('TACACS+ / SSH Username and Password are required for live router diagnostics.');
         return;
     }
 

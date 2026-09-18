@@ -2208,6 +2208,14 @@ def ptp_start_troubleshoot():
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
 
+    # Fallback to active Flask session if not provided directly in request JSON
+    if not username or not password:
+        sess_creds = session.get("network_creds") or session.get("creds") or {}
+        if not username:
+            username = (sess_creds.get("username") or "").strip()
+        if not password:
+            password = sess_creds.get("password") or ""
+
     try:
         max_hops = int(data.get("max_hops", 5))
     except Exception:
@@ -2217,7 +2225,7 @@ def ptp_start_troubleshoot():
         return jsonify({"error": "Target router name, Site Code, or IP is required"}), 400
 
     if not username or not password:
-        return jsonify({"error": "Router credentials (Username and Password) are required for live SSH diagnostic."}), 400
+        return jsonify({"error": "Network credentials (Username and Password) are required for live SSH diagnostic."}), 400
 
     sid = create_ptp_session(target)
     worker_t = threading.Thread(
