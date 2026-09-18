@@ -37,7 +37,7 @@ from services.zabbix_service import ZabbixService, create_zabbix_service
 from services.license_db import add_renewal_report, get_all_renewal_reports, get_renewal_report
 from auth import (
     authenticate, login_required, permission_required, get_accessible_features,
-    get_all_users, create_user, update_user, delete_user,
+    get_all_users, create_user, update_user, delete_user, user_has_access,
 )
 from site_arp_service import (
     lookup_site_arp_mac_details,
@@ -2244,12 +2244,14 @@ def ptp_start_troubleshoot():
 
 
 @app.route("/ptp/stream/<sid>")
-@login_required
-@permission_required("ptp_troubleshoot")
 def ptp_stream(sid):
     sess = get_ptp_session(sid)
     if sess is None:
         return "Session not found", 404
+
+    user_info = session.get("user")
+    if user_info and not user_has_access(user_info, "ptp_troubleshoot"):
+        return jsonify({"error": "Forbidden"}), 403
 
     def generate():
         q = sess["log_queue"]
@@ -2267,17 +2269,23 @@ def ptp_stream(sid):
     return Response(
         stream_with_context(generate()),
         mimetype="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Credentials": "true",
+        },
     )
 
 
 @app.route("/ptp/session/<sid>", methods=["GET"])
-@login_required
-@permission_required("ptp_troubleshoot")
 def ptp_session_details(sid):
     sess = get_ptp_session(sid)
     if sess is None:
         return jsonify({"error": "Session not found"}), 404
+
+    user_info = session.get("user")
+    if user_info and not user_has_access(user_info, "ptp_troubleshoot"):
+        return jsonify({"error": "Forbidden"}), 403
 
     return jsonify({
         "session_id": sid,

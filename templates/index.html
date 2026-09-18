@@ -5042,10 +5042,18 @@ document.addEventListener('click', (e) => {
     }
 });
 
+let ptpPollTimer = null;
+let ptpPollAttempts = 0;
+let ptpSeenLogCount = 0;
+
 function resetPtpForm() {
     if (ptpEventSource) {
         ptpEventSource.close();
         ptpEventSource = null;
+    }
+    if (ptpPollTimer) {
+        clearInterval(ptpPollTimer);
+        ptpPollTimer = null;
     }
     const targetInput = document.getElementById('ptpTargetInput');
     if (targetInput) targetInput.value = 'BAKJEST_KJ0044';
@@ -5088,6 +5096,15 @@ async function startPtpTroubleshoot() {
         return;
     }
 
+    if (ptpEventSource) {
+        ptpEventSource.close();
+        ptpEventSource = null;
+    }
+    if (ptpPollTimer) {
+        clearInterval(ptpPollTimer);
+        ptpPollTimer = null;
+    }
+
     const startBtn = document.getElementById('ptpStartBtn');
     const progressCard = document.getElementById('ptpProgressCard');
     const reportContainer = document.getElementById('ptpReportContainer');
@@ -5100,6 +5117,7 @@ async function startPtpTroubleshoot() {
     progressCard.style.display = 'block';
     reportContainer.style.display = 'none';
     logBox.innerHTML = '';
+    ptpSeenLogCount = 0;
     spinner.style.display = 'inline-block';
     liveBadge.className = 'badge bg-info text-dark';
     liveBadge.textContent = 'RUNNING';
@@ -5108,6 +5126,7 @@ async function startPtpTroubleshoot() {
     try {
         const resp = await fetch('/ptp/start-troubleshoot', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 target: target,
@@ -5126,7 +5145,7 @@ async function startPtpTroubleshoot() {
         const data = await resp.json();
         currentPtpSessionId = data.session_id;
 
-        // Connect SSE stream
+        // Connect SSE stream with credentials enabled
         connectPtpSseStream(currentPtpSessionId);
 
     } catch (err) {
@@ -5142,54 +5161,152 @@ async function startPtpTroubleshoot() {
 function connectPtpSseStream(sid) {
     if (ptpEventSource) {
         ptpEventSource.close();
+        ptpEventSource = null;
     }
+    if (ptpPollTimer) {
+        clearInterval(ptpPollTimer);
+        ptpPollTimer = null;
+    }
+    ptpSeenLogCount = 0;
 
-    const logBox = document.getElementById('ptpLogBox');
     const startBtn = document.getElementById('ptpStartBtn');
     const spinner = document.getElementById('ptpSpinner');
     const liveBadge = document.getElementById('ptpLiveBadge');
     const statusInd = document.getElementById('ptpStatusIndicator');
 
-    ptpEventSource = new EventSource('/ptp/stream/' + sid);
+    try {
+        // Explicitly enable credential sharing for SSE connection
+        ptpEventSource = new EventSource('/ptp/stream/' + sid, { withCredentials: true });
 
-    ptpEventSource.onmessage = (e) => {
+        ptpEventSource.onmessage = (e) => {
+            try {
+                const entry = JSON.parse(e.data);
+                appendPtpLogLine(entry);
+                ptpSeenLogCount++;
+            } catch (_) {}
+        };
+
+        ptpEventSource.addEventListener('done', (e) => {
+            if (ptpEventSource) {
+                ptpEventSource.close();
+                ptpEventSource = null;
+            }
+            startBtn.disabled = false;
+            spinner.style.display = 'none';
+
+            try {
+                const doneData = JSON.parse(e.data);
+                if (doneData.result) {
+                    liveBadge.className = 'badge bg-success';
+                    liveBadge.textContent = 'COMPLETE';
+                    statusInd.innerHTML = '<span class="text-success">&#9679; Analysis completed</span>';
+                    renderPtpReport(doneData.result);
+                } else if (doneData.error) {
+                    liveBadge.className = 'badge bg-danger';
+                    liveBadge.textContent = 'ERROR';
+                    statusInd.innerHTML = `<span class="text-danger">&#9679; ${escapeHtml(doneData.error)}</span>`;
+                    showToast('PTP Diagnostic encountered an error: ' + doneData.error);
+                }
+            } catch (_) {
+                fetchPtpFinalReport(sid);
+            }
+        });
+
+        ptpEventSource.onerror = function(err) {
+            console.error("SSE connection error / 401 Unauthorized or network disconnect:", err);
+            if (ptpEventSource) {
+                ptpEventSource.close();
+                ptpEventSource = null;
+            }
+            // Fallback immediately to robust JSON polling
+            startPtpPollingFallback(sid);
+        };
+    } catch (err) {
+        console.error("EventSource initialization error:", err);
+        startPtpPollingFallback(sid);
+    }
+}
+
+function startPtpPollingFallback(sid) {
+    if (ptpPollTimer) {
+        clearInterval(ptpPollTimer);
+    }
+    ptpPollAttempts = 0;
+
+    const startBtn = document.getElementById('ptpStartBtn');
+    const spinner = document.getElementById('ptpSpinner');
+    const liveBadge = document.getElementById('ptpLiveBadge');
+    const statusInd = document.getElementById('ptpStatusIndicator');
+
+    console.log("Active: PTP fallback polling for session", sid);
+
+    ptpPollTimer = setInterval(async () => {
+        ptpPollAttempts++;
+        if (ptpPollAttempts > 60) {
+            clearInterval(ptpPollTimer);
+            ptpPollTimer = null;
+            startBtn.disabled = false;
+            spinner.style.display = 'none';
+            liveBadge.className = 'badge bg-warning text-dark';
+            liveBadge.textContent = 'TIMEOUT';
+            statusInd.innerHTML = '<span class="text-warning">&#9679; Polling timed out</span>';
+            showToast('Diagnostic polling timed out.');
+            return;
+        }
+
         try {
-            const entry = JSON.parse(e.data);
-            appendPtpLogLine(entry);
-        } catch (_) {}
-    };
+            const resp = await fetch('/ptp/session/' + sid, { credentials: 'include' });
+            if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) {
+                    clearInterval(ptpPollTimer);
+                    ptpPollTimer = null;
+                    startBtn.disabled = false;
+                    spinner.style.display = 'none';
+                    liveBadge.className = 'badge bg-danger';
+                    liveBadge.textContent = 'UNAUTHORIZED';
+                    statusInd.innerHTML = '<span class="text-danger">&#9679; Session unauthorized (401)</span>';
+                    showToast('Session unauthorized. Please refresh and log in.');
+                    return;
+                }
+                return;
+            }
 
-    ptpEventSource.addEventListener('done', (e) => {
-        ptpEventSource.close();
-        ptpEventSource = null;
-        startBtn.disabled = false;
-        spinner.style.display = 'none';
+            const data = await resp.json();
+            const logs = data.logs || [];
 
-        try {
-            const doneData = JSON.parse(e.data);
-            if (doneData.result) {
+            // Append any newly arrived logs
+            if (logs.length > ptpSeenLogCount) {
+                for (let i = ptpSeenLogCount; i < logs.length; i++) {
+                    appendPtpLogLine(logs[i]);
+                }
+                ptpSeenLogCount = logs.length;
+            }
+
+            if (data.status === 'done') {
+                clearInterval(ptpPollTimer);
+                ptpPollTimer = null;
+                startBtn.disabled = false;
+                spinner.style.display = 'none';
                 liveBadge.className = 'badge bg-success';
                 liveBadge.textContent = 'COMPLETE';
                 statusInd.innerHTML = '<span class="text-success">&#9679; Analysis completed</span>';
-                renderPtpReport(doneData.result);
-            } else if (doneData.error) {
+                if (data.result) {
+                    renderPtpReport(data.result);
+                }
+            } else if (data.status === 'error') {
+                clearInterval(ptpPollTimer);
+                ptpPollTimer = null;
+                startBtn.disabled = false;
+                spinner.style.display = 'none';
                 liveBadge.className = 'badge bg-danger';
                 liveBadge.textContent = 'ERROR';
-                statusInd.innerHTML = `<span class="text-danger">&#9679; ${escapeHtml(doneData.error)}</span>`;
-                showToast('PTP Diagnostic encountered an error: ' + doneData.error);
+                statusInd.innerHTML = `<span class="text-danger">&#9679; ${escapeHtml(data.error || 'Diagnostic error')}</span>`;
+                showToast('Diagnostic error: ' + (data.error || 'Unknown error'));
             }
-        } catch (_) {
-            fetchPtpFinalReport(sid);
+        } catch (e) {
+            console.warn("Polling request failed:", e);
         }
-    });
-
-    ptpEventSource.onerror = () => {
-        if (ptpEventSource) {
-            ptpEventSource.close();
-            ptpEventSource = null;
-        }
-        fetchPtpFinalReport(sid);
-    };
+    }, 1000);
 }
 
 async function fetchPtpFinalReport(sid) {
@@ -5198,25 +5315,33 @@ async function fetchPtpFinalReport(sid) {
     const liveBadge = document.getElementById('ptpLiveBadge');
     const statusInd = document.getElementById('ptpStatusIndicator');
 
-    startBtn.disabled = false;
-    spinner.style.display = 'none';
-
     try {
-        const resp = await fetch('/ptp/session/' + sid);
-        if (!resp.ok) return;
+        const resp = await fetch('/ptp/session/' + sid, { credentials: 'include' });
+        if (!resp.ok) {
+            startPtpPollingFallback(sid);
+            return;
+        }
         const data = await resp.json();
-        if (data.result) {
+        if (data.status === 'done' && data.result) {
+            startBtn.disabled = false;
+            spinner.style.display = 'none';
             liveBadge.className = 'badge bg-success';
             liveBadge.textContent = 'COMPLETE';
             statusInd.innerHTML = '<span class="text-success">&#9679; Analysis completed</span>';
             renderPtpReport(data.result);
-        } else if (data.error) {
+        } else if (data.status === 'error') {
+            startBtn.disabled = false;
+            spinner.style.display = 'none';
             liveBadge.className = 'badge bg-danger';
             liveBadge.textContent = 'ERROR';
-            statusInd.innerHTML = `<span class="text-danger">&#9679; ${escapeHtml(data.error)}</span>`;
-            showToast('PTP Trace error: ' + data.error);
+            statusInd.innerHTML = `<span class="text-danger">&#9679; ${escapeHtml(data.error || '')}</span>`;
+            showToast('PTP Trace error: ' + (data.error || ''));
+        } else {
+            startPtpPollingFallback(sid);
         }
-    } catch (_) {}
+    } catch (_) {
+        startPtpPollingFallback(sid);
+    }
 }
 
 function appendPtpLogLine(entry) {
