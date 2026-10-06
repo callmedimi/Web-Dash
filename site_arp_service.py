@@ -173,6 +173,10 @@ def lookup_site_arp_mac_details(
             "count": 0,
         }
 
+    # Auto-detect if user entered an IP address instead of a site code
+    if re.match(r"^\d{1,3}(?:\.\d{1,3}){3}$", cleaned_code):
+        return lookup_ip_arp_mac_details(cleaned_code, unified_sites_path, arp_mac_path)
+
     unified_resolved = unified_sites_path or resolve_file_path("unified_sites.csv", "UNIFIED_SITES_CSV")
     arp_resolved = arp_mac_path or resolve_file_path("arp_mac.csv", "ARP_MAC_CSV")
 
@@ -192,17 +196,19 @@ def lookup_site_arp_mac_details(
             "count": 0,
         }
 
-    # Step 1: Search site_code in unified_sites.csv (case-insensitive)
+    # Step 1: Search site_code in unified_sites.csv (exact match first)
     all_sites = read_unified_sites(unified_resolved)
     code_lower = cleaned_code.lower()
     matched_sites = [
         s for s in all_sites if s["site_code"].strip().lower() == code_lower
     ]
 
-    # Fallback to loose match if exact not found
+    # If exact match not found, try stripping non-alphanumeric (e.g. HZ-0392 -> HZ0392)
     if not matched_sites:
+        clean_target = re.sub(r"[^a-zA-Z0-9]", "", code_lower)
         matched_sites = [
-            s for s in all_sites if code_lower in s["site_code"].strip().lower()
+            s for s in all_sites
+            if re.sub(r"[^a-zA-Z0-9]", "", s["site_code"].strip().lower()) == clean_target
         ]
 
     if not matched_sites:
@@ -219,6 +225,15 @@ def lookup_site_arp_mac_details(
     all_arp_records = read_arp_mac_records(arp_resolved)
     target_ips = {s["ip"].strip() for s in matched_sites if s["ip"].strip()}
 
+    # Map each IP back to its site details
+    ip_to_site: Dict[str, Dict[str, str]] = {s["ip"].strip(): s for s in matched_sites if s.get("ip")}
+
+    # Also map all sites by IP for any secondary IP found in ARP table
+    for s in all_sites:
+        s_ip = s.get("ip", "").strip()
+        if s_ip and s_ip not in ip_to_site:
+            ip_to_site[s_ip] = s
+
     if not target_ips:
         return {
             "success": False,
@@ -230,13 +245,16 @@ def lookup_site_arp_mac_details(
 
     # Find ARP_MAC for target IPs
     matched_macs: Set[str] = set()
-    ip_to_site: Dict[str, Dict[str, str]] = {s["ip"].strip(): s for s in matched_sites}
+    direct_records: List[Dict[str, str]] = []
 
     for record in all_arp_records:
         rec_ip = record["arp_ip"].strip()
         rec_mac = record["arp_mac"].strip()
         if rec_ip in target_ips and rec_mac:
-            matched_macs.add(normalize_mac(rec_mac))
+            norm_m = normalize_mac(rec_mac)
+            if norm_m:
+                matched_macs.add(norm_m)
+                direct_records.append(record)
 
     if not matched_macs:
         ip_str = ", ".join(sorted(target_ips))
@@ -248,34 +266,61 @@ def lookup_site_arp_mac_details(
             "count": 0,
         }
 
-    # Step 3: Find all details of the same MAC(s) in arp_mac.csv
+    # Step 3: Collect records matching the target IP(s) and any other records sharing that same MAC
     combined_rows: List[Dict[str, Any]] = []
+    seen_keys: Set[Tuple[str, str, str, str, str, str]] = set()
 
-    # Map each normalized MAC back to primary site info
+    # Related records sharing the exact same MAC
+    related_records = [
+        r for r in all_arp_records
+        if normalize_mac(r["arp_mac"]) in matched_macs and r["arp_ip"].strip() not in target_ips
+    ]
+
     primary_site = matched_sites[0]
 
-    for record in all_arp_records:
-        rec_mac_norm = normalize_mac(record["arp_mac"])
-        if rec_mac_norm in matched_macs:
-            # Check if this row's IP matches a specific site record, else use primary
-            site_info = ip_to_site.get(record["arp_ip"].strip(), primary_site)
+    for record in direct_records + related_records:
+        row_key = (
+            record.get("ne", ""),
+            record.get("arp_ip", ""),
+            record.get("arp_mac", ""),
+            record.get("vlan", ""),
+            record.get("arp_interface", ""),
+            record.get("mac_port", ""),
+        )
+        if row_key in seen_keys:
+            continue
+        seen_keys.add(row_key)
 
-            combined_rows.append({
-                "Site_Code": site_info["site_code"],
-                "VRF": record["vrf"],
-                "VRF_IP": site_info["ip"],
-                "Site_Model": site_info["model"],
-                "IP": site_info["ip"],
-                "Model": site_info["model"],
-                "NE": record["ne"],
-                "NE_IP": record["ne_ip"],
-                "ARP_MAC": record["arp_mac"],
-                "Vlan": record["vlan"],
-                "ARP_Interface": record["arp_interface"],
-                "MAC_Port": record["mac_port"],
-                "Link": record["mac_port"],
-                "collected_at": record.get("collected_at", ""),
-            })
+        rec_ip = record["arp_ip"].strip()
+        # Look up site info for this specific IP; fallback to primary site only if matching target IP
+        site_info = ip_to_site.get(rec_ip)
+        if not site_info:
+            if rec_ip in target_ips:
+                site_info = primary_site
+            else:
+                site_info = {"site_code": "-", "model": "-", "ip": rec_ip}
+
+        combined_rows.append({
+            "Site_Code": site_info.get("site_code") or "-",
+            "VRF": record.get("vrf", ""),
+            "VRF_IP": rec_ip,
+            "Site_Model": site_info.get("model") or "-",
+            "IP": rec_ip,
+            "Model": site_info.get("model") or "-",
+            "NE": record.get("ne", ""),
+            "NE_IP": record.get("ne_ip", ""),
+            "ARP_MAC": record.get("arp_mac", ""),
+            "Vlan": record.get("vlan", ""),
+            "ARP_Interface": record.get("arp_interface", ""),
+            "MAC_Port": record.get("mac_port", ""),
+            "Link": record.get("mac_port", ""),
+            "collected_at": record.get("collected_at", ""),
+        })
+
+    # Exact original MACs directly found for the site IP(s)
+    direct_mac_list = list(dict.fromkeys(
+        r.get("arp_mac", "") for r in direct_records if r.get("arp_mac")
+    ))
 
     return {
         "success": True,
@@ -283,7 +328,149 @@ def lookup_site_arp_mac_details(
         "count": len(combined_rows),
         "results": combined_rows,
         "sites": matched_sites,
-        "macs": list(matched_macs),
+        "macs": direct_mac_list if direct_mac_list else list(matched_macs),
+        "unified_path": unified_resolved,
+        "arp_path": arp_resolved,
+    }
+
+
+def lookup_ip_arp_mac_details(
+    ip_query: str,
+    unified_sites_path: Optional[str] = None,
+    arp_mac_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Search by IP address:
+    1. Find matching ARP records in arp_mac.csv for the IP (checking arp_ip, fallback ne_ip).
+    2. Extract MAC address(es) from matching records.
+    3. Find all rows in arp_mac.csv sharing those same MAC(s) or matching the IP directly.
+    4. Cross-reference with unified_sites.csv to enrich with Site_Code, Model, etc.
+    5. Return merged details.
+    """
+    cleaned_ip = ip_query.strip()
+    if not cleaned_ip:
+        return {
+            "success": False,
+            "error": "IP address is required.",
+            "results": [],
+            "count": 0,
+        }
+
+    unified_resolved = unified_sites_path or resolve_file_path("unified_sites.csv", "UNIFIED_SITES_CSV")
+    arp_resolved = arp_mac_path or resolve_file_path("arp_mac.csv", "ARP_MAC_CSV")
+
+    if not arp_resolved or not os.path.isfile(arp_resolved):
+        return {
+            "success": False,
+            "error": "arp_mac.csv file not found.",
+            "results": [],
+            "count": 0,
+        }
+
+    # Load unified_sites for site_code/model enrichment
+    ip_to_site: Dict[str, Dict[str, str]] = {}
+    if unified_resolved and os.path.isfile(unified_resolved):
+        all_sites = read_unified_sites(unified_resolved)
+        for s in all_sites:
+            s_ip = s.get("ip", "").strip()
+            if s_ip and s_ip not in ip_to_site:
+                ip_to_site[s_ip] = s
+
+    all_arp_records = read_arp_mac_records(arp_resolved)
+
+    # 1. Look for direct ARP_IP match first
+    direct_matches = [
+        r for r in all_arp_records if r.get("arp_ip", "").strip() == cleaned_ip
+    ]
+    # Fallback to NE_IP if not found in ARP_IP
+    if not direct_matches:
+        direct_matches = [
+            r for r in all_arp_records if r.get("ne_ip", "").strip() == cleaned_ip
+        ]
+
+    if not direct_matches:
+        site_info = ip_to_site.get(cleaned_ip)
+        site_suffix = f" (Site: {site_info['site_code']})" if site_info else ""
+        return {
+            "success": False,
+            "error": f"No ARP entry found in arp_mac.csv for IP: {cleaned_ip}{site_suffix}.",
+            "results": [],
+            "count": 0,
+            "query_ip": cleaned_ip,
+        }
+
+    # 2. Collect MAC(s) from direct matches
+    matched_macs: Set[str] = set()
+    for r in direct_matches:
+        mac = normalize_mac(r.get("arp_mac", ""))
+        if mac:
+            matched_macs.add(mac)
+
+    # 3. Collect records: direct IP matches first, then related records sharing that same MAC
+    combined_rows: List[Dict[str, Any]] = []
+    seen_keys: Set[Tuple[str, str, str, str, str, str]] = set()
+
+    direct_records = direct_matches
+    related_records = [
+        r for r in all_arp_records
+        if normalize_mac(r.get("arp_mac", "")) in matched_macs
+        and r.get("arp_ip", "").strip() != cleaned_ip
+        and r.get("ne_ip", "").strip() != cleaned_ip
+    ]
+
+    for record in direct_records + related_records:
+        row_key = (
+            record.get("ne", ""),
+            record.get("arp_ip", ""),
+            record.get("arp_mac", ""),
+            record.get("vlan", ""),
+            record.get("arp_interface", ""),
+            record.get("mac_port", ""),
+        )
+        if row_key in seen_keys:
+            continue
+        seen_keys.add(row_key)
+
+        rec_ip = record.get("arp_ip", "").strip() or record.get("ne_ip", "").strip()
+        site_info = ip_to_site.get(rec_ip) or ip_to_site.get(cleaned_ip) or {
+            "site_code": "-",
+            "model": "-",
+            "ip": rec_ip,
+        }
+
+        combined_rows.append({
+            "Site_Code": site_info.get("site_code") or "-",
+            "VRF": record.get("vrf", ""),
+            "VRF_IP": rec_ip,
+            "Site_Model": site_info.get("model") or "-",
+            "IP": rec_ip,
+            "Model": site_info.get("model") or "-",
+            "NE": record.get("ne", ""),
+            "NE_IP": record.get("ne_ip", ""),
+            "ARP_MAC": record.get("arp_mac", ""),
+            "Vlan": record.get("vlan", ""),
+            "ARP_Interface": record.get("arp_interface", ""),
+            "MAC_Port": record.get("mac_port", ""),
+            "Link": record.get("mac_port", ""),
+            "collected_at": record.get("collected_at", ""),
+        })
+
+    site_display = ""
+    if cleaned_ip in ip_to_site:
+        site_display = ip_to_site[cleaned_ip].get("site_code", "")
+    elif combined_rows and combined_rows[0]["Site_Code"] != "-":
+        site_display = combined_rows[0]["Site_Code"]
+
+    # Show MACs that belong directly to the queried IP
+    direct_macs = [r.get("arp_mac", "") for r in direct_matches if r.get("arp_mac", "")]
+
+    return {
+        "success": True,
+        "query_ip": cleaned_ip,
+        "site_code": site_display,
+        "count": len(combined_rows),
+        "results": combined_rows,
+        "macs": list(dict.fromkeys(direct_macs)),
         "unified_path": unified_resolved,
         "arp_path": arp_resolved,
     }

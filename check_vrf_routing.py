@@ -192,13 +192,128 @@ def get_router_interfaces(conn, cmd_timeout=60) -> list[dict]:
     return interfaces
 
 
+def expand_huawei_interface_name(name: str) -> str:
+    mappings = [
+        (r'^(?:GE)(\d.*)', r'GigabitEthernet\1'),
+        (r'^(?:10GE|XGE)(\d.*)', r'10GigabitEthernet\1'),
+        (r'^(?:100GE)(\d.*)', r'100GigabitEthernet\1'),
+        (r'^(?:25GE)(\d.*)', r'25GigabitEthernet\1'),
+        (r'^(?:40GE)(\d.*)', r'40GigabitEthernet\1'),
+        (r'^(?:FE)(\d.*)', r'FastEthernet\1'),
+        (r'^(?:Eth)(\d.*)', r'Ethernet\1'),
+    ]
+    for pattern, repl in mappings:
+        if re.match(pattern, name, re.IGNORECASE):
+            return re.sub(pattern, repl, name, flags=re.IGNORECASE)
+    return name
+
+
+def abbreviate_huawei_interface_name(name: str) -> str:
+    mappings = [
+        (r'^GigabitEthernet(\d.*)', r'GE\1'),
+        (r'^10GigabitEthernet(\d.*)', r'XGE\1'),
+        (r'^100GigabitEthernet(\d.*)', r'100GE\1'),
+        (r'^25GigabitEthernet(\d.*)', r'25GE\1'),
+        (r'^40GigabitEthernet(\d.*)', r'40GE\1'),
+        (r'^FastEthernet(\d.*)', r'FE\1'),
+        (r'^Ethernet(\d.*)', r'Eth\1'),
+    ]
+    for pattern, repl in mappings:
+        if re.match(pattern, name, re.IGNORECASE):
+            return re.sub(pattern, repl, name, flags=re.IGNORECASE)
+    return name
+
+
 def get_interface_config_text(conn, interface_name: str, cmd_timeout=60) -> str:
-    cmd = f'display current-configuration interface {interface_name}'
-    try:
-        output = conn.send_command(cmd, read_timeout=cmd_timeout)
-        return output
-    except Exception:
+    if not interface_name or interface_name.lower() in ('null0', 'inloopback0', 'inloop0'):
         return ''
+
+    clean_name = interface_name.strip()
+    commands = [
+        f'display current-configuration interface {clean_name}',
+        f'display cu int {clean_name}',
+    ]
+    vm = re.match(r'^vlanif\s*(\d+)$', clean_name, re.I)
+    if vm:
+        vid = vm.group(1)
+        commands.extend([
+            f'display cu int vlanif{vid}',
+            f'display cu int vlanif {vid}',
+            f'display current-configuration interface Vlanif {vid}',
+        ])
+
+    expanded = expand_huawei_interface_name(clean_name)
+    if expanded != clean_name:
+        commands.append(f'display current-configuration interface {expanded}')
+        commands.append(f'display cu int {expanded}')
+
+    abbreviated = abbreviate_huawei_interface_name(clean_name)
+    if abbreviated != clean_name and abbreviated != expanded:
+        commands.append(f'display current-configuration interface {abbreviated}')
+        commands.append(f'display cu int {abbreviated}')
+
+    # Add pipe begin fallback
+    commands.append(f'display current-configuration | begin interface {clean_name}')
+
+    err_signatures = ('Error:', 'Wrong parameter', 'Unrecognized command', 'unrecognized command')
+    for cmd in commands:
+        try:
+            output = conn.send_command(cmd, read_timeout=cmd_timeout)
+            if not output or any(err in output for err in err_signatures):
+                continue
+            if '| begin' in cmd:
+                lines = []
+                capture = False
+                for line in output.splitlines():
+                    s = line.strip()
+                    if s.lower().startswith(f'interface {clean_name.lower()}'):
+                        capture = True
+                        lines.append(line)
+                    elif capture:
+                        if s.lower().startswith('interface ') or s == 'return':
+                            break
+                        lines.append(line)
+                if lines:
+                    return '\n'.join(lines)
+            elif 'interface ' in output.lower():
+                return output
+        except Exception:
+            continue
+
+    # Fallback to display interface
+    for cmd in [f'display interface {clean_name}', f'dis int {clean_name}']:
+        try:
+            output = conn.send_command(cmd, read_timeout=cmd_timeout)
+            if output and not any(err in output for err in err_signatures) and 'current state' in output.lower():
+                return output
+        except Exception:
+            continue
+
+    return ''
+
+
+def find_interfaces_by_ip_brief(conn, vrf: str, target_ip: str, cmd_timeout=30) -> list[str]:
+    found = []
+    try:
+        output = conn.send_command('display ip interface brief', read_timeout=cmd_timeout)
+        for line in output.splitlines():
+            s = line.strip()
+            if not s or s.startswith('Interface') or s.startswith('*') or s.startswith('---'):
+                continue
+            parts = s.split()
+            if len(parts) >= 3:
+                iface_name = parts[0]
+                ip_mask = parts[1]
+                line_vrf = parts[-1] if len(parts) >= 5 else ''
+                if vrf and line_vrf and line_vrf != vrf:
+                    continue
+                if '/' in ip_mask:
+                    iface_ip, mask = ip_mask.split('/', 1)
+                    if ip_matches_route(target_ip, iface_ip, mask) or target_ip == iface_ip:
+                        found.append(iface_name)
+    except Exception:
+        pass
+    return found
 
 
 def get_all_vrf_names(conn, cmd_timeout=60) -> list[str]:
@@ -219,24 +334,7 @@ def get_all_vrf_names(conn, cmd_timeout=60) -> list[str]:
 
 
 def get_vrf_route_on_originator(conn, vrf: str, target_ip: str, cmd_timeout=60) -> dict:
-    routes, raw = get_vrf_routes(conn, vrf, target_ip, cmd_timeout)
-    interfaces = set()
-    for r in routes:
-        if r.get('interface'):
-            interfaces.add(r['interface'])
-    interface_configs = {}
-    for iface in sorted(interfaces):
-        cfg = get_interface_config_text(conn, iface, cmd_timeout)
-        if cfg:
-            interface_configs[iface] = cfg
-    return {
-        'vrf': vrf,
-        'target_ip': target_ip,
-        'routes': routes,
-        'route_count': len(routes),
-        'interfaces': sorted(interfaces),
-        'interface_configs': interface_configs,
-    }
+    return query_vrf_route_and_configs(conn, vrf, target_ip, cmd_timeout)
 
 
 def get_sysname(conn, cmd_timeout=10) -> str:
@@ -256,12 +354,41 @@ def get_sysname(conn, cmd_timeout=10) -> str:
         return ''
 
 
-def query_vrf_route_and_configs(conn, vrf: str, target_ip: str, cmd_timeout=60) -> dict:
+def query_vrf_route_and_configs(conn, vrf: str, target_ip: str, prefix: str = '', cmd_timeout=60) -> dict:
     routes, raw = get_vrf_routes(conn, vrf, target_ip, cmd_timeout)
+    if not routes and prefix and prefix != target_ip:
+        prefix_ip = prefix.split('/')[0]
+        prefix_routes, prefix_raw = get_vrf_routes(conn, vrf, prefix_ip, cmd_timeout)
+        if prefix_routes:
+            routes = prefix_routes
+            raw = prefix_raw
+
+    has_specific_route = any(
+        r.get('destination') not in ('0.0.0.0', '') and str(r.get('mask', '')) not in ('0', '0.0.0.0')
+        for r in routes
+    ) if routes else False
+    if target_ip.startswith('0.0.0.0'):
+        has_specific_route = len(routes) > 0
+
     interfaces = set()
     for r in routes:
-        if r.get('interface'):
-            interfaces.add(r['interface'])
+        iface = r.get('interface', '')
+        if iface and iface.lower() not in ('null0', 'inloopback0', 'inloop0'):
+            interfaces.add(iface)
+        elif r.get('nexthop') and r.get('nexthop') not in ('0.0.0.0', '127.0.0.1', target_ip):
+            try:
+                rec_routes, _ = get_vrf_routes(conn, vrf, r['nexthop'], cmd_timeout=15)
+                for rr in rec_routes:
+                    rr_iface = rr.get('interface', '')
+                    if rr_iface and rr_iface.lower() not in ('null0', 'inloopback0', 'inloop0'):
+                        interfaces.add(rr_iface)
+            except Exception:
+                pass
+
+    if not interfaces:
+        for iface in find_interfaces_by_ip_brief(conn, vrf, target_ip, cmd_timeout=15):
+            interfaces.add(iface)
+
     interface_configs = {}
     for iface in sorted(interfaces):
         cfg = get_interface_config_text(conn, iface, cmd_timeout)
@@ -272,6 +399,8 @@ def query_vrf_route_and_configs(conn, vrf: str, target_ip: str, cmd_timeout=60) 
         'target_ip': target_ip,
         'routes': routes,
         'route_count': len(routes),
+        'has_specific_route': has_specific_route,
+        'raw_output': raw,
         'interfaces': sorted(interfaces),
         'interface_configs': interface_configs,
     }
@@ -359,6 +488,8 @@ def _parse_routing_table(output: str) -> list[dict]:
     routes = []
     lines = output.splitlines()
     header_found = False
+    last_destination = ''
+    last_mask = ''
     for line in lines:
         s = line.strip()
         if not s:
@@ -372,7 +503,22 @@ def _parse_routing_table(output: str) -> list[dict]:
         if s.startswith('---') or s.startswith('Total') or s.startswith('Display') or s.startswith('Route Number') or s.startswith('Summary'):
             continue
         parts = s.split()
-        if len(parts) >= 6:
+        if not parts:
+            continue
+        # Check if line is orphaned interface from previous wrapped route line
+        if routes and not routes[-1]['interface']:
+            if len(parts) == 1 and any(parts[0].lower().startswith(p) for p in ('vlan', 'ge', 'eth', 'loop', 'null', 'tun', 'xge', '10ge', '100ge', '40ge', '25ge', 'pos', 'ser')):
+                routes[-1]['interface'] = parts[0]
+                continue
+            elif len(parts) == 2 and parts[0].lower() == 'vlanif':
+                routes[-1]['interface'] = f"{parts[0]}{parts[1]}"
+                continue
+        # Handle ECMP continuation lines where Destination/Mask is omitted
+        if parts[0].upper() in PROTOCOL_CATEGORY_MAP and last_destination and len(parts) >= 5:
+            destination = last_destination
+            mask = last_mask
+            offset = 0
+        elif len(parts) >= 6:
             dest_col = parts[0]
             if '/' in dest_col:
                 destination, mask = dest_col.split('/', 1)
@@ -381,24 +527,39 @@ def _parse_routing_table(output: str) -> list[dict]:
                 destination = dest_col
                 mask = parts[1]
                 offset = 2
-            proto = parts[offset] if len(parts) > offset else ''
-            pre = parts[offset + 1] if len(parts) > offset + 1 else ''
-            cost = parts[offset + 2] if len(parts) > offset + 2 else ''
-            flags = parts[offset + 3] if len(parts) > offset + 3 else ''
-            nexthop = parts[offset + 4] if len(parts) > offset + 4 else ''
-            interface = parts[offset + 5] if len(parts) > offset + 5 else ''
-            proto_category = PROTOCOL_CATEGORY_MAP.get(proto, proto)
-            routes.append({
-                'destination': destination,
-                'mask': mask,
-                'proto': proto,
-                'proto_category': proto_category,
-                'pre': pre,
-                'cost': cost,
-                'flags': flags,
-                'nexthop': nexthop,
-                'interface': interface,
-            })
+            last_destination = destination
+            last_mask = mask
+        else:
+            continue
+
+        proto = parts[offset] if len(parts) > offset else ''
+        pre = parts[offset + 1] if len(parts) > offset + 1 else ''
+        cost = parts[offset + 2] if len(parts) > offset + 2 else ''
+        rem = parts[offset + 3:]
+        if len(rem) >= 2:
+            interface = rem[-1]
+            nexthop = rem[-2]
+            flags = ' '.join(rem[:-2])
+        elif len(rem) == 1:
+            nexthop = rem[0]
+            interface = ''
+            flags = ''
+        else:
+            flags = ''
+            nexthop = ''
+            interface = ''
+        proto_category = PROTOCOL_CATEGORY_MAP.get(proto, proto)
+        routes.append({
+            'destination': destination,
+            'mask': mask,
+            'proto': proto,
+            'proto_category': proto_category,
+            'pre': pre,
+            'cost': cost,
+            'flags': flags,
+            'nexthop': nexthop,
+            'interface': interface,
+        })
     return routes
 
 

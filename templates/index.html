@@ -830,6 +830,16 @@ Matches RT values to VRFs and shows the originator router.
           </div>
           <div id="zabbixSearchInfo2" style="font-size:0.82rem;color:#6c757d;margin-bottom:8px;display:none"></div>
           <div id="zabbixSearchError2" style="color:#f85149;font-size:0.88rem;margin-bottom:12px;display:none"></div>
+
+          <div class="d-flex gap-2 align-items-center flex-wrap mb-3">
+            <input type="text" id="siteArpIpInput" class="form-control"
+                   style="flex:1 1 300px;min-width:200px"
+                   placeholder="Enter IP address (e.g. 10.31.19.68)"
+                   autocomplete="off"
+                   onkeydown="if(event.key==='Enter')searchSiteArpByIp()">
+            <button class="btn btn-outline-warning" id="siteArpIpBtn" onclick="searchSiteArpByIp()">Lookup IP in ARP / MAC</button>
+            <div class="spinner" id="siteArpIpSpinner" style="display:none"></div>
+          </div>
           
           <div id="zabbixResults2" style="display:none">
             <hr>
@@ -2195,6 +2205,7 @@ async function showOriginatorInterfaces(vrfList, originatorIp, prefix) {
                       password,
                       originator_ip: originatorIp,
                       target_ip: target_ip,
+                      prefix: prefix || '',
                       vrf: vrf
                   }),
               });
@@ -2210,11 +2221,11 @@ async function showOriginatorInterfaces(vrfList, originatorIp, prefix) {
               const vr = data.result;
               const borderTop = allHtml ? '2px solid #2c3034' : 'none';
 
-              if (!vr || !vr.has_specific_route) {
+              if (!vr || vr.route_count === 0) {
                   allHtml += `<tr><td style="padding:8px 10px 4px 10px;border-bottom:none;border-top:${borderTop}">
                       <div style="color:#ffcc00;padding:1rem;background:rgba(255,204,0,0.1);border:1px solid rgba(255,204,0,0.2);border-radius:4px;margin-bottom:10px">
-                          ⚠️ Warning: VRF <strong>${esc(vrf)}</strong> does not have a specific route for ${esc(target_ip)}
-                          <br><small>Only default or summary routes exist in this VRF</small>
+                          ⚠️ Warning: VRF <strong>${esc(vrf)}</strong> does not have a route for ${esc(target_ip)}
+                          <br><small>No route found in this VRF on originator</small>
                       </div>
                       <div style="padding:6px 10px;font-weight:600;color:#79c0ff;font-size:0.84rem">Command Output:</div>
                       <pre style="margin:0 10px 8px 10px;padding:6px 10px;font-size:0.78rem;color:#e6edf3;background:#0d1117;border-radius:4px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;line-height:1.5">${esc(vr ? vr.raw_output : '')}</pre>
@@ -2222,8 +2233,13 @@ async function showOriginatorInterfaces(vrfList, originatorIp, prefix) {
                   continue;
               }
 
-              let sectionHtml = `<tr><td style="padding:8px 10px 4px 10px;border-bottom:none;border-top:${borderTop}">
-              <div style="font-size:0.9rem">
+              let sectionHtml = `<tr><td style="padding:8px 10px 4px 10px;border-bottom:none;border-top:${borderTop}">`;
+              if (vr.has_specific_route === false) {
+                  sectionHtml += `<div style="color:#ffcc00;padding:0.75rem 1rem;background:rgba(255,204,0,0.1);border:1px solid rgba(255,204,0,0.2);border-radius:4px;margin-bottom:10px">
+                      ⚠️ Note: VRF <strong>${esc(vrf)}</strong> only matched default or summary route for ${esc(target_ip)}
+                  </div>`;
+              }
+              sectionHtml += `<div style="font-size:0.9rem">
               VRF: <strong style="color:#0d6efd">${esc(vr.vrf)}</strong>
               &mdash; <strong>${vr.route_count}</strong> route(s)
               &mdash; interfaces: <strong style="color:#79c0ff">${(vr.interfaces||[]).join(', ')}</strong>
@@ -3260,16 +3276,34 @@ async function searchSiteArpMac() {
     showToast('Please enter a CodeSite to search');
     return;
   }
+  const isIp = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(siteCode);
+  return _performArpMacLookup(isIp ? { ip: siteCode } : { site_code: siteCode }, siteCode, isIp ? 'IP' : 'Site');
+}
 
-  const btn = document.getElementById('siteArpMacBtn');
-  const spinner = document.getElementById('zabbixSearchSpinner2');
+async function searchSiteArpByIp() {
+  const input = document.getElementById('siteArpIpInput');
+  const ip = (input ? input.value : '').trim();
+  if (!ip) {
+    showToast('Please enter an IP address to search');
+    return;
+  }
+  return _performArpMacLookup({ ip: ip }, ip, 'IP');
+}
+
+async function _performArpMacLookup(payload, queryValue, queryType) {
+  const btn1 = document.getElementById('siteArpMacBtn');
+  const btn2 = document.getElementById('siteArpIpBtn');
+  const spinner1 = document.getElementById('zabbixSearchSpinner2');
+  const spinner2 = document.getElementById('siteArpIpSpinner');
   const errEl = document.getElementById('siteArpMacError');
   const section = document.getElementById('siteArpMacSection');
   const summary = document.getElementById('siteArpMacSummary');
   const tbody = document.getElementById('siteArpMacBody');
 
-  if (btn) btn.disabled = true;
-  if (spinner) spinner.style.display = 'inline-block';
+  if (btn1) btn1.disabled = true;
+  if (btn2) btn2.disabled = true;
+  if (spinner1 && queryType === 'Site') spinner1.style.display = 'inline-block';
+  if (spinner2 && queryType === 'IP') spinner2.style.display = 'inline-block';
   if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
   if (summary) { summary.innerHTML = ''; }
   if (tbody) { tbody.innerHTML = ''; }
@@ -3280,7 +3314,7 @@ async function searchSiteArpMac() {
     const resp = await fetch('/search-site-arp-mac', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ site_code: siteCode }),
+      body: JSON.stringify(payload),
     });
     const data = await resp.json();
 
@@ -3292,7 +3326,7 @@ async function searchSiteArpMac() {
         errEl.style.display = 'block';
       }
       if (summary) {
-        summary.innerHTML = `<span style="color:#f85149">Site: <strong>${esc(siteCode)}</strong> &mdash; ${esc(msg)}</span>`;
+        summary.innerHTML = `<span style="color:#f85149">${queryType}: <strong>${esc(queryValue)}</strong> &mdash; ${esc(msg)}</span>`;
       }
       if (tbody) {
         tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#6c757d;padding:16px">${esc(msg)}</td></tr>`;
@@ -3306,14 +3340,15 @@ async function searchSiteArpMac() {
     const count = data.count || results.length;
 
     let macList = (data.macs || []).map(m => `<code>${esc(m)}</code>`).join(', ');
+    const siteTag = data.site_code ? ` &bull; Site: <strong>${esc(data.site_code)}</strong>` : '';
     if (summary) {
-      summary.innerHTML = `Found <strong>${count}</strong> record(s) for Site <strong>${esc(siteCode)}</strong> ${macList ? `&bull; MAC: ${macList}` : ''}`;
+      summary.innerHTML = `Found <strong>${count}</strong> record(s) for ${queryType} <strong>${esc(queryValue)}</strong>${siteTag} ${macList ? `&bull; MAC: ${macList}` : ''}`;
     }
 
     if (tbody) {
       tbody.innerHTML = '';
       if (results.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#6c757d;padding:16px">No ARP/MAC records found for this site.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#6c757d;padding:16px">No ARP/MAC records found.</td></tr>`;
       } else {
         results.forEach((r, i) => {
           const tr = document.createElement('tr');
@@ -3343,8 +3378,10 @@ async function searchSiteArpMac() {
     }
     if (section) section.style.display = 'block';
   } finally {
-    if (btn) btn.disabled = false;
-    if (spinner) spinner.style.display = 'none';
+    if (btn1) btn1.disabled = false;
+    if (btn2) btn2.disabled = false;
+    if (spinner1) spinner1.style.display = 'none';
+    if (spinner2) spinner2.style.display = 'none';
   }
 }
 

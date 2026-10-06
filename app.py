@@ -36,11 +36,12 @@ from license_renewal_logic import LicenseRenewalProcessor
 from services.zabbix_service import ZabbixService, create_zabbix_service
 from services.license_db import add_renewal_report, get_all_renewal_reports, get_renewal_report
 from auth import (
-    authenticate, login_required, permission_required, get_accessible_features,
+    authenticate, login_required, permission_required, user_has_access, get_accessible_features,
     get_all_users, create_user, update_user, delete_user,
 )
 from site_arp_service import (
     lookup_site_arp_mac_details,
+    lookup_ip_arp_mac_details,
     parse_ne_csv_content,
     start_collector_job,
     get_collector_job_status,
@@ -1645,6 +1646,7 @@ def show_originator_interfaces_route():
     password = data.get("password") or ""
     originator_ip = (data.get("originator_ip") or "").strip()
     target_ip = (data.get("target_ip") or "").strip()
+    prefix = (data.get("prefix") or "").strip()
 
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
@@ -1673,7 +1675,7 @@ def show_originator_interfaces_route():
 
     try:
         sysname = get_sysname(conn, cmd_timeout=10)
-        result = query_vrf_route_and_configs(conn, vrf, target_ip, cmd_timeout=60)
+        result = query_vrf_route_and_configs(conn, vrf, target_ip, prefix=prefix, cmd_timeout=60)
         conn.disconnect()
     except Exception as e:
         try:
@@ -1911,19 +1913,30 @@ def search_zabbix_ip():
 
 
 @app.route("/search-site-arp-mac", methods=["POST"])
-@permission_required("zabbix_search")
+@app.route("/search-ip-arp-mac", methods=["POST"])
+@login_required
 def search_site_arp_mac():
+    user_info = session.get("user", {})
+    if not (user_has_access(user_info, "zabbix_search") or user_has_access(user_info, "code_site_search")):
+        return jsonify({"error": "Forbidden"}), 403
+
     data = request.get_json(force=True)
+    ip_val = (data.get("ip") or "").strip()
     site_code = (data.get("site_code") or data.get("keyword") or "").strip()
 
-    if not site_code:
-        return jsonify({"error": "Site code is required", "success": False}), 400
+    if not ip_val and not site_code:
+        return jsonify({"error": "Site code or IP address is required", "success": False}), 400
 
     try:
-        result = lookup_site_arp_mac_details(site_code)
+        if ip_val:
+            result = lookup_ip_arp_mac_details(ip_val)
+        elif re.match(r"^\d{1,3}(?:\.\d{1,3}){3}$", site_code):
+            result = lookup_ip_arp_mac_details(site_code)
+        else:
+            result = lookup_site_arp_mac_details(site_code)
         return jsonify(result)
     except Exception as e:
-        app.logger.exception("Site ARP/MAC lookup failed")
+        app.logger.exception("Site/IP ARP/MAC lookup failed")
         return jsonify({"error": f"Lookup failed: {e}", "success": False}), 500
 
 
