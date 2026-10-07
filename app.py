@@ -23,7 +23,7 @@ from flask import (
 from auto_clear_noconf import process_one
 from reporting_logic import (
     process_one_report, extract_provinces, filter_routers_by_province,
-    compute_analytics, FIELD_NAMES
+    compute_analytics, FIELD_NAMES, TRUNK_FIELD_NAMES
 )
 from check_vrf_routing import (
     parse_interface_config, batch_check_routing,
@@ -189,6 +189,7 @@ def create_report_session() -> str:
             "logs": [],
             "report_data": [],
             "noconf_data": [],
+            "trunk_data": [],
             "status": "pending",
             "error": None,
             "router_count": 0,
@@ -488,6 +489,7 @@ def _run_report(sid: str, routers: list[dict], username: str, password: str, age
             with sess["result_lock"]:
                 sess["report_data"].extend(res["data"])
                 sess["noconf_data"].extend(res["noconf_data"])
+                sess["trunk_data"].extend(res.get("trunk_data", []))
                 sess["completed_count"] += 1
                 completed = sess["completed_count"]
             _log(
@@ -497,7 +499,7 @@ def _run_report(sid: str, routers: list[dict], username: str, password: str, age
                 "info",
             )
 
-    sess["analytics"] = compute_analytics(sess["report_data"], sess["noconf_data"])
+    sess["analytics"] = compute_analytics(sess["report_data"], sess["noconf_data"], sess.get("trunk_data", []))
     finish_report_session(sid)
 
 
@@ -905,6 +907,31 @@ def download_report(sid):
         mimetype="text/csv",
         as_attachment=True,
         download_name=f"down_links_report_{sid}.csv",
+    )
+
+
+@app.route("/download-trunk-report/<sid>")
+@login_required
+def download_trunk_report(sid):
+    sess = get_report_session(sid)
+    if sess is None:
+        return "Session not found", 404
+    trunk_data = sess.get("trunk_data", [])
+    if not trunk_data:
+        return "No trunk data available", 404
+
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=TRUNK_FIELD_NAMES)
+    writer.writeheader()
+    writer.writerows(trunk_data)
+
+    mem = io.BytesIO(out.getvalue().encode("utf-8-sig"))
+    mem.seek(0)
+    return send_file(
+        mem,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"eth_trunks_report_{sid}.csv",
     )
 
 

@@ -1251,6 +1251,7 @@ The database is used by the Zabbix Interface Search tab.
                 <div class="d-flex align-items-center gap-3 flex-wrap mb-2">
                     <div class="d-flex gap-3 flex-wrap" id="reportSummaryStats"></div>
                     <button class="btn btn-download" id="downloadReportBtn" onclick="downloadReportReport()">&#8681; Download CSV Report</button>
+                    <button class="btn btn-outline-warning" id="downloadTrunkReportBtn" onclick="downloadTrunkReport()" style="display:none">&#8681; Download Eth-Trunks (0/33/85) CSV</button>
                 </div>
             </div>
             <!-- License Results -->
@@ -1323,13 +1324,54 @@ The database is used by the Zabbix Interface Search tab.
                     <p style="font-size:0.82rem;color:#adb5bd;margin-bottom:10px">Interfaces grouped by matching <code>_XX12345</code> pattern in their description</p>
                     <div id="analyticsSiteGroupsBody"></div>
                 </div>
-                <div id="analyticsTrunkWrap" style="display:none">
-                    <h6 class="fw-semibold mb-2">BA/BC — Eth-Trunk Member Ports Down</h6>
-                    <p style="font-size:0.82rem;color:#adb5bd;margin-bottom:10px">Physical member ports of Eth-Trunk0/33/85 that are down (on devices starting with BA/BC)</p>
-                    <div class="d-flex gap-2 flex-wrap mb-2">
-                        <span class="badge" style="background:#2c3034;color:#adb5bd;padding:4px 12px;font-size:0.84rem">Down Members: <strong id="trunkDownTotal" style="color:#fff">0</strong></span>
+                <div id="analyticsTrunkWrap" style="display:none;margin-top:24px;border-top:1px solid #495057;padding-top:20px">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <div>
+                            <h5 class="fw-semibold mb-1" style="color:#ffcc02">BA/BC &mdash; Infrastructure Eth-Trunks (UPlink / VPLS / Resilience)</h5>
+                            <p style="font-size:0.82rem;color:#adb5bd;margin-bottom:0">Status of UPlink (Trunk 0), VPLS (TO_VPLS Trunks), and Resilience (Trunk 85) with their physical member links on BA/BC routers</p>
+                        </div>
+                        <button class="btn btn-sm btn-outline-warning" onclick="downloadTrunkReport()">
+                            &#8681; Download Eth-Trunks CSV Report
+                        </button>
                     </div>
-                    <div id="analyticsTrunkBody"></div>
+
+                    <!-- 3 Pie Charts Row -->
+                    <div class="row row-cols-1 row-cols-md-3 g-3 mb-4" id="trunkChartsRow">
+                        <!-- Populated dynamically: UPlink, VPLS, Resilience -->
+                    </div>
+
+                    <!-- Detailed Table -->
+                    <div class="card" style="background:#212529;border:1px solid #495057;border-radius:8px">
+                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2" style="background:#2c3034;border-bottom:1px solid #495057">
+                            <span class="fw-semibold" style="font-size:0.9rem">Eth-Trunk Nodes &amp; Member Links Breakdown</span>
+                            <div class="d-flex gap-2 align-items-center flex-wrap">
+                                <input type="text" id="trunkTableSearch" class="form-control form-control-sm" placeholder="Filter node / province..." style="width:180px" oninput="filterTrunkTable()">
+                                <select id="trunkTableFilter" class="form-select form-select-sm" style="width:180px" onchange="filterTrunkTable()">
+                                    <option value="ALL">All Categories</option>
+                                    <option value="UPlink">UPlink (Eth-Trunk0)</option>
+                                    <option value="VPLS">VPLS (TO_VPLS)</option>
+                                    <option value="Resilience">Resilience (Eth-Trunk85)</option>
+                                    <option value="DOWN_ONLY">Only Down / Has Down Members</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="table-responsive" style="max-height:480px;overflow-y:auto">
+                            <table class="table table-dark table-sm table-hover mb-0" id="trunkDetailTable" style="font-size:0.82rem">
+                                <thead style="position:sticky;top:0;background:#2c3034;z-index:2">
+                                    <tr>
+                                        <th style="width:75px">Province</th>
+                                        <th style="width:160px">Node (NE)</th>
+                                        <th style="width:105px">Trunk</th>
+                                        <th style="min-width:180px">Description</th>
+                                        <th style="width:90px">State</th>
+                                        <th style="width:100px">Down Links</th>
+                                        <th>Member Ports &amp; Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trunkDetailTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1759,11 +1801,18 @@ const aResp = await fetch('/report-analytics/' + sid);
 if (aResp.ok) {
 const analytics = await aResp.json();
 renderAnalytics(analytics);
+if (analytics.trunk_section && analytics.trunk_section.total_records > 0) {
+    const tBtn = document.getElementById('downloadTrunkReportBtn');
+    if (tBtn) tBtn.style.display = 'inline-block';
+}
 }
 } catch(_) {}
 }
 function downloadReportReport() {
 if (activeSessionId) window.location = '/download-report/' + activeSessionId;
+}
+function downloadTrunkReport() {
+if (activeSessionId) window.location = '/download-trunk-report/' + activeSessionId;
 }
 /* ------------------------------------------------------------------
 Analytics rendering
@@ -1917,36 +1966,200 @@ sgWrap.style.display = 'block';
 sgWrap.style.display = 'none';
 }
 const trunkWrap = document.getElementById('analyticsTrunkWrap');
-const trunkBody = document.getElementById('analyticsTrunkBody');
-tm = a.trunk_members;
-if (tm && tm.total_down_members > 0) {
-document.getElementById('trunkDownTotal').textContent = tm.total_down_members;
-trunkBody.innerHTML = '';
-tm.by_trunk.forEach(t => {
-const block = document.createElement('div');
-block.style.cssText = 'margin-bottom:12px;border:1px solid #495057;border-radius:8px;overflow:hidden';
-const header = document.createElement('div');
-header.style.cssText = 'background:#332b00;padding:8px 12px;font-weight:600;font-size:0.88rem;border-bottom:1px solid #495057;color:#ffcc02';
-header.innerHTML = `<span style="color:#ffcc02">${esc(t.trunk)}</span> — ${t.count} down member(s)`;
-block.appendChild(header);
-const table = document.createElement('table');
-table.className = 'analytics-table';
-table.innerHTML = '<thead><tr><th>NE</th><th>Interface</th><th>Type</th><th>Reason</th><th>Description</th></tr></thead>';
-const tb = document.createElement('tbody');
-t.members.forEach(m => {
-const tr = document.createElement('tr');
-tr.innerHTML = `<td>${esc(m.ne)}</td><td><code>${esc(m.interface)}</code></td><td>${m.type}</td><td style="font-size:0.8rem;color:#adb5bd">${esc(m.reason)}</td><td style="font-size:0.8rem;color:#adb5bd;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.description)}</td>`;
-tb.appendChild(tr);
-});
-table.appendChild(tb);
-block.appendChild(table);
-trunkBody.appendChild(block);
-});
-trunkWrap.style.display = 'block';
+const ts = a.trunk_section;
+if (ts && ts.total_records > 0) {
+    window.currentTrunkRecords = ts.all_records || [];
+    const chartsRow = document.getElementById('trunkChartsRow');
+    if (chartsRow) {
+        chartsRow.innerHTML = '';
+        const chartConfigs = [
+            { key: 'UPlink', title: 'UPlink', subtitle: 'Eth-Trunk0' },
+            { key: 'VPLS', title: 'VPLS', subtitle: 'TO_VPLS Trunks' },
+            { key: 'Resilience', title: 'Resilience', subtitle: 'Eth-Trunk85' }
+        ];
+        chartConfigs.forEach(cfg => {
+            const tdata = (ts.trunks && ts.trunks[cfg.key]) || { total_nodes: 0, up: 0, down: 0, down_members_total: 0, total_members: 0 };
+            const col = document.createElement('div');
+            col.className = 'col';
+            const up = tdata.up || 0;
+            const down = tdata.down || 0;
+            const total = tdata.total_nodes || (up + down);
+            const upPct = total > 0 ? ((up / total) * 100).toFixed(1) : 0;
+            const downPct = total > 0 ? ((down / total) * 100).toFixed(1) : 0;
+            const downMembers = tdata.down_members_total || 0;
+            const totalMembers = tdata.total_members || 0;
+
+            col.innerHTML = `
+            <div class="card h-100" style="background:#212529;border:1px solid #495057;border-radius:8px">
+                <div class="card-header d-flex justify-content-between align-items-center py-2" style="background:#2c3034;border-bottom:1px solid #495057">
+                    <div>
+                        <span class="fw-bold" style="color:#ffcc02;font-size:0.95rem">${esc(cfg.title)}</span>
+                        <span style="font-size:0.75rem;color:#adb5bd;margin-left:4px">(${esc(cfg.subtitle)})</span>
+                    </div>
+                    <span class="badge" style="background:#343a40;color:#adb5bd;font-size:0.75rem">${total} Nodes</span>
+                </div>
+                <div class="card-body p-3 d-flex flex-column align-items-center justify-content-between">
+                    ${createPieChartSvg(up, down, total)}
+                    <div class="w-100 mt-3 pt-2 border-top border-secondary text-center">
+                        <div class="d-flex justify-content-around mb-2" style="font-size:0.82rem">
+                            <span class="text-success fw-semibold"><span style="display:inline-block;width:9px;height:9px;background:#198754;border-radius:2px;margin-right:4px"></span>UP: ${up} (${upPct}%)</span>
+                            <span class="text-danger fw-semibold"><span style="display:inline-block;width:9px;height:9px;background:#dc3545;border-radius:2px;margin-right:4px"></span>DOWN: ${down} (${downPct}%)</span>
+                        </div>
+                        <div style="font-size:0.8rem;background:#1a1d20;border-radius:6px;padding:6px 10px;color:#ced4da">
+                            Down Member Links: <strong class="${downMembers > 0 ? 'text-danger' : 'text-success'}">${downMembers}</strong> <span style="color:#6c757d">/ ${totalMembers} total</span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            chartsRow.appendChild(col);
+        });
+    }
+    filterTrunkTable();
+    trunkWrap.style.display = 'block';
 } else {
-trunkWrap.style.display = 'none';
+    trunkWrap.style.display = 'none';
 }
 document.getElementById('analyticsSection').style.display = 'block';
+}
+
+function createPieChartSvg(up, down, total) {
+    if (total === 0) {
+        return `<div style="position:relative;width:130px;height:130px;margin:0 auto">
+            <svg viewBox="0 0 160 160" width="130" height="130">
+                <circle cx="80" cy="80" r="50" fill="none" stroke="#343a40" stroke-width="22"/>
+                <text x="80" y="85" text-anchor="middle" fill="#6c757d" font-size="12">Not Configured</text>
+            </svg>
+        </div>`;
+    }
+    const r = 50;
+    const c = 2 * Math.PI * r;
+
+    if (down === 0) {
+        return `<div style="position:relative;width:130px;height:130px;margin:0 auto">
+            <svg viewBox="0 0 160 160" width="130" height="130">
+                <circle cx="80" cy="80" r="${r}" fill="none" stroke="#198754" stroke-width="22"/>
+            </svg>
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+                <span style="font-weight:700;font-size:1.15rem;color:#198754">100%</span>
+                <span style="font-size:0.7rem;color:#adb5bd">ALL UP</span>
+            </div>
+        </div>`;
+    }
+    if (up === 0) {
+        return `<div style="position:relative;width:130px;height:130px;margin:0 auto">
+            <svg viewBox="0 0 160 160" width="130" height="130">
+                <circle cx="80" cy="80" r="${r}" fill="none" stroke="#dc3545" stroke-width="22"/>
+            </svg>
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+                <span style="font-weight:700;font-size:1.15rem;color:#dc3545">100%</span>
+                <span style="font-size:0.7rem;color:#adb5bd">ALL DOWN</span>
+            </div>
+        </div>`;
+    }
+
+    const downLen = (down / total) * c;
+    const upLen = (up / total) * c;
+    const upRot = (down / total) * 360;
+
+    return `
+    <div style="position:relative;width:130px;height:130px;margin:0 auto">
+        <svg viewBox="0 0 160 160" width="130" height="130" style="transform:rotate(-90deg)">
+            <!-- DOWN Slice (Red) -->
+            <circle cx="80" cy="80" r="${r}" fill="none" stroke="#dc3545" stroke-width="22"
+                stroke-dasharray="${downLen} ${c - downLen}" stroke-dashoffset="0" />
+            <!-- UP Slice (Green) -->
+            <circle cx="80" cy="80" r="${r}" fill="none" stroke="#198754" stroke-width="22"
+                stroke-dasharray="${upLen} ${c - upLen}" stroke-dashoffset="0"
+                style="transform:rotate(${upRot}deg);transform-origin:80px 80px" />
+        </svg>
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+            <span style="font-weight:700;font-size:1.1rem;color:#fff">${total}</span>
+            <span style="font-size:0.7rem;color:#adb5bd">Nodes</span>
+        </div>
+    </div>`;
+}
+
+function filterTrunkTable() {
+    const tbody = document.getElementById('trunkDetailTableBody');
+    if (!tbody) return;
+    const records = window.currentTrunkRecords || [];
+    const search = (document.getElementById('trunkTableSearch')?.value || '').trim().toLowerCase();
+    const filter = document.getElementById('trunkTableFilter')?.value || 'ALL';
+
+    const filtered = records.filter(r => {
+        const prov = (r.Province || '').toLowerCase();
+        const ne = (r['NE Name'] || '').toLowerCase();
+        const desc = (r.Description || '').toLowerCase();
+        const tname = r['Trunk Name'] || '';
+        const group = r['Trunk Group'] || '';
+        const stat = r['Trunk Status'] || '';
+        const downMembers = Number(r['Down Members Count'] || 0);
+
+        if (search && !prov.includes(search) && !ne.includes(search) && !desc.includes(search)) return false;
+
+        if (filter === 'UPlink' && group !== 'UPlink' && (tname !== 'Eth-Trunk0' || desc.includes('to_vpls'))) return false;
+        if (filter === 'VPLS' && group !== 'VPLS' && !desc.includes('to_vpls')) return false;
+        if (filter === 'Resilience' && group !== 'Resilience' && tname !== 'Eth-Trunk85') return false;
+        if (filter === 'DOWN_ONLY' && stat !== 'DOWN' && downMembers === 0) return false;
+
+        return true;
+    });
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No matching Eth-Trunk records found</td></tr>';
+        return;
+    }
+
+    filtered.forEach(r => {
+        const tr = document.createElement('tr');
+        const isUp = r['Trunk Status'] === 'UP';
+        const statBadge = isUp
+            ? '<span class="badge bg-success" style="font-size:0.75rem">UP</span>'
+            : '<span class="badge bg-danger" style="font-size:0.75rem">DOWN</span>';
+        
+        const downMembersCount = Number(r['Down Members Count'] || 0);
+        const downBadge = downMembersCount > 0
+            ? `<span class="badge bg-danger" style="font-size:0.75rem">${downMembersCount}</span>`
+            : `<span class="badge bg-secondary" style="font-size:0.75rem">0</span>`;
+
+        let membersHtml = '';
+        const rawMembers = r['Member Links Details'] || '';
+        if (!rawMembers || rawMembers === 'None' || rawMembers === 'No members') {
+            membersHtml = '<span class="text-muted" style="font-size:0.78rem">No members</span>';
+        } else {
+            const parts = rawMembers.split(', ');
+            membersHtml = parts.map(p => {
+                const isMemDown = p.toLowerCase().includes('(down)');
+                const cls = isMemDown ? 'badge bg-danger me-1 mb-1' : 'badge bg-dark border border-success text-success me-1 mb-1';
+                return `<span class="${cls}" style="font-size:0.75rem">${esc(p)}</span>`;
+            }).join('');
+        }
+
+        const descCell = (r.Description && r.Description !== 'No description')
+            ? `<span style="color:#0dcaf0;font-size:0.78rem;font-weight:500">${esc(r.Description)}</span>`
+            : `<span class="text-muted" style="font-size:0.75rem">&mdash;</span>`;
+
+        let grpBadge = '';
+        if (r['Trunk Group'] === 'VPLS' || (r.Description && r.Description.toUpperCase().includes('TO_VPLS'))) {
+            grpBadge = ' <span class="badge" style="background:#664d03;color:#ffecb5;font-size:0.68rem">VPLS</span>';
+        } else if (r['Trunk Group'] === 'UPlink' || r['Trunk Name'] === 'Eth-Trunk0') {
+            grpBadge = ' <span class="badge" style="background:#0d6efd;color:#fff;font-size:0.68rem">UPlink</span>';
+        } else if (r['Trunk Group'] === 'Resilience' || r['Trunk Name'] === 'Eth-Trunk85') {
+            grpBadge = ' <span class="badge" style="background:#055160;color:#cff4fc;font-size:0.68rem">Resilience</span>';
+        }
+
+        tr.innerHTML = `
+            <td><span class="badge" style="background:#343a40;color:#0d6efd;font-weight:600">${esc(r.Province || '-')}</span></td>
+            <td><code>${esc(r['NE Name'] || '-')}</code></td>
+            <td><strong>${esc(r['Trunk Name'] || '-')}</strong>${grpBadge}</td>
+            <td>${descCell}</td>
+            <td>${statBadge}</td>
+            <td>${downBadge}</td>
+            <td><div style="display:flex;flex-wrap:wrap;gap:2px">${membersHtml}</div></td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 function resetButtons() {
 document.getElementById('manualRunBtn').disabled = false;

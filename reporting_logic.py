@@ -21,6 +21,19 @@ FIELD_NAMES = [
     'full configuration of the link'
 ]
 
+TRUNK_FIELD_NAMES = [
+    'Province',
+    'NE Name',
+    'Trunk Name',
+    'Trunk Group',
+    'Description',
+    'Trunk Status',
+    'Total Members',
+    'Down Members Count',
+    'Member Links Details',
+    'Down Member Ports'
+]
+
 
 def classify_category(description):
     desc_upper = description.upper()
@@ -37,11 +50,11 @@ def parse_filtered_alarms(output: str):
     alarms = []
     for line in output.splitlines():
         line = line.strip()
-        if not line or any(x in line for x in ['Sequence', '--------', '1:Critical', 'Info:']):
+        if not line or any(x in line for x in ['Sequence', '--------', '1:Critical', 'Info:', 'press CTRL_C', 'no active alarms']):
             continue
         match = re.match(
             r'^\s*(\d+)\s+(0x[0-9A-Fa-f]+)\s+(\d)\s+(\d{4}-\d{2}-\d{2})\s+'
-            r'(\d{2}:\d{2}:\d{2}\+\d{2}:\d{2})\s+(.+)$',
+            r'(\d{2}:\d{2}:\d{2}(?:[+-]\d{2}:?\d{2})?)\s+(.+)$',
             line
         )
         if not match:
@@ -50,18 +63,20 @@ def parse_filtered_alarms(output: str):
         time_str = match.group(5)
         desc = match.group(6).strip()
         dt = None
-        try:
-            dt = datetime.strptime(f"{date_str} {time_str}", '%Y-%m-%d %H:%M:%S%z')
-        except Exception:
-            pass
+        for fmt in ('%Y-%m-%d %H:%M:%S%z', '%Y-%m-%d %H:%M:%S'):
+            try:
+                dt = datetime.strptime(f"{date_str} {time_str}", fmt)
+                break
+            except Exception:
+                pass
         interface_name = 'Unknown'
-        for key in ['ifName=', 'EntPhysicalName=', 'mainIfname=']:
+        for key in ['ifName=', 'InterfaceName=', 'mainIfname=', 'EntPhysicalName=', 'SubIfName=', 'Interface=', 'PortID=']:
             m = re.search(f'{key}([^,\\s\\)]+)', desc)
             if m:
                 interface_name = m.group(1)
                 break
         else:
-            m = re.search(r'(GigabitEthernet|GE|Ethernet|Eth-Trunk|Vlanif)[^,\s\)]*', desc)
+            m = re.search(r'(XGigabitEthernet|XGE|100GE|40GE|10GE|GigabitEthernet|GE|Eth-Trunk|Ethernet|Vlanif|LoopBack)[^,\s\)]*', desc, re.IGNORECASE)
             if m:
                 interface_name = m.group(0)
         down_reason = "OperStatus=DOWN"
@@ -130,35 +145,21 @@ def get_interface_details_from_config(conn, interface_name):
         admin_down = has_shutdown
         return description or 'Description not available', admin_down
     except Exception:
-        try:
-            full_output = conn.send_command('display current-configuration', read_timeout=60)
-            config_lines = []
-            capture = False
-            for line in full_output.splitlines():
-                stripped = line.strip()
-                if stripped == f'interface {interface_name}':
-                    capture = True
-                    continue
-                elif capture and stripped.startswith('interface '):
-                    break
-                elif capture:
-                    if stripped and not stripped.startswith(('return', 'quit', '#')):
-                        config_lines.append(stripped)
-            for line in config_lines:
-                if line.startswith('description '):
-                    description = line[len('description '):].strip()
-                    break
-            has_shutdown = any(line.strip() == 'shutdown' for line in config_lines)
-            admin_down = has_shutdown
-            return description or 'Description not available', admin_down
-        except Exception:
-            return 'Description not available', True
+        return 'Description not available', True
 
 
 def determine_interface_type(name):
     n = name.lower()
     if 'vlanif' in n:
         return 'VLAN'
+    elif 'eth-trunk' in n or 'trunk' in n:
+        return 'TRUNK'
+    elif 'xgigabitethernet' in n or 'xge' in n or '10ge' in n:
+        return '10GE'
+    elif '100ge' in n:
+        return '100GE'
+    elif '40ge' in n:
+        return '40GE'
     elif 'gigabitethernet' in n or re.search(r'^ge\d+[/\d]*', n):
         return 'GE'
     elif 'ethernet' in n or 'eth' in n:
@@ -168,6 +169,8 @@ def determine_interface_type(name):
 
 
 def is_trivial_interface_config(config_lines):
+    if not config_lines:
+        return False
     meaningful = []
     for line in config_lines:
         s = line.strip()
@@ -181,9 +184,128 @@ def is_trivial_interface_config(config_lines):
             continue
         if s.startswith('Info:') or s.startswith('^'):
             continue
+        if 'error' in s.lower() or 'wrong parameter' in s.lower() or 'unrecognized' in s.lower():
+            return False
         meaningful.append(s.lower())
     allowed = {'dcn', 'undo dcn', 'shutdown', 'undo shutdown'}
     return len(meaningful) == 0 or all(cmd in allowed for cmd in meaningful)
+
+
+def check_ba_bc_trunks(conn, name, read_timeout=30):
+    trunk_records = []
+    trunk_members = {}
+    if not name.upper().startswith(('BA', 'BC')):
+        return trunk_records, trunk_members
+
+    m_prov = re.search(r'_([A-Za-z]{2})', name) or re.search(r'_(..)', name)
+    prov = m_prov.group(1).upper() if m_prov else 'Unknown'
+
+    # Discover any Eth-Trunk interfaces that have TO_VPLS in description
+    vpls_tids = set()
+    try:
+        vpls_out = conn.send_command('display interface description | include TO_VPLS', read_timeout=read_timeout)
+        for m in re.finditer(r'Eth-Trunk(\d+)', vpls_out, re.IGNORECASE):
+            vpls_tids.add(m.group(1))
+    except Exception:
+        pass
+
+    # Build candidate trunks: 0, 85, plus 33 and any discovered VPLS trunks
+    candidate_tids = ['0', '85']
+    for tid in sorted(vpls_tids | {'33'}, key=lambda x: int(x) if x.isdigit() else 999):
+        if tid not in candidate_tids:
+            candidate_tids.append(tid)
+
+    for tid in candidate_tids:
+        try:
+            trunk_out = conn.send_command(f'display interface Eth-Trunk{tid}', read_timeout=read_timeout)
+            if not trunk_out or 'Error:' in trunk_out or 'Wrong parameter' in trunk_out or 'unrecognized' in trunk_out.lower():
+                continue
+
+            lines = trunk_out.splitlines()
+            first_line = lines[0] if lines else ''
+            trunk_status = 'DOWN'
+            for line in lines[:5]:
+                l_upper = line.upper()
+                if 'ADMINISTRATIVELY DOWN' in l_upper:
+                    trunk_status = 'DOWN'
+                    break
+                if 'CURRENT STATE' in l_upper:
+                    if ': UP' in l_upper or ' : UP' in l_upper or l_upper.endswith(' UP'):
+                        trunk_status = 'UP'
+                    elif ': DOWN' in l_upper or ' : DOWN' in l_upper or l_upper.endswith(' DOWN'):
+                        trunk_status = 'DOWN'
+                    break
+
+            description = ''
+            for line in lines:
+                if re.search(r'Description\s*:', line, re.IGNORECASE):
+                    parts = line.split(':', 1)
+                    if len(parts) > 1:
+                        d = parts[1].strip()
+                        if d and d not in ('NULL', ''):
+                            description = d
+                    break
+
+            is_vpls = bool(re.search(r'TO_VPLS', description, re.IGNORECASE))
+
+            # Non-0 and non-85 trunks are only included if description matches TO_VPLS
+            if tid not in ('0', '85') and not is_vpls:
+                continue
+
+            # If description matches TO_VPLS, it belongs to VPLS (even if tid is 0)
+            if is_vpls:
+                trunk_group = 'VPLS'
+            elif tid == '85':
+                trunk_group = 'Resilience'
+            elif tid == '0':
+                trunk_group = 'UPlink'
+            else:
+                trunk_group = f'Eth-Trunk{tid}'
+
+            members = []
+            member_details = []
+            down_members = []
+            capture = False
+            for line in lines:
+                s = line.strip()
+                if s.startswith('PortName') and 'Status' in s:
+                    capture = True
+                    continue
+                if capture:
+                    if re.match(r'^[-]+$', s):
+                        continue
+                    if s.startswith('The Number of Ports'):
+                        break
+                    if not s:
+                        continue
+                    parts = s.split()
+                    if len(parts) >= 2:
+                        p_name = parts[0]
+                        p_stat = parts[1].capitalize()
+                        members.append(p_name)
+                        member_details.append(f"{p_name} ({p_stat})")
+                        if p_stat.lower() == 'down':
+                            down_members.append(p_name)
+
+            if members:
+                trunk_members[tid] = members
+
+            trunk_records.append({
+                'Province': prov,
+                'NE Name': name,
+                'Trunk Name': f'Eth-Trunk{tid}',
+                'Trunk Group': trunk_group,
+                'Description': description or 'No description',
+                'Trunk Status': trunk_status,
+                'Total Members': len(members),
+                'Down Members Count': len(down_members),
+                'Member Links Details': ', '.join(member_details) if member_details else 'No members',
+                'Down Member Ports': ', '.join(down_members) if down_members else 'None',
+            })
+        except Exception:
+            pass
+
+    return trunk_records, trunk_members
 
 
 def process_one_report(name, host, username, password, log, conn_timeout=20, cmd_timeout=60, age_value=2, age_unit='days'):
@@ -193,6 +315,7 @@ def process_one_report(name, host, username, password, log, conn_timeout=20, cmd
         'host': host,
         'data': [],
         'noconf_data': [],
+        'trunk_data': [],
         'status': 'success',
         'error': None,
     }
@@ -207,6 +330,10 @@ def process_one_report(name, host, username, password, log, conn_timeout=20, cmd
                 password=password,
                 timeout=conn_timeout
             )
+            try:
+                conn.send_command('screen-length 0 temporary', read_timeout=cmd_timeout)
+            except Exception:
+                pass
 
             cmd = (
                 'display alarm active | include '
@@ -220,11 +347,18 @@ def process_one_report(name, host, username, password, log, conn_timeout=20, cmd
             output = conn.send_command(cmd, read_timeout=cmd_timeout)
             alarms = parse_filtered_alarms(output)
 
+            trunk_records, trunk_members = check_ba_bc_trunks(conn, name, read_timeout=cmd_timeout)
+            result['trunk_data'] = trunk_records
+
             if not alarms:
                 conn.disconnect()
-                result['status'] = 'skipped'
-                result['error'] = 'No matching alarms'
-                log(f"No matching alarms on {name}", 'warn')
+                if trunk_records:
+                    result['status'] = 'success'
+                    log(f"{name}: 0 alarms, {len(trunk_records)} trunk(s) checked", 'info')
+                else:
+                    result['status'] = 'skipped'
+                    result['error'] = 'No matching alarms'
+                    log(f"No matching alarms on {name}", 'warn')
                 return result
 
             utc = ZoneInfo("UTC")
@@ -251,7 +385,10 @@ def process_one_report(name, host, username, password, log, conn_timeout=20, cmd
 
                 if alarm['datetime']:
                     try:
-                        if alarm['datetime'].astimezone(utc) >= age_threshold:
+                        alarm_dt = alarm['datetime']
+                        if alarm_dt.tzinfo is None:
+                            alarm_dt = alarm_dt.replace(tzinfo=utc)
+                        if alarm_dt.astimezone(utc) >= age_threshold:
                             continue
                     except Exception:
                         pass
@@ -263,6 +400,7 @@ def process_one_report(name, host, username, password, log, conn_timeout=20, cmd
 
                 config_lines_raw = []
                 config_text = 'Config not available'
+                config_fetch_ok = False
                 try:
                     config_output = conn.send_command(
                         f'display current-configuration interface {intf_name}', read_timeout=60
@@ -273,8 +411,10 @@ def process_one_report(name, host, username, password, log, conn_timeout=20, cmd
                         if line.strip() and not line.strip().startswith('#')
                     ]
                     config_text = '\n'.join(display_lines) if display_lines else 'No config found'
+                    config_fetch_ok = True
                 except Exception:
                     config_lines_raw = []
+                    config_text = 'Config fetch error'
 
                 entry = {
                     'NE NAME': name,
@@ -289,43 +429,10 @@ def process_one_report(name, host, username, password, log, conn_timeout=20, cmd
                     'full configuration of the link': config_text
                 }
 
-                if is_trivial_interface_config(config_lines_raw):
+                if config_fetch_ok and is_trivial_interface_config(config_lines_raw):
                     noconf_data.append(entry)
                 else:
                     report_data.append(entry)
-
-            # --- Eth-Trunk member tracking for BA/BC devices ---
-            trunk_members = {}  # trunk_id -> [member_port_names]
-            if name.upper().startswith(('BA', 'BC')):
-                for tid in TRUNK_IDS:
-                    try:
-                        trunk_out = conn.send_command(
-                            f'display interface Eth-Trunk{tid}', read_timeout=30
-                        )
-                        members = []
-                        lines = trunk_out.splitlines()
-                        capture = False
-                        for i, line in enumerate(lines):
-                            s = line.strip()
-                            if s.startswith('PortName') and 'Status' in s:
-                                capture = True
-                                continue
-                            if capture:
-                                # skip separator row (all dashes)
-                                if re.match(r'^[-]+$', s):
-                                    continue
-                                # end of table
-                                if s.startswith('The Number of Ports'):
-                                    break
-                                if not s:
-                                    continue
-                                parts = s.split()
-                                if len(parts) >= 3:
-                                    members.append(parts[0])
-                        if members:
-                            trunk_members[tid] = members
-                    except Exception:
-                        pass
 
             for entry_list in (report_data, noconf_data):
                 for entry in entry_list:
@@ -377,7 +484,9 @@ def filter_routers_by_province(routers, province):
     return [r for r in routers if f'_{province}' in r.get('name', '')]
 
 
-def compute_analytics(report_data, noconf_data):
+def compute_analytics(report_data, noconf_data, trunk_data=None):
+    if trunk_data is None:
+        trunk_data = []
     all_entries = report_data + noconf_data
     total = len(all_entries)
 
@@ -423,17 +532,35 @@ def compute_analytics(report_data, noconf_data):
         dev_counts = province_device_counts.get(p, {})
         top_devices = sorted(dev_counts.items(), key=lambda x: -x[1])[:5]
 
-        # 5-minute burst check
+        # 5-minute sliding window burst check (window: 300s)
         burst = False
         burst_start = ''
         burst_end = ''
         timestamps = province_timestamps.get(p, [])
-        if len(timestamps) >= 2:
+        if len(timestamps) >= 3:
             timestamps.sort()
-            if (timestamps[-1] - timestamps[0]).total_seconds() <= 300:
+            max_in_window = 0
+            best_start = timestamps[0]
+            best_end = timestamps[0]
+            left = 0
+            for right in range(len(timestamps)):
+                while (timestamps[right] - timestamps[left]).total_seconds() > 300:
+                    left += 1
+                count = right - left + 1
+                if count >= 3 and count > max_in_window:
+                    max_in_window = count
+                    best_start = timestamps[left]
+                    best_end = timestamps[right]
+            if max_in_window >= 3:
+                burst = True
+                burst_start = best_start.strftime('%Y-%m-%d %H:%M:%S')
+                burst_end = best_end.strftime('%Y-%m-%d %H:%M:%S')
+        elif len(timestamps) == 2:
+            timestamps.sort()
+            if (timestamps[1] - timestamps[0]).total_seconds() <= 300:
                 burst = True
                 burst_start = timestamps[0].strftime('%Y-%m-%d %H:%M:%S')
-                burst_end = timestamps[-1].strftime('%Y-%m-%d %H:%M:%S')
+                burst_end = timestamps[1].strftime('%Y-%m-%d %H:%M:%S')
 
         province_summary.append({
             "province": p,
@@ -507,12 +634,13 @@ def compute_analytics(report_data, noconf_data):
         'reasons': ', '.join(f'{r}({c})' for r, c in sorted(g['reasons'].items(), key=lambda x: -x[1])),
     } for g in sorted_ifaces_by_count]
 
-    # --- Description-based grouping for ETH and GE ---
-    # Extract site/circuit codes (_XX12345) from descriptions and group interfaces that share one
-    code_pattern = re.compile(r'_[A-Z]{2}\d+')
+    # --- Description-based grouping for ETH, GE, 10GE, etc. ---
+    # Extract site/circuit codes (_XX12345) from descriptions and group interfaces that share one.
+    # Excludes interface designations (e.g. _GE0/1/0) by forbidding interface prefixes and requiring 3-5 digits.
+    code_pattern = re.compile(r'_(?!(?:GE|FE|XE|ET|PO|LO|GI|FA|XG)\d)[A-Z]{2}\d{3,5}(?![/\d])')
     code_groups = {}  # code -> list of {ne, interface, description, iface_type}
     for entry in all_entries:
-        if entry.get('Interface type') not in ('GE', 'ETH'):
+        if entry.get('Interface type') not in ('GE', 'ETH', '10GE', '40GE', '100GE'):
             continue
         desc = entry.get('interface description', '')
         codes = code_pattern.findall(desc.upper())
@@ -570,6 +698,48 @@ def compute_analytics(report_data, noconf_data):
         key = (r, cat)
         by_down_reason_with_category[key] = by_down_reason_with_category.get(key, 0) + 1
 
+    # --- Dedicated Eth-Trunk Section (UPlink, VPLS, Resilience on BA/BC) ---
+    trunk_section = {
+        "trunks": {},
+        "total_records": len(trunk_data),
+        "total_down_trunks_all": sum(1 for r in trunk_data if r.get('Trunk Status') == 'DOWN'),
+        "total_up_trunks_all": sum(1 for r in trunk_data if r.get('Trunk Status') == 'UP'),
+        "total_down_members_all": sum(r.get('Down Members Count', 0) for r in trunk_data),
+        "all_records": trunk_data,
+    }
+    for grp in ['UPlink', 'VPLS', 'Resilience']:
+        if grp == 'VPLS':
+            recs = [
+                r for r in trunk_data
+                if r.get('Trunk Group') in ('VPLS', 'TO_VPLS') or re.search(r'TO_VPLS', r.get('Description', ''), re.IGNORECASE)
+            ]
+        elif grp == 'UPlink':
+            recs = [
+                r for r in trunk_data
+                if (r.get('Trunk Group') == 'UPlink' or (r.get('Trunk Name') == 'Eth-Trunk0' and r.get('Trunk Group') not in ('VPLS', 'TO_VPLS') and not re.search(r'TO_VPLS', r.get('Description', ''), re.IGNORECASE)))
+            ]
+        elif grp == 'Resilience':
+            recs = [
+                r for r in trunk_data
+                if r.get('Trunk Group') == 'Resilience' or (r.get('Trunk Name') == 'Eth-Trunk85' and r.get('Trunk Group') not in ('VPLS', 'TO_VPLS') and not re.search(r'TO_VPLS', r.get('Description', ''), re.IGNORECASE))
+            ]
+        else:
+            recs = []
+
+        up_count = sum(1 for r in recs if r.get('Trunk Status') == 'UP')
+        down_count = sum(1 for r in recs if r.get('Trunk Status') == 'DOWN')
+        down_members = sum(r.get('Down Members Count', 0) for r in recs)
+        total_members = sum(r.get('Total Members', 0) for r in recs)
+        trunk_section["trunks"][grp] = {
+            "name": grp,
+            "total_nodes": len(recs),
+            "up": up_count,
+            "down": down_count,
+            "down_members_total": down_members,
+            "total_members": total_members,
+            "records": recs,
+        }
+
     return {
         "total": total,
         "total_service": len(report_data),
@@ -589,4 +759,5 @@ def compute_analytics(report_data, noconf_data):
             "total_down_members": len(trunk_entries),
             "by_trunk": trunk_summary,
         },
+        "trunk_section": trunk_section,
     }
