@@ -3,27 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SetareVanak NOC ToolBOX & Assistant</title>
+<title>NOC Netmate</title>
 <link rel="icon" type="image/png" href="/static/sig.png">
+<link href="/static/css/tokens.css" rel="stylesheet">
 <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+<link href="/static/css/netmate.css" rel="stylesheet">
 <style>
 body {
-background-color: #1a1a1a;
-background-image: url('/static/sig.png');
-background-repeat: no-repeat;
-background-position: center;
-background-size: contain;
-background-attachment: fixed;
+font-family: var(--noc-font-sans, system-ui, -apple-system, sans-serif);
+background-color: var(--noc-bg, #0b0f17);
 min-height: 100vh;
-color: #ffffff;
+color: var(--noc-text-main, #f1f5f9);
 }
 .main-container {
-max-width: 1200px;
-margin: 2rem auto;
-padding: 2rem;
-background-color: rgba(33, 37, 41, 0.95);
-border-radius: 10px;
-box-shadow: 0 0 20px rgba(0,0,0,0.3);
+max-width: 1400px;
+margin: 1.5rem auto;
+padding: 1.75rem;
+background-color: var(--noc-surface, #151d2a);
+border: 1px solid var(--noc-border, #28374d);
+border-radius: 12px;
+box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
 .form-control, .form-select {
 background-color: #2c3034;
@@ -423,7 +422,7 @@ body { padding: 8px; }
 <div class="auth-screen" id="authScreen" style="display:none">
 <div class="auth-card">
 <div class="d-flex align-items-center justify-content-center" style="width:52px;height:48px;background:linear-gradient(135deg,#0d6efd,#0a58ca);border-radius:12px;color:#fff;font-weight:800;font-size:1.4rem;margin:0 auto 16px">NOC</div>
-<h2>Seatre NOC ToolBOX</h2>
+<h2>NOC Netmate</h2>
 <p>Sign in to access the tools</p>
 <div id="loginError" style="color:#f85149;font-size:0.84rem;margin-bottom:12px;display:none"></div>
 <form id="loginForm" onsubmit="return doLogin(event)">
@@ -440,11 +439,25 @@ body { padding: 8px; }
 </div>
 <!-- Main Content -->
 <div class="main-container main-content" id="mainContent">
-<!-- Header -->
-<div class="d-flex align-items-center justify-content-between mb-1">
-<div class="d-flex align-items-center gap-3">
-<div class="d-flex align-items-center justify-content-center" style="width:52px;height:36px;background:linear-gradient(135deg,#0d6efd,#0a58ca);border-radius:9px;color:#fff;font-weight:800;font-size:1.1rem">NOC</div>
-<h1 class="mb-0" style="font-size:1.35rem;font-weight:700">SetareVanak NOC ToolBOX &amp; Assistant</h1>
+<!-- Modern Header -->
+<header class="netmate-header">
+<div class="netmate-brand">
+<div class="netmate-logo-badge">NOC</div>
+<div>
+<h1 class="netmate-brand-title">
+NOC Netmate
+<span class="netmate-mode-pill">Local Air-Gapped</span>
+</h1>
+<p class="netmate-brand-subtitle">Huawei Router Automation &amp; Network Operations Assistant</p>
+</div>
+</div>
+<!-- Network Credentials (shared across features) -->
+<div class="d-flex align-items-center gap-2" id="networkCredsSection">
+<span>Network Credentials:</span>
+<input type="text" id="netUser" class="form-control" placeholder="Username" autocomplete="off">
+<input type="password" id="netPass" class="form-control" placeholder="Password">
+<button class="btn btn-primary btn-sm" id="netCredsBtn" onclick="setNetworkCreds()">Set</button>
+<span id="netCredsStatus" style="font-size:0.82rem;color:#6c757d;display:none"></span>
 </div>
 <div class="d-flex align-items-center gap-2" id="authHeader">
 <span class="user-badge" id="userBadge">
@@ -453,41 +466,58 @@ body { padding: 8px; }
 </span>
 <button class="btn btn-outline-secondary btn-sm" onclick="doLogout()" title="Sign out" style="padding:4px 10px;font-size:0.8rem">Sign Out</button>
 </div>
-</div>
-<p class="mb-3" style="color:#adb5bd;font-size:0.88rem;padding-left:50px">Connects to Huawei routers — Tries to BE a Useful Assist</p>
-<!-- Network Credentials (shared across features) -->
-<div class="d-flex gap-2 align-items-center flex-wrap mb-3 px-1" id="networkCredsSection">
-<span style="font-size:0.85rem;font-weight:600;color:#adb5bd;margin-right:4px">Network Credentials:</span>
-<input type="text" id="netUser" class="form-control" style="max-width:160px" placeholder="Username" autocomplete="off">
-<input type="password" id="netPass" class="form-control" style="max-width:160px" placeholder="Password">
-<button class="btn btn-primary btn-sm" id="netCredsBtn" onclick="setNetworkCreds()" style="padding:5px 14px;font-size:0.84rem">Set</button>
-<span id="netCredsStatus" style="font-size:0.82rem;color:#6c757d;display:none"></span>
-</div>
+</header>
+
+<div class="netmate-shell">
+<aside class="netmate-sidebar">
 <!-- Tabs -->
 <ul class="nav nav-tabs" id="mainTabs" role="tablist">
 <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="alarm-clear-tab" data-bs-toggle="tab" data-bs-target="#tab-alarm-clear" type="button" role="tab">Alarm Clearing</button>
+    <button class="nav-link active" id="alarm-clear-tab" data-bs-toggle="tab" data-bs-target="#tab-alarm-clear" type="button" role="tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <span>Alarm Clearing</span>
+    </button>
 </li>
 <li class="nav-item" role="presentation">
-<button class="nav-link" id="reporting-tab" data-bs-toggle="tab" data-bs-target="#tab-reporting" type="button" role="tab">Alarm Reporting</button>
+<button class="nav-link" id="reporting-tab" data-bs-toggle="tab" data-bs-target="#tab-reporting" type="button" role="tab">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    <span>Alarm Reporting</span>
+</button>
 </li>
 <li class="nav-item" role="presentation">
-<button class="nav-link" id="vrf-tab" data-bs-toggle="tab" data-bs-target="#tab-vrf" type="button" role="tab">VRF Routing</button>
+<button class="nav-link" id="vrf-tab" data-bs-toggle="tab" data-bs-target="#tab-vrf" type="button" role="tab">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+    <span>VRF Routing</span>
+</button>
 </li>
 <li class="nav-item" role="presentation">
-<button class="nav-link" id="license-tab" data-bs-toggle="tab" data-bs-target="#tab-license" type="button" role="tab">License Info</button>
+<button class="nav-link" id="license-tab" data-bs-toggle="tab" data-bs-target="#tab-license" type="button" role="tab">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <span>License Info</span>
+</button>
 </li>
 <li class="nav-item" role="presentation">
-<button class="nav-link" id="zabbix-tab" data-bs-toggle="tab" data-bs-target="#tab-zabbix" type="button" role="tab">Zabbix Search</button>
+<button class="nav-link" id="zabbix-tab" data-bs-toggle="tab" data-bs-target="#tab-zabbix" type="button" role="tab">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span>Zabbix Search</span>
+</button>
 </li>
 <li class="nav-item" role="presentation">
-<button class="nav-link" id="session-extractor-tab" data-bs-toggle="tab" data-bs-target="#tab-session-extractor" type="button" role="tab">Session Extractor</button>
+<button class="nav-link" id="session-extractor-tab" data-bs-toggle="tab" data-bs-target="#tab-session-extractor" type="button" role="tab">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    <span>Session Extractor</span>
+</button>
 </li>
 <li class="nav-item" role="presentation" id="nav-admin" style="display:none">
-<button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#tab-admin" type="button" role="tab">Admin</button>
+<button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#tab-admin" type="button" role="tab">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span>Admin</span>
+</button>
 </li>
 </ul>
-<div class="tab-content mt-3">
+</aside>
+<main class="netmate-content">
+<div class="tab-content">
 <!-- Manual Entry Tab -->
 <div class="tab-pane active" id="tab-alarm-clear" role="tabpanel">
     <div class="card mb-3" id="manualClearCard">
@@ -1234,9 +1264,11 @@ The database is used by the Zabbix Interface Search tab.
 <div class="log-section mt-3" id="logSection" style="display:none">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Live Log</h5>
+            <h5 class="mb-0">Live Terminal Log</h5>
             <div class="d-flex align-items-center gap-2">
                 <span class="badge-progress" id="logProgress">0 / 0</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.75rem" onclick="copyLogBox()" title="Copy log text">Copy</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.75rem" onclick="document.getElementById('logBox').innerHTML=''" title="Clear log output">Clear</button>
             </div>
         </div>
         <div class="card-body">
@@ -1380,7 +1412,9 @@ The database is used by the Zabbix Interface Search tab.
 
 </div>
 </div>
-<footer class="text-center mt-4" style="color:#6c757d;padding:1rem 0">&copy; @IP/TX DevNet Team</footer>
+</main>
+</div><!-- /.netmate-shell -->
+<footer class="text-center mt-4" style="color:var(--noc-text-muted);padding:1rem 0;font-size:0.8rem">&copy; NOC Netmate &bull; IP/TX Automation Team</footer>
 </div>
 <!-- User Modal -->
 <div id="userModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1050;align-items:center;justify-content:center" onclick="if(event.target===this)hideUserModal()">
@@ -4236,6 +4270,22 @@ const t = document.getElementById('toast');
 t.textContent = msg;
 t.classList.add('show');
 setTimeout(() => t.classList.remove('show'), 4000);
+}
+function copyLogBox() {
+  const el = document.getElementById('logBox');
+  if (!el || !el.innerText || !el.innerText.trim()) {
+    showToast('Log box is empty');
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      showToast('Live log copied to clipboard');
+    }).catch(() => {
+      showToast('Log copied');
+    });
+  } else {
+    showToast('Log copied');
+  }
 }
 /* ------------------------------------------------------------------
 Authentication
