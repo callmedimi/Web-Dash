@@ -1128,7 +1128,30 @@ if (containerId === '#mainTabs') {
   if (parentNavItem) {
     const firstSub = parentNavItem.querySelector('.nav-submenu li:not([style*="display: none"]) .nav-sublink, .nav-submenu .nav-sublink');
     document.querySelectorAll('#mainTabs .nav-sublink').forEach(el => el.classList.remove('active'));
-    if (firstSub) firstSub.classList.add('active');
+    if (firstSub) {
+      firstSub.classList.add('active');
+      const onclickAttr = firstSub.getAttribute('onclick');
+      if (onclickAttr) {
+        // Extract cardId from selectSubItem('tab-id', 'card-id', this)
+        const match = onclickAttr.match(/selectSubItem\(\s*'([^']+)'\s*,\s*'([^']+)'/);
+        if (match) {
+          const tabId = match[1];
+          const cardId = match[2];
+          const targetCardsByTab = {
+            'tab-alarm-clear': ['manualClearCard', 'bulkClearCard'],
+            'tab-vrf': ['vrfRoutingCard', 'bgpRouteCheckCard'],
+            'tab-license': ['licenseCheckCard', 'licenseRenewalCard'],
+            'tab-zabbix': ['zabbixSearchCard', 'codeSiteSearchCard']
+          };
+          if (targetCardsByTab[tabId] && targetCardsByTab[tabId].includes(cardId)) {
+            targetCardsByTab[tabId].forEach(id => {
+              const el = document.getElementById(id);
+              if (el) el.style.display = (id === cardId) ? 'block' : 'none';
+            });
+          }
+        }
+      }
+    }
   }
 }
 if (containerId === '#adminTabs') {
@@ -1146,13 +1169,47 @@ function selectSubItem(tabId, cardId, linkEl) {
   if (tabBtn) tabBtn.click();
   document.querySelectorAll('#mainTabs .nav-sublink').forEach(el => el.classList.remove('active'));
   if (linkEl) linkEl.classList.add('active');
+
+  const pane = document.getElementById(tabId);
+  if (!pane) return;
+
+  const targetCardsByTab = {
+    'tab-alarm-clear': ['manualClearCard', 'bulkClearCard'],
+    'tab-vrf': ['vrfRoutingCard', 'bgpRouteCheckCard'],
+    'tab-license': ['licenseCheckCard', 'licenseRenewalCard'],
+    'tab-zabbix': ['zabbixSearchCard', 'codeSiteSearchCard']
+  };
+
+  if (targetCardsByTab[tabId] && targetCardsByTab[tabId].includes(cardId)) {
+    targetCardsByTab[tabId].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = (id === cardId) ? 'block' : 'none';
+    });
+    // For codeSiteSearchCard, ensure its wrapper is also visible if user has permission
+    if (cardId === 'codeSiteSearchCard') {
+      const wrapper = document.getElementById('codeSearchCardWrapper');
+      if (wrapper && hasPerm('code_site_search')) wrapper.style.display = 'block';
+    }
+  } else if (tabId === 'tab-reporting') {
+    // Show both upload card and results
+    const rCard = document.getElementById('reportingCard');
+    if (rCard) rCard.style.display = 'block';
+  } else {
+    // Restore default view if clicking other tabs
+    const allKnown = ['manualClearCard', 'bulkClearCard', 'vrfRoutingCard', 'bgpRouteCheckCard', 'licenseCheckCard', 'licenseRenewalCard', 'zabbixSearchCard'];
+    allKnown.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.closest(`#${tabId}`)) el.style.display = 'block';
+    });
+  }
+
   if (cardId) {
     setTimeout(() => {
       const card = document.getElementById(cardId);
-      if (card) {
+      if (card && card.style.display !== 'none') {
         card.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }, 60);
+    }, 50);
   }
 }
 
