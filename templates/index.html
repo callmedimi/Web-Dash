@@ -1262,13 +1262,21 @@ The database is used by the Zabbix Interface Search tab.
 </div>
 <!-- Log Section (shared) -->
 <div class="log-section mt-3" id="logSection" style="display:none">
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Live Terminal Log</h5>
+    <div class="card terminal-card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center">
+                <div class="terminal-header-dots">
+                    <span class="terminal-dot dot-red"></span>
+                    <span class="terminal-dot dot-amber"></span>
+                    <span class="terminal-dot dot-green"></span>
+                </div>
+                <h5 class="mb-0">Terminal Console</h5>
+            </div>
             <div class="d-flex align-items-center gap-2">
                 <span class="badge-progress" id="logProgress">0 / 0</span>
-                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.75rem" onclick="copyLogBox()" title="Copy log text">Copy</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.75rem" onclick="document.getElementById('logBox').innerHTML=''" title="Clear log output">Clear</button>
+                <input type="text" id="logFilterInput" placeholder="Filter log..." class="form-control form-control-sm" style="width:130px;height:26px;font-size:0.75rem;padding:2px 8px;" oninput="filterLogLines(this.value)">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.75rem;height:26px" onclick="copyLogBox()" title="Copy log text">Copy</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.75rem;height:26px" onclick="document.getElementById('logBox').innerHTML=''" title="Clear log output">Clear</button>
             </div>
         </div>
         <div class="card-body">
@@ -4285,6 +4293,19 @@ function copyLogBox() {
     });
   } else {
     showToast('Log copied');
+  }
+}
+function filterLogLines(query) {
+  const box = document.getElementById('logBox');
+  if (!box) return;
+  const q = (query || '').toLowerCase().trim();
+  const children = box.children;
+  for (let i = 0; i < children.length; i++) {
+    if (!q) {
+      children[i].style.display = '';
+    } else {
+      children[i].style.display = children[i].textContent.toLowerCase().includes(q) ? '' : 'none';
+    }
   }
 }
 /* ------------------------------------------------------------------
