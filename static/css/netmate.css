@@ -1188,3 +1188,48 @@ input[style*="background: #2c3034"], select[style*="background: #2c3034"] {
   color: var(--noc-text-main) !important;
 }
 
+/* ==========================================================================
+   PTP & Telecom Sync Diagnostic Styles
+   ========================================================================== */
+.ptp-hop-pill {
+  cursor: pointer;
+  border: 1px solid var(--noc-border);
+  background: var(--noc-surface-panel);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--noc-text-sub);
+}
+
+.ptp-hop-pill:hover {
+  border-color: var(--noc-border-focus);
+  background: var(--noc-surface-hover);
+  color: var(--noc-text-bright);
+}
+
+.ptp-hop-pill.active {
+  border-color: var(--noc-border-focus);
+  background: rgba(2, 132, 199, 0.2);
+  color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+}
+
+.ptp-optical-meter {
+  height: 10px;
+  border-radius: 5px;
+  background: #070c16;
+  border: 1px solid var(--noc-border);
+  position: relative;
+  overflow: hidden;
+}
+
+.ptp-meter-fill {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+

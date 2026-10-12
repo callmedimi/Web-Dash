@@ -17,6 +17,7 @@ DEFAULT_FEATURES = [
     "zabbix_search",
     "code_site_search",
     "session_extractor",
+    "ptp_troubleshoot",
     "user_management",
     "permission_management",
     "zabbix_db_refresh",
@@ -32,11 +33,25 @@ FEATURE_LABELS = {
     "zabbix_search": "Zabbix Interface Search",
     "code_site_search": "Code SITE Search",
     "session_extractor": "Session Extractor (SecureCRT)",
+    "ptp_troubleshoot": "PTP Troubleshoot (Telecom Sync)",
     "user_management": "User Management (God only)",
     "permission_management": "Permission Management (God only)",
     "zabbix_db_refresh": "Zabbix DB Refresh",
     "license_renewal_admin": "License Renewal Admin (God, Admin only)",
 }
+
+
+DEFAULT_USER_FEATURES = [
+    "alarm_clear_manual",
+    "alarm_clear_bulk",
+    "reporting",
+    "vrf_routing",
+    "license_check",
+    "zabbix_search",
+    "code_site_search",
+    "session_extractor",
+    "ptp_troubleshoot",
+]
 
 
 def _load_users() -> dict:
@@ -95,7 +110,9 @@ def user_has_access(user_info: dict, feature: str) -> bool:
     if role == "admin":
         return feature not in ("user_management", "permission_management", "zabbix_db_refresh", "license_renewal_admin")
     perms = user_info.get("permissions", {})
-    return perms.get(feature, False)
+    if feature in perms:
+        return bool(perms[feature])
+    return feature in DEFAULT_USER_FEATURES
 
 
 def get_accessible_features(user_info: dict) -> dict:
@@ -155,10 +172,12 @@ def create_user(username: str, password: str, role: str, display_name: str = "",
     existing = _find_user(users, username)
     if existing:
         return f"User already exists (as '{existing}')"
+    if permissions is None:
+        permissions = {feat: True for feat in DEFAULT_USER_FEATURES}
     users[username] = {
         "password": generate_password_hash(password),
         "role": role,
-        "permissions": permissions or {},
+        "permissions": permissions,
         "display_name": display_name or username,
     }
     _save_users(users)

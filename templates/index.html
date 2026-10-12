@@ -140,6 +140,17 @@ NOC Netmate
         <li><button type="button" class="nav-sublink" onclick="selectSubItem('tab-session-extractor', 'sessionExtractorCard', this)">Extract Sessions</button></li>
     </ul>
 </li>
+<li class="nav-item has-submenu" role="presentation" id="nav-ptp">
+    <button class="nav-link" id="ptp-tab" data-bs-toggle="tab" data-bs-target="#tab-ptp" type="button" role="tab">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>PTP Troubleshoot</span>
+        <span class="nav-arrow">&#9656;</span>
+    </button>
+    <ul class="nav-submenu">
+        <li><button type="button" class="nav-sublink" onclick="selectSubItem('tab-ptp', 'ptpControlCard', this)">Target &amp; Diagnostics</button></li>
+        <li><button type="button" class="nav-sublink" onclick="selectSubItem('tab-ptp', 'ptpReportContainer', this)">Traceback Report</button></li>
+    </ul>
+</li>
 <li class="nav-item has-submenu" role="presentation" id="nav-admin" style="display:none">
     <button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#tab-admin" type="button" role="tab">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -153,6 +164,7 @@ NOC Netmate
         <li id="sub-admin-arp-mac"><button type="button" class="nav-sublink" onclick="activateAdminSubTab('admin-arp-mac-tab', this)">ARP &amp; MAC Collector</button></li>
         <li id="sub-admin-renewal-reports"><button type="button" class="nav-sublink" onclick="activateAdminSubTab('admin-renewal-reports-tab', this)">Renewal Reports</button></li>
     </ul>
+</li>
 </li>
 </ul>
 </aside>
@@ -660,6 +672,190 @@ Matches RT values to VRFs and shows the originator router.
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PTP Troubleshoot Tab -->
+<div class="tab-pane" id="tab-ptp" role="tabpanel">
+    <!-- Target Selection & Configuration Card -->
+    <div class="card mb-3" id="ptpControlCard">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">PTP &amp; Telecom Sync Automated Diagnostic</h5>
+            <span class="badge bg-info text-dark">ITU-T G.8275.1 / G.8262 Standard</span>
+        </div>
+        <div class="card-body">
+            <p style="color:#adb5bd;font-size:0.88rem;margin-bottom:14px">
+                Automated end-to-end troubleshooting for <code>PTP Time Offset Abnormal</code> and <code>Clock Source Unlocked</code> alarms. Performs physical layer optics validation, parameter verification, and recursive upstream clock traceback to demarcate root cause between <strong>IP Team</strong> and <strong>Sync / Power Team</strong>.
+            </p>
+
+            <div class="row g-3 align-items-end mb-3">
+                <!-- Target Device Input & Autocomplete -->
+                <div class="col-lg-8 col-md-7 position-relative">
+                    <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">Target Router / Site Code / IP <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-secondary">&#128269;</span>
+                        <input type="text" id="ptpTargetInput" class="form-control" placeholder="e.g. BAKJEST_KJ0044, KJ0044, or 10.220.14.44" value="" autocomplete="off" oninput="onPtpTargetInput(this.value)">
+                        <button class="btn btn-outline-secondary" type="button" onclick="triggerPtpQuickSearch()" title="Search device inventory">&#8635;</button>
+                    </div>
+                    <!-- Autocomplete Dropdown List -->
+                    <div id="ptpCandidateDropdown" class="list-group position-absolute w-100 shadow-lg" style="display:none; z-index:1050; max-height:260px; overflow-y:auto; background:#212529; border:1px solid #495057;"></div>
+                    <div id="ptpSelectedBadge" class="mt-1" style="display:none">
+                        <span class="badge bg-secondary" id="ptpSelectedInfo">Selected: None</span>
+                    </div>
+                </div>
+
+                <!-- Traceback Max Hops -->
+                <div class="col-lg-4 col-md-5">
+                    <label class="form-label" style="font-size:0.85rem;font-weight:600;color:#adb5bd">Max Trace Hops</label>
+                    <select id="ptpMaxHops" class="form-select">
+                        <option value="3">3 Hops</option>
+                        <option value="5" selected>5 Hops (Default)</option>
+                        <option value="8">8 Hops</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top border-secondary">
+                <div class="text-muted" style="font-size:0.8rem">
+                    <span id="ptpStatusIndicator">&#9679; Ready</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetPtpForm()">Reset</button>
+                    <button type="button" id="ptpStartBtn" class="btn btn-primary px-4" onclick="startPtpTroubleshoot()">
+                        &#9654; Run PTP Troubleshoot
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Execution Terminal & Progress Card -->
+    <div class="card mb-3" id="ptpProgressCard" style="display:none">
+        <div class="card-header d-flex justify-content-between align-items-center py-2">
+            <span style="font-weight:600;font-size:0.9rem">Live Diagnostic Trace &amp; Terminal Output</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="spinner-border spinner-border-sm text-info" id="ptpSpinner" role="status"></span>
+                <span class="badge bg-secondary" id="ptpLiveBadge">RUNNING</span>
+            </div>
+        </div>
+        <div class="card-body p-2">
+            <div class="log-box" id="ptpLogBox" style="height:240px"></div>
+        </div>
+    </div>
+
+    <!-- Diagnostic Report Container (Appears when diagnosis finishes) -->
+    <div id="ptpReportContainer" style="display:none">
+        <!-- 1. Executive Status Banner & KPIs -->
+        <div class="card mb-3" id="ptpBannerCard" style="border-left:5px solid #0d6efd">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="badge fs-6 px-3 py-2" id="ptpOverallBadge">HEALTHY</span>
+                            <h4 class="mb-0" id="ptpTargetTitle" style="color:#ffffff">Target Router</h4>
+                        </div>
+                        <div style="font-size:0.85rem;color:#adb5bd" id="ptpSubtitle">
+                            Traceback evaluated hops to Grandmaster Reference
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-info" onclick="copyPtpTicket()">
+                            &#128203; Copy Handover Ticket
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning" id="ptpCopyFixBtn" onclick="copyPtpFix()" style="display:none">
+                            &#9881; Copy CLI Fix
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Grid -->
+                <div class="row g-2">
+                    <div class="col-md-3 col-6">
+                        <div class="stat-card">
+                            <div class="stat-value text-info" id="ptpKpiOffset">--</div>
+                            <div class="stat-label">Realtime Offset (T2-T1)</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-card">
+                            <div class="stat-value text-light" id="ptpKpiClass">--</div>
+                            <div class="stat-label">Clock Class / Quality</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-card">
+                            <div class="stat-value text-warning" id="ptpKpiSlavePort">--</div>
+                            <div class="stat-label">Active Slave Port</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-card">
+                            <div class="stat-value text-success" id="ptpKpiSyncE">--</div>
+                            <div class="stat-label">SyncE / PLL State</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Root Cause Analysis & Team Demarcation Card -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">&#128269; Root Cause Analysis &amp; Demarcation</h6>
+                <span class="badge bg-warning text-dark" id="ptpTeamBadge">Assigned Team: --</span>
+            </div>
+            <div class="card-body">
+                <div class="p-3 mb-3 rounded" style="background:#1a1e21; border-left:4px solid #ffc107">
+                    <h6 class="text-warning mb-1" style="font-weight:600">IDENTIFIED ROOT CAUSE:</h6>
+                    <p class="mb-0" id="ptpRcaText" style="font-size:0.92rem;color:#f8f9fa"></p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 style="color:#adb5bd;font-size:0.85rem;font-weight:600">RECOMMENDED ACTION ITEMS &amp; CLI FIXES:</h6>
+                    <ul id="ptpActionList" class="mb-0 ps-3" style="font-size:0.88rem;color:#e9ecef"></ul>
+                </div>
+
+                <!-- CLI Fix snippet box -->
+                <div id="ptpCliFixContainer" style="display:none" class="mt-3">
+                    <label class="form-label" style="font-size:0.8rem;color:#adb5bd;font-weight:600">Actionable Huawei VRP CLI Commands:</label>
+                    <div class="position-relative">
+                        <pre id="ptpCliFixBox" style="background:#0d1117;color:#79c0ff;padding:12px;border-radius:6px;font-family:monospace;font-size:0.85rem;margin:0"></pre>
+                        <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-2" onclick="copyPtpFix()">Copy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Clock Path & Hop-by-Hop Traceback Card -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">&#128640; Upstream Clock Tree Traceback</h6>
+                <span class="badge bg-secondary" id="ptpHopCountBadge">2 Hops Recorded</span>
+            </div>
+            <div class="card-body">
+                <!-- Visual Breadcrumb / Flow Navigation -->
+                <div id="ptpBreadcrumbFlow" class="d-flex align-items-center flex-wrap gap-2 mb-4 p-2 rounded" style="background:#1a1e21; border:1px solid #373b3e">
+                    <!-- Dynamic badges populated here -->
+                </div>
+
+                <!-- Hop Detail Tabs / Container -->
+                <div id="ptpHopDetailContainer">
+                    <!-- Dynamic hop metric cards inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Generated Handover Ticket Preview -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span style="font-weight:600;font-size:0.88rem">&#128221; NOC Handover Ticket Preview</span>
+                <button class="btn btn-sm btn-outline-info" onclick="copyPtpTicket()">Copy to Clipboard</button>
+            </div>
+            <div class="card-body p-2">
+                <textarea id="ptpTicketTextarea" class="form-control" rows="9" readonly style="font-family:monospace;font-size:0.82rem;background:#0d1117;color:#e6edf3"></textarea>
             </div>
         </div>
     </div>
@@ -1194,6 +1390,15 @@ function selectSubItem(tabId, cardId, linkEl) {
     // Show both upload card and results
     const rCard = document.getElementById('reportingCard');
     if (rCard) rCard.style.display = 'block';
+  } else if (tabId === 'tab-ptp') {
+    const cCard = document.getElementById('ptpControlCard');
+    if (cCard) cCard.style.display = 'block';
+    if (cardId === 'ptpReportContainer') {
+      const rContainer = document.getElementById('ptpReportContainer');
+      if (rContainer && rContainer.style.display === 'none') {
+        showToast('No diagnostic report generated yet. Run diagnostic first.');
+      }
+    }
   } else {
     // Restore default view if clicking other tabs
     const allKnown = ['manualClearCard', 'bulkClearCard', 'vrfRoutingCard', 'bgpRouteCheckCard', 'licenseCheckCard', 'licenseRenewalCard', 'zabbixSearchCard'];
@@ -4170,6 +4375,7 @@ async function applyFeatureVisibility() {
         'vrf_routing': 'vrf-tab',
         'license_check': 'license-tab',
         'session_extractor': 'session-extractor-tab',
+        'ptp_troubleshoot': 'ptp-tab',
     };
     for (const [feat, tabId] of Object.entries(tabMap)) {
         const tabLink = document.getElementById(tabId);
@@ -4417,6 +4623,7 @@ const FEATURE_LIST = [
   'zabbix_search',
   'code_site_search',
   'session_extractor',
+  'ptp_troubleshoot',
   'user_management',
   'permission_management',
   'zabbix_db_refresh',
@@ -4431,6 +4638,7 @@ const FEATURE_LABELS = {
   'zabbix_search': 'Zabbix Search',
   'code_site_search': 'Code SITE Search',
   'session_extractor': 'Session Extractor',
+  'ptp_troubleshoot': 'PTP Troubleshoot',
   'user_management': 'User Mgmt',
   'permission_management': 'Perm Mgmt',
   'zabbix_db_refresh': 'Zabbix DB Refresh',
@@ -4740,6 +4948,773 @@ async function downloadSessionsZip() {
         btn.disabled = false;
         btn.innerHTML = origHtml;
     }
+}
+
+/* ------------------------------------------------------------------
+PTP Troubleshoot Logic
+------------------------------------------------------------------ */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+let ptpSearchTimer = null;
+let currentPtpSessionId = null;
+let ptpEventSource = null;
+let ptpReportData = null;
+let activeHopIndex = 0;
+
+function onPtpTargetInput(val) {
+    clearTimeout(ptpSearchTimer);
+    const dropdown = document.getElementById('ptpCandidateDropdown');
+    const query = (val || '').trim();
+
+    if (query.length < 2) {
+        dropdown.style.display = 'none';
+        dropdown.innerHTML = '';
+        return;
+    }
+
+    ptpSearchTimer = setTimeout(async () => {
+        try {
+            const resp = await fetch('/ptp/search-targets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keyword: query })
+            });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            renderPtpCandidates(data.candidates || []);
+        } catch (_) {}
+    }, 300);
+}
+
+function triggerPtpQuickSearch() {
+    const val = document.getElementById('ptpTargetInput')?.value || '';
+    onPtpTargetInput(val);
+}
+
+function renderPtpCandidates(candidates) {
+    const dropdown = document.getElementById('ptpCandidateDropdown');
+    if (!dropdown) return;
+
+    if (!candidates || candidates.length === 0) {
+        dropdown.style.display = 'none';
+        dropdown.innerHTML = '';
+        return;
+    }
+
+    dropdown.innerHTML = '';
+    candidates.forEach(cand => {
+        const item = document.createElement('a');
+        item.href = '#';
+        item.className = 'list-group-item list-group-item-action py-2 px-3 text-light';
+        item.style.background = '#25292d';
+        item.style.borderColor = '#373b3e';
+
+        const title = cand.name || cand.host;
+        const sub = [cand.host, cand.site_code, cand.model].filter(Boolean).join(' | ');
+
+        item.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <strong style="color:#79c0ff;font-size:0.88rem">${escapeHtml(title)}</strong>
+                <span class="badge bg-secondary" style="font-size:0.72rem">${escapeHtml(cand.source || 'Device')}</span>
+            </div>
+            <div style="font-size:0.78rem;color:#adb5bd">${escapeHtml(sub)}</div>
+        `;
+
+        item.onclick = (e) => {
+            e.preventDefault();
+            selectPtpCandidate(cand);
+        };
+        dropdown.appendChild(item);
+    });
+
+    dropdown.style.display = 'block';
+}
+
+function selectPtpCandidate(cand) {
+    const targetInput = document.getElementById('ptpTargetInput');
+    const badge = document.getElementById('ptpSelectedBadge');
+    const info = document.getElementById('ptpSelectedInfo');
+    const dropdown = document.getElementById('ptpCandidateDropdown');
+
+    if (targetInput) targetInput.value = cand.name || cand.host;
+    if (badge && info) {
+        info.textContent = `Selected: ${cand.name} (${cand.host}) — ${cand.model || 'Huawei Router'}`;
+        badge.style.display = 'block';
+    }
+    if (dropdown) {
+        dropdown.style.display = 'none';
+        dropdown.innerHTML = '';
+    }
+}
+
+// Close candidate dropdown on outside click
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('ptpCandidateDropdown');
+    const input = document.getElementById('ptpTargetInput');
+    if (dropdown && dropdown.style.display !== 'none') {
+        if (!dropdown.contains(e.target) && e.target !== input) {
+            dropdown.style.display = 'none';
+        }
+    }
+});
+
+let ptpPollTimer = null;
+let ptpPollAttempts = 0;
+let ptpSeenLogCount = 0;
+
+function resetPtpForm() {
+    if (ptpEventSource) {
+        ptpEventSource.close();
+        ptpEventSource = null;
+    }
+    if (ptpPollTimer) {
+        clearInterval(ptpPollTimer);
+        ptpPollTimer = null;
+    }
+    const targetInput = document.getElementById('ptpTargetInput');
+    if (targetInput) targetInput.value = '';
+
+    document.getElementById('ptpSelectedBadge').style.display = 'none';
+    document.getElementById('ptpProgressCard').style.display = 'none';
+    document.getElementById('ptpReportContainer').style.display = 'none';
+    document.getElementById('ptpStartBtn').disabled = false;
+    document.getElementById('ptpStatusIndicator').innerHTML = '&#9679; Ready';
+}
+
+async function startPtpTroubleshoot() {
+    const target = (document.getElementById('ptpTargetInput')?.value || '').trim();
+    const maxHops = parseInt(document.getElementById('ptpMaxHops')?.value || '5', 10);
+
+    // Retrieve network credentials from global storage / inputs
+    const username = (window.networkCreds?.username || document.getElementById('netUser')?.value || '').trim();
+    const password = window.networkCreds?.password || document.getElementById('netPass')?.value || '';
+
+    if (!username || !password) {
+        showToast('Please set your Network Credentials in the top bar before initiating diagnostics.');
+        return;
+    }
+
+    if (!window.networkCreds) {
+        window.networkCreds = { username: username, password: password };
+    }
+
+    if (!target) {
+        showToast('Please enter a target router name, Site Code, or IP address.');
+        return;
+    }
+
+    if (ptpEventSource) {
+        ptpEventSource.close();
+        ptpEventSource = null;
+    }
+    if (ptpPollTimer) {
+        clearInterval(ptpPollTimer);
+        ptpPollTimer = null;
+    }
+
+    const startBtn = document.getElementById('ptpStartBtn');
+    const progressCard = document.getElementById('ptpProgressCard');
+    const reportContainer = document.getElementById('ptpReportContainer');
+    const logBox = document.getElementById('ptpLogBox');
+    const statusInd = document.getElementById('ptpStatusIndicator');
+    const spinner = document.getElementById('ptpSpinner');
+    const liveBadge = document.getElementById('ptpLiveBadge');
+
+    startBtn.disabled = true;
+    progressCard.style.display = 'block';
+    reportContainer.style.display = 'none';
+    logBox.innerHTML = '';
+    ptpSeenLogCount = 0;
+    spinner.style.display = 'inline-block';
+    liveBadge.className = 'badge bg-info text-dark';
+    liveBadge.textContent = 'RUNNING';
+    statusInd.innerHTML = '<span class="text-info">&#9679; Live troubleshooting in progress...</span>';
+
+    try {
+        const resp = await fetch('/ptp/start-troubleshoot', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                target: target,
+                username: username,
+                password: password,
+                max_hops: maxHops,
+            })
+        });
+
+        if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error || 'Failed to start PTP diagnostic session');
+        }
+
+        const data = await resp.json();
+        currentPtpSessionId = data.session_id;
+
+        // Connect SSE stream with credentials enabled
+        connectPtpSseStream(currentPtpSessionId);
+
+    } catch (err) {
+        showToast(err.message);
+        startBtn.disabled = false;
+        spinner.style.display = 'none';
+        liveBadge.className = 'badge bg-danger';
+        liveBadge.textContent = 'FAILED';
+        statusInd.innerHTML = '<span class="text-danger">&#9679; Execution failed</span>';
+    }
+}
+
+function connectPtpSseStream(sid) {
+    if (ptpEventSource) {
+        ptpEventSource.close();
+        ptpEventSource = null;
+    }
+    if (ptpPollTimer) {
+        clearInterval(ptpPollTimer);
+        ptpPollTimer = null;
+    }
+    ptpSeenLogCount = 0;
+
+    const startBtn = document.getElementById('ptpStartBtn');
+    const spinner = document.getElementById('ptpSpinner');
+    const liveBadge = document.getElementById('ptpLiveBadge');
+    const statusInd = document.getElementById('ptpStatusIndicator');
+
+    try {
+        // Explicitly enable credential sharing for SSE connection
+        ptpEventSource = new EventSource('/ptp/stream/' + sid, { withCredentials: true });
+
+        ptpEventSource.onmessage = (e) => {
+            try {
+                const entry = JSON.parse(e.data);
+                appendPtpLogLine(entry);
+                ptpSeenLogCount++;
+            } catch (_) {}
+        };
+
+        ptpEventSource.addEventListener('done', (e) => {
+            if (ptpEventSource) {
+                ptpEventSource.close();
+                ptpEventSource = null;
+            }
+            startBtn.disabled = false;
+            spinner.style.display = 'none';
+
+            try {
+                const doneData = JSON.parse(e.data);
+                if (doneData.result) {
+                    liveBadge.className = 'badge bg-success';
+                    liveBadge.textContent = 'COMPLETE';
+                    statusInd.innerHTML = '<span class="text-success">&#9679; Analysis completed</span>';
+                    renderPtpReport(doneData.result);
+                } else if (doneData.error) {
+                    liveBadge.className = 'badge bg-danger';
+                    liveBadge.textContent = 'ERROR';
+                    statusInd.innerHTML = `<span class="text-danger">&#9679; ${escapeHtml(doneData.error)}</span>`;
+                    showToast('PTP Diagnostic encountered an error: ' + doneData.error);
+                }
+            } catch (_) {
+                fetchPtpFinalReport(sid);
+            }
+        });
+
+        ptpEventSource.onerror = function(err) {
+            console.error("SSE connection error / 401 Unauthorized or network disconnect:", err);
+            if (ptpEventSource) {
+                ptpEventSource.close();
+                ptpEventSource = null;
+            }
+            // Fallback immediately to robust JSON polling
+            startPtpPollingFallback(sid);
+        };
+    } catch (err) {
+        console.error("EventSource initialization error:", err);
+        startPtpPollingFallback(sid);
+    }
+}
+
+function startPtpPollingFallback(sid) {
+    if (ptpPollTimer) {
+        clearInterval(ptpPollTimer);
+    }
+    ptpPollAttempts = 0;
+
+    const startBtn = document.getElementById('ptpStartBtn');
+    const spinner = document.getElementById('ptpSpinner');
+    const liveBadge = document.getElementById('ptpLiveBadge');
+    const statusInd = document.getElementById('ptpStatusIndicator');
+
+    console.log("Active: PTP fallback polling for session", sid);
+
+    ptpPollTimer = setInterval(async () => {
+        ptpPollAttempts++;
+        if (ptpPollAttempts > 60) {
+            clearInterval(ptpPollTimer);
+            ptpPollTimer = null;
+            startBtn.disabled = false;
+            spinner.style.display = 'none';
+            liveBadge.className = 'badge bg-warning text-dark';
+            liveBadge.textContent = 'TIMEOUT';
+            statusInd.innerHTML = '<span class="text-warning">&#9679; Polling timed out</span>';
+            showToast('Diagnostic polling timed out.');
+            return;
+        }
+
+        try {
+            const resp = await fetch('/ptp/session/' + sid, { credentials: 'include' });
+            if (!resp.ok) {
+                if (resp.status === 401 || resp.status === 403) {
+                    clearInterval(ptpPollTimer);
+                    ptpPollTimer = null;
+                    startBtn.disabled = false;
+                    spinner.style.display = 'none';
+                    liveBadge.className = 'badge bg-danger';
+                    liveBadge.textContent = 'UNAUTHORIZED';
+                    statusInd.innerHTML = '<span class="text-danger">&#9679; Session unauthorized (401)</span>';
+                    showToast('Session unauthorized. Please refresh and log in.');
+                    return;
+                }
+                return;
+            }
+
+            const data = await resp.json();
+            const logs = data.logs || [];
+
+            // Append any newly arrived logs
+            if (logs.length > ptpSeenLogCount) {
+                for (let i = ptpSeenLogCount; i < logs.length; i++) {
+                    appendPtpLogLine(logs[i]);
+                }
+                ptpSeenLogCount = logs.length;
+            }
+
+            if (data.status === 'done') {
+                clearInterval(ptpPollTimer);
+                ptpPollTimer = null;
+                startBtn.disabled = false;
+                spinner.style.display = 'none';
+                liveBadge.className = 'badge bg-success';
+                liveBadge.textContent = 'COMPLETE';
+                statusInd.innerHTML = '<span class="text-success">&#9679; Analysis completed</span>';
+                if (data.result) {
+                    renderPtpReport(data.result);
+                }
+            } else if (data.status === 'error') {
+                clearInterval(ptpPollTimer);
+                ptpPollTimer = null;
+                startBtn.disabled = false;
+                spinner.style.display = 'none';
+                liveBadge.className = 'badge bg-danger';
+                liveBadge.textContent = 'ERROR';
+                statusInd.innerHTML = `<span class="text-danger">&#9679; ${escapeHtml(data.error || 'Diagnostic error')}</span>`;
+                showToast('Diagnostic error: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            console.warn("Polling request failed:", e);
+        }
+    }, 1000);
+}
+
+async function fetchPtpFinalReport(sid) {
+    const startBtn = document.getElementById('ptpStartBtn');
+    const spinner = document.getElementById('ptpSpinner');
+    const liveBadge = document.getElementById('ptpLiveBadge');
+    const statusInd = document.getElementById('ptpStatusIndicator');
+
+    try {
+        const resp = await fetch('/ptp/session/' + sid, { credentials: 'include' });
+        if (!resp.ok) {
+            startPtpPollingFallback(sid);
+            return;
+        }
+        const data = await resp.json();
+        if (data.status === 'done' && data.result) {
+            startBtn.disabled = false;
+            spinner.style.display = 'none';
+            liveBadge.className = 'badge bg-success';
+            liveBadge.textContent = 'COMPLETE';
+            statusInd.innerHTML = '<span class="text-success">&#9679; Analysis completed</span>';
+            renderPtpReport(data.result);
+        } else if (data.status === 'error') {
+            startBtn.disabled = false;
+            spinner.style.display = 'none';
+            liveBadge.className = 'badge bg-danger';
+            liveBadge.textContent = 'ERROR';
+            statusInd.innerHTML = `<span class="text-danger">&#9679; ${escapeHtml(data.error || '')}</span>`;
+            showToast('PTP Trace error: ' + (data.error || ''));
+        } else {
+            startPtpPollingFallback(sid);
+        }
+    } catch (_) {
+        startPtpPollingFallback(sid);
+    }
+}
+
+function appendPtpLogLine(entry) {
+    const logBox = document.getElementById('ptpLogBox');
+    if (!logBox) return;
+
+    const line = document.createElement('div');
+    const levelClass = {
+        'info': 'log-info',
+        'success': 'log-success',
+        'warn': 'log-warn',
+        'error': 'log-error',
+        'highlight': 'log-highlight',
+    }[entry.level || 'info'] || 'log-info';
+
+    line.className = levelClass;
+    line.innerHTML = `<span class="log-time">[${escapeHtml(entry.time || '')}]</span><span class="log-msg">${escapeHtml(entry.message || '')}</span>`;
+    logBox.appendChild(line);
+    logBox.scrollTop = logBox.scrollHeight;
+}
+
+function renderPtpReport(report) {
+    ptpReportData = report;
+    const container = document.getElementById('ptpReportContainer');
+    if (!container) return;
+
+    const demarcation = report.demarcation || {};
+    const hopChain = report.hop_chain || [];
+    const targetInfo = report.target || {};
+    const overallStatus = demarcation.overall_status || 'UNKNOWN';
+
+    // 1. Executive Status Banner
+    const bannerCard = document.getElementById('ptpBannerCard');
+    const overallBadge = document.getElementById('ptpOverallBadge');
+    const targetTitle = document.getElementById('ptpTargetTitle');
+    const subtitle = document.getElementById('ptpSubtitle');
+
+    if (overallStatus === 'CRITICAL') {
+        overallBadge.className = 'badge bg-danger fs-6 px-3 py-2';
+        overallBadge.textContent = 'CRITICAL ALARM';
+        if (bannerCard) bannerCard.style.borderLeftColor = '#dc3545';
+    } else if (overallStatus === 'WARNING') {
+        overallBadge.className = 'badge bg-warning text-dark fs-6 px-3 py-2';
+        overallBadge.textContent = 'WARNING';
+        if (bannerCard) bannerCard.style.borderLeftColor = '#ffc107';
+    } else {
+        overallBadge.className = 'badge bg-success fs-6 px-3 py-2';
+        overallBadge.textContent = 'IN-SYNC / HEALTHY';
+        if (bannerCard) bannerCard.style.borderLeftColor = '#198754';
+    }
+
+    targetTitle.textContent = `${targetInfo.name || 'Target Router'} (${targetInfo.host || 'N/A'})`;
+    subtitle.textContent = `Evaluated ${hopChain.length} hop(s) in clock distribution tree | Responsible: ${demarcation.responsible_team || 'Unknown'}`;
+
+    // Target hop KPIs
+    const hop0 = hopChain[0] || {};
+    const ptp0 = hop0.ptp || {};
+    const clock0 = hop0.clock_source || {};
+
+    const offsetVal = ptp0.realtime_t2_t1;
+    const offsetElem = document.getElementById('ptpKpiOffset');
+    if (offsetElem) {
+        if (offsetVal !== null && offsetVal !== undefined) {
+            offsetElem.textContent = `${Number(offsetVal).toLocaleString()} ns`;
+            offsetElem.className = Math.abs(offsetVal) > 500 ? 'stat-value text-danger' : (Math.abs(offsetVal) > 100 ? 'stat-value text-warning' : 'stat-value text-success');
+        } else {
+            offsetElem.textContent = 'N/A';
+            offsetElem.className = 'stat-value text-muted';
+        }
+    }
+
+    const classElem = document.getElementById('ptpKpiClass');
+    if (classElem) {
+        const cClass = ptp0.clock_class;
+        classElem.textContent = cClass ? `Class ${cClass}` : 'N/A';
+        classElem.className = (cClass === 6) ? 'stat-value text-success' : (cClass === 7 ? 'stat-value text-danger' : 'stat-value text-warning');
+    }
+
+    const slaveElem = document.getElementById('ptpKpiSlavePort');
+    if (slaveElem) {
+        slaveElem.textContent = ptp0.receive_number || 'None (Root GM)';
+    }
+
+    const syncEElem = document.getElementById('ptpKpiSyncE');
+    if (syncEElem) {
+        const state = clock0.trace_source_state || 'Unknown';
+        syncEElem.textContent = state.toUpperCase();
+        syncEElem.className = state.includes('lock') ? 'stat-value text-success' : 'stat-value text-danger';
+    }
+
+    // 2. RCA & Demarcation
+    const teamBadge = document.getElementById('ptpTeamBadge');
+    if (teamBadge) {
+        const team = demarcation.responsible_team || '';
+        teamBadge.textContent = 'Assigned: ' + team;
+        teamBadge.className = team.includes('Sync') ? 'badge bg-danger' : (team.includes('IP') ? 'badge bg-warning text-dark' : 'badge bg-success');
+    }
+
+    document.getElementById('ptpRcaText').textContent = demarcation.root_cause || 'No root cause detected.';
+
+    const actionList = document.getElementById('ptpActionList');
+    actionList.innerHTML = '';
+    let cliSnippet = '';
+    (demarcation.action_items || []).forEach(item => {
+        if (item.includes('[CLI Fix]:')) {
+            cliSnippet += item.replace('[CLI Fix]:', '').trim() + '\n';
+        } else {
+            const li = document.createElement('li');
+            li.textContent = item;
+            actionList.appendChild(li);
+        }
+    });
+
+    const cliContainer = document.getElementById('ptpCliFixContainer');
+    const cliBox = document.getElementById('ptpCliFixBox');
+    const copyFixBtn = document.getElementById('ptpCopyFixBtn');
+    if (cliSnippet.trim()) {
+        cliBox.textContent = cliSnippet.trim();
+        cliContainer.style.display = 'block';
+        if (copyFixBtn) copyFixBtn.style.display = 'inline-block';
+    } else {
+        cliContainer.style.display = 'none';
+        if (copyFixBtn) copyFixBtn.style.display = 'none';
+    }
+
+    // 3. Upstream Traceback & Hop Breadcrumb
+    renderPtpBreadcrumbsAndHops(hopChain);
+
+    // 4. Handover Ticket
+    const ticketBox = document.getElementById('ptpTicketTextarea');
+    if (ticketBox) {
+        ticketBox.value = demarcation.handover_ticket || '';
+    }
+
+    container.style.display = 'block';
+    container.scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderPtpBreadcrumbsAndHops(hopChain) {
+    const flowContainer = document.getElementById('ptpBreadcrumbFlow');
+    const detailContainer = document.getElementById('ptpHopDetailContainer');
+    const countBadge = document.getElementById('ptpHopCountBadge');
+
+    if (countBadge) {
+        countBadge.textContent = `${hopChain.length} Hop(s) Discovered`;
+    }
+
+    if (!flowContainer || !detailContainer) return;
+    flowContainer.innerHTML = '';
+    detailContainer.innerHTML = '';
+
+    hopChain.forEach((hop, idx) => {
+        // Breadcrumb Pill
+        const pill = document.createElement('div');
+        const evalStatus = hop.evaluation?.status || 'HEALTHY';
+        const isCritical = evalStatus === 'CRITICAL';
+        const isWarning = evalStatus === 'WARNING';
+
+        const statusBadgeClass = isCritical ? 'bg-danger' : (isWarning ? 'bg-warning text-dark' : 'bg-success');
+        const offsetStr = hop.ptp?.realtime_t2_t1 !== null && hop.ptp?.realtime_t2_t1 !== undefined
+            ? `${hop.ptp.realtime_t2_t1} ns`
+            : (hop.ptp?.receive_number ? 'No Sync' : 'Root GM');
+
+        pill.className = `ptp-hop-pill ${idx === 0 ? 'active' : ''}`;
+        pill.id = `ptpPillHop${idx}`;
+        pill.innerHTML = `
+            <strong>Hop ${hop.hop}:</strong> ${escapeHtml(hop.name)}
+            <span class="badge ${statusBadgeClass}">${offsetStr}</span>
+        `;
+        pill.onclick = () => showPtpDetailedHop(idx);
+        flowContainer.appendChild(pill);
+
+        if (idx < hopChain.length - 1) {
+            const arrow = document.createElement('span');
+            arrow.style.color = '#adb5bd';
+            arrow.style.fontSize = '1.1rem';
+            arrow.innerHTML = '&rarr;';
+            flowContainer.appendChild(arrow);
+        }
+
+        // Hop Detail Card
+        const card = createHopDetailCard(hop, idx);
+        card.style.display = idx === 0 ? 'block' : 'none';
+        detailContainer.appendChild(card);
+    });
+}
+
+function showPtpDetailedHop(hopIdx) {
+    activeHopIndex = hopIdx;
+    const pills = document.querySelectorAll('.ptp-hop-pill');
+    pills.forEach((p, i) => {
+        if (i === hopIdx) p.classList.add('active');
+        else p.classList.remove('active');
+    });
+
+    const cards = document.querySelectorAll('.ptp-hop-card');
+    cards.forEach((c, i) => {
+        c.style.display = (i === hopIdx) ? 'block' : 'none';
+    });
+}
+
+function createHopDetailCard(hop, idx) {
+    const div = document.createElement('div');
+    div.className = 'ptp-hop-card card p-3 mb-2';
+    div.id = `ptpHopCard${idx}`;
+    div.style.background = '#1e2227';
+    div.style.border = '1px solid #373b3e';
+
+    const ptp = hop.ptp || {};
+    const iface = hop.interface || {};
+    const clock = hop.clock_source || {};
+    const alarms = hop.alarms || [];
+    const evaluation = hop.evaluation || {};
+    const lldp = hop.lldp || {};
+
+    // Optics calculations
+    const rx = iface.rx_power_dbm;
+    const tx = iface.tx_power_dbm;
+    const rxRange = iface.rx_power_range;
+    let rxPct = 50;
+    let optColor = '#198754';
+    if (rx !== null && rxRange) {
+        const [low, high] = rxRange;
+        rxPct = Math.max(5, Math.min(95, ((rx - low) / (high - low)) * 100));
+        if (rx < low) optColor = '#dc3545';
+        else if (rx <= low + 1.5) optColor = '#ffc107';
+    }
+
+    div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 pb-2 border-bottom border-secondary">
+            <div>
+                <h5 class="mb-0 text-light">Hop ${hop.hop}: ${escapeHtml(hop.name)} (${escapeHtml(hop.host)})</h5>
+                <small class="text-muted">Model: ${escapeHtml(hop.model || 'Huawei Router')} | Site: ${escapeHtml(hop.site_code || 'N/A')}</small>
+            </div>
+            <div>
+                <span class="badge ${evaluation.status === 'CRITICAL' ? 'bg-danger' : (evaluation.status === 'WARNING' ? 'bg-warning text-dark' : 'bg-success')} fs-6">
+                    ${evaluation.status || 'HEALTHY'}
+                </span>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <!-- PTP Parameters Section -->
+            <div class="col-md-6">
+                <div class="p-3 rounded h-100" style="background:#15181b; border:1px solid #2d3238">
+                    <h6 class="text-info mb-2" style="font-size:0.85rem">&#9201; PTP PARAMETERS</h6>
+                    <table class="table table-sm table-dark table-borderless mb-0" style="font-size:0.82rem">
+                        <tbody>
+                            <tr><td class="text-muted">Profile &amp; Device Type:</td><td><strong>${escapeHtml(ptp.ptp_profile || 'G.8275.1')} (${escapeHtml(ptp.device_type || 'N/A')})</strong></td></tr>
+                            <tr><td class="text-muted">Local Clock ID:</td><td><code>${escapeHtml(ptp.local_clock_id || 'N/A')}</code></td></tr>
+                            <tr><td class="text-muted">Parent Clock ID:</td><td><code>${escapeHtml(ptp.parent_clock_id || 'N/A')}</code></td></tr>
+                            <tr><td class="text-muted">Grandmaster Clock ID:</td><td><code>${escapeHtml(ptp.grand_clock_id || 'N/A')}</code></td></tr>
+                            <tr><td class="text-muted">Slave Receive Interface:</td><td><strong class="text-warning">${escapeHtml(ptp.receive_number || 'None (Root Grandmaster)')}</strong></td></tr>
+                            <tr><td class="text-muted">Step Removed:</td><td>${ptp.step_removed !== null ? ptp.step_removed : 'N/A'}</td></tr>
+                            <tr><td class="text-muted">Time Source:</td><td><code>${escapeHtml(ptp.time_source || 'N/A')}</code></td></tr>
+                            <tr><td class="text-muted">Realtime(T2-T1):</td><td><strong style="color:${Math.abs(ptp.realtime_t2_t1 || 0) > 500 ? '#f85149' : '#3fb950'}">${ptp.realtime_t2_t1 !== null ? ptp.realtime_t2_t1 + ' ns' : 'N/A'}</strong></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Layer-1 & Optical Power Section -->
+            <div class="col-md-6">
+                <div class="p-3 rounded h-100" style="background:#15181b; border:1px solid #2d3238">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-info mb-0" style="font-size:0.85rem">&#128268; LAYER-1 &amp; OPTICAL METRICS</h6>
+                        <span class="badge ${iface.optical_status === 'CRITICAL' ? 'bg-danger' : (iface.optical_status === 'WARNING' ? 'bg-warning text-dark' : 'bg-success')}" style="font-size:0.72rem">
+                            ${iface.optical_status || 'N/A'}
+                        </span>
+                    </div>
+
+                    ${iface.interface_name ? `
+                        <div class="mb-2" style="font-size:0.82rem">
+                            <span class="text-muted">Transceiver:</span> <strong>${escapeHtml(iface.transceiver_identifier || 'SFP+')}</strong> | 
+                            <span class="text-muted">Wavelength:</span> ${escapeHtml(iface.wavelength || '1310nm')} | 
+                            <span class="text-muted">Distance:</span> ${escapeHtml(iface.transmission_distance || '10km')}
+                        </div>
+
+                        <!-- Optical Meter Bar -->
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between" style="font-size:0.75rem; color:#adb5bd">
+                                <span>Rx: ${rx !== null ? rx + ' dBm' : 'N/A'}</span>
+                                <span>Range: ${rxRange ? `[${rxRange[0]}, ${rxRange[1]}] dBm` : '[-14.4, 0.5] dBm'}</span>
+                            </div>
+                            <div class="ptp-optical-meter my-1">
+                                <div class="ptp-meter-fill" style="width:${rxPct}%; background:${optColor}"></div>
+                            </div>
+                            <div class="text-muted" style="font-size:0.75rem">${escapeHtml(iface.optical_detail || '')}</div>
+                        </div>
+
+                        <div class="row g-1 pt-1" style="font-size:0.78rem">
+                            <div class="col-6"><span class="text-muted">Tx Power:</span> <strong>${tx !== null ? tx + ' dBm' : 'N/A'}</strong></div>
+                            <div class="col-6"><span class="text-muted">CRC Errors:</span> <strong style="color:${(iface.crc_errors || 0) > 0 ? '#f85149' : '#3fb950'}">${iface.crc_errors || 0}</strong></div>
+                        </div>
+                    ` : '<p class="text-muted small mb-0">No slave interface configured on this root node.</p>'}
+
+                    <!-- Upstream Neighbor info via LLDP -->
+                    ${lldp.neighbor_device ? `
+                        <div class="mt-2 pt-2 border-top border-secondary" style="font-size:0.78rem">
+                            <span class="text-muted">LLDP Upstream Neighbor:</span>
+                            <strong>${escapeHtml(lldp.neighbor_device)}</strong> (${escapeHtml(lldp.neighbor_interface || '')})
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+
+        <!-- System Clock & Active Alarms Row -->
+        <div class="row g-3 mt-1">
+            <div class="col-md-6">
+                <div class="p-2 rounded" style="background:#15181b; border:1px solid #2d3238">
+                    <h6 class="text-muted mb-1" style="font-size:0.8rem">SYSTEM CLOCK &amp; PLL STATE:</h6>
+                    <div style="font-size:0.82rem">
+                        <div><span class="text-muted">PLL Trace Mode:</span> <strong>${escapeHtml(clock.trace_source_state || 'N/A')}</strong></div>
+                        <div><span class="text-muted">Active Source:</span> <strong>${escapeHtml(clock.current_trace_source || 'ptp')}</strong></div>
+                        <div><span class="text-muted">Frequency Lock:</span> <strong>${clock.frequency_lock_success ? 'YES (Locked)' : 'NO'}</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-2 rounded" style="background:#15181b; border:1px solid #2d3238">
+                    <h6 class="text-muted mb-1" style="font-size:0.8rem">ACTIVE SYNC ALARMS (${alarms.length}):</h6>
+                    ${alarms.length > 0 ? `
+                        <ul class="mb-0 ps-3" style="font-size:0.78rem; color:#f85149">
+                            ${alarms.map(a => `<li>${escapeHtml(a.raw || a.alarm_type)}</li>`).join('')}
+                        </ul>
+                    ` : '<div class="text-success small">&#10003; No active PTP or clock alarms recorded.</div>'}
+                </div>
+            </div>
+        </div>
+    `;
+
+    return div;
+}
+
+function copyPtpTicket() {
+    const text = document.getElementById('ptpTicketTextarea')?.value || '';
+    if (!text) {
+        showToast('No ticket data to copy.');
+        return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('NOC Handover Ticket copied to clipboard!');
+    }).catch(() => {
+        showToast('Failed to copy to clipboard.');
+    });
+}
+
+function copyPtpFix() {
+    const text = document.getElementById('ptpCliFixBox')?.textContent || '';
+    if (!text) {
+        showToast('No CLI commands available.');
+        return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('CLI Fix commands copied to clipboard!');
+    }).catch(() => {
+        showToast('Failed to copy to clipboard.');
+    });
 }
 
 /* ------------------------------------------------------------------

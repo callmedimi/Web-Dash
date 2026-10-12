@@ -52,6 +52,11 @@ from session_extractor_service import (
     parse_session_csv,
     generate_sessions_zip,
 )
+from ptp_troubleshoot_service import (
+    search_candidate_routers,
+    resolve_router_info,
+    run_ptp_troubleshoot_traceback,
+)
 
 app = Flask(__name__)
 _secret_key_file = os.path.join(os.path.dirname(__file__), ".secret_key")
@@ -121,6 +126,82 @@ def finish_lic_renewal_session(sid: str, error: str | None = None) -> None:
     else:
         sess["status"] = "done"
     sess["log_queue"].put(None)
+
+# ---------------------------------------------------------------------------
+# PTP Troubleshoot session store
+# ---------------------------------------------------------------------------
+ptp_sessions: dict[str, dict] = {}
+PTP_LOCK = threading.Lock()
+
+
+def create_ptp_session(target: str) -> str:
+    sid = uuid.uuid4().hex[:12]
+    with PTP_LOCK:
+        ptp_sessions[sid] = {
+            "target": target,
+            "log_queue": Queue(),
+            "logs": [],
+            "status": "pending",
+            "result": None,
+            "error": None,
+            "created_at": datetime.now(),
+        }
+    return sid
+
+
+def get_ptp_session(sid: str) -> dict | None:
+    with PTP_LOCK:
+        return ptp_sessions.get(sid)
+
+
+def push_ptp_log(sid: str, message: str, level: str = "info") -> None:
+    entry = {
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "message": message,
+        "level": level,
+    }
+    sess = get_ptp_session(sid)
+    if sess is None:
+        return
+    sess["log_queue"].put(entry)
+    sess["logs"].append(entry)
+
+
+def finish_ptp_session(sid: str, result: dict | None = None, error: str | None = None) -> None:
+    sess = get_ptp_session(sid)
+    if sess is None:
+        return
+    if error:
+        sess["status"] = "error"
+        sess["error"] = error
+    else:
+        sess["status"] = "done"
+        sess["result"] = result
+    sess["log_queue"].put(None)
+
+
+def _run_ptp_worker(sid: str, target: str, username: str, password: str, max_hops: int = 5):
+    def _log(msg: str, level: str = "info"):
+        push_ptp_log(sid, msg, level)
+
+    try:
+        sess = get_ptp_session(sid)
+        if sess:
+            sess["status"] = "running"
+
+        push_ptp_log(sid, f"Diagnostic job initialized for target '{target}'.", "info")
+        report = run_ptp_troubleshoot_traceback(
+            target_identifier=target,
+            username=username,
+            password=password,
+            log_callback=_log,
+            max_hops=max_hops,
+        )
+        finish_ptp_session(sid, result=report)
+    except Exception as exc:
+        app.logger.exception("PTP troubleshooting job failed")
+        push_ptp_log(sid, f"Fatal error during diagnostic traceback: {exc}", "error")
+        finish_ptp_session(sid, error=str(exc))
 
 # ---------------------------------------------------------------------------
 # In-memory session store
@@ -2135,6 +2216,124 @@ def session_extractor_download():
         as_attachment=True,
         download_name=download_filename,
     )
+
+
+# ---------------------------------------------------------------------------
+# PTP Troubleshoot Routes
+# ---------------------------------------------------------------------------
+@app.route("/ptp/search-targets", methods=["POST"])
+@login_required
+@permission_required("ptp_troubleshoot")
+def ptp_search_targets():
+    data = request.get_json(silent=True) or {}
+    keyword = (data.get("keyword") or "").strip()
+
+    if not keyword:
+        return jsonify({"candidates": [], "count": 0})
+
+    try:
+        candidates = search_candidate_routers(keyword)
+        return jsonify({"candidates": candidates, "count": len(candidates)})
+    except Exception as e:
+        app.logger.exception("PTP target search failed")
+        return jsonify({"error": f"Search failed: {e}", "candidates": []}), 500
+
+
+@app.route("/ptp/start-troubleshoot", methods=["POST"])
+@login_required
+@permission_required("ptp_troubleshoot")
+def ptp_start_troubleshoot():
+    data = request.get_json(silent=True) or {}
+    target = (data.get("target") or data.get("host") or "").strip()
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+
+    # Fallback to active Flask session if not provided directly in request JSON
+    if not username or not password:
+        sess_creds = session.get("network_creds") or session.get("creds") or {}
+        if not username:
+            username = (sess_creds.get("username") or "").strip()
+        if not password:
+            password = sess_creds.get("password") or ""
+
+    try:
+        max_hops = int(data.get("max_hops", 5))
+    except Exception:
+        max_hops = 5
+
+    if not target:
+        return jsonify({"error": "Target router name, Site Code, or IP is required"}), 400
+
+    if not username or not password:
+        return jsonify({"error": "Network credentials (Username and Password) are required for live SSH diagnostic."}), 400
+
+    sid = create_ptp_session(target)
+    worker_t = threading.Thread(
+        target=_run_ptp_worker,
+        args=(sid, target, username, password, max_hops),
+        daemon=True,
+    )
+    worker_t.start()
+
+    return jsonify({
+        "status": "started",
+        "session_id": sid,
+        "target": target,
+    })
+
+
+@app.route("/ptp/stream/<sid>")
+def ptp_stream(sid):
+    sess = get_ptp_session(sid)
+    if sess is None:
+        return "Session not found", 404
+
+    user_info = session.get("user")
+    if user_info and not user_has_access(user_info, "ptp_troubleshoot"):
+        return jsonify({"error": "Forbidden"}), 403
+
+    def generate():
+        q = sess["log_queue"]
+        while True:
+            try:
+                entry = q.get(timeout=30)
+            except Empty:
+                yield f": keepalive\n\n"
+                continue
+            if entry is None:  # Sentinel
+                yield f"event: done\ndata: {json.dumps({'status': sess['status'], 'error': sess['error'], 'result': sess['result']})}\n\n"
+                break
+            yield f"data: {json.dumps(entry)}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Credentials": "true",
+        },
+    )
+
+
+@app.route("/ptp/session/<sid>", methods=["GET"])
+def ptp_session_details(sid):
+    sess = get_ptp_session(sid)
+    if sess is None:
+        return jsonify({"error": "Session not found"}), 404
+
+    user_info = session.get("user")
+    if user_info and not user_has_access(user_info, "ptp_troubleshoot"):
+        return jsonify({"error": "Forbidden"}), 403
+
+    return jsonify({
+        "session_id": sid,
+        "target": sess.get("target"),
+        "status": sess.get("status"),
+        "error": sess.get("error"),
+        "logs": sess.get("logs", []),
+        "result": sess.get("result"),
+    })
 
 
 if __name__ == "__main__":
