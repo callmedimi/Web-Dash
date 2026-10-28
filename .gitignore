@@ -4,7 +4,6 @@ services/__pycache__/
 *.py[cod]
 *$py.class
 zabbix_router_db.json
-
 # Virtual environments (NEVER push your venv)
 venv/
 env/
