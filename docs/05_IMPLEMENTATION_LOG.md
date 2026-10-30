@@ -468,3 +468,42 @@
 * **تأییدیه (Verify):**
   * اجرای Pytest روی کلیه ۸۸ تست سیستم: **۸۸ تست با موفقیت ۱۰۰٪ پاس شدند (`88 passed in 27.69s`).**
   * تأیید کارکرد بدون وقفه و صفر رگرسیون بر روی تمامی قابلیت‌های سیستم.
+
+---
+
+### گام ۲.۶ — لاگینگ ساختاریافته JSON، ثبت وقایع حسابرسی در پایگاه داده و اکسپورتر متریک‌های پرومتئوس (Step 2.6 Structured Logging, DB Audit Log & Prometheus Metrics - F-44)
+* **هدف:** رفع نقص F-44 از طریق استقرار لاگینگ ساختاریافته تک‌خطی JSON روی خروجی استاندارد، جایگزینی لاگ متنی فایل با جدول رابطه‌ای `audit_logs` جهت ثبت پایدار رویدادهای امنیتی به همراه حفظ فایل متنی به عنوان Fallback، ردیابی کانتکست جاب‌ها و تسک‌ها و کاربران در لاگ‌ها، و افزودن اندپوینت استاندارد متریک‌های پرومتئوس (`/metrics`) جهت مانیتورینگ بلادرنگ وضعیت سیستم در استک‌های Zabbix و Grafana.
+* **اقدامات انجام‌شده:**
+  1. پیاده‌سازی فرمت‌دهنده لاگ‌های ساختاریافته در [backend/app/logging.py](file:///d:/Playground/Web-Dash/backend/app/logging.py):
+     * کلاس `JsonFormatter`: تبدیل هر رکورد لاگ استاندارد پایتون به یک خط JSON معتبر شامل فیلدهای:
+       `ts` (زمان UTC بر اساس ISO 8601), `level`, `logger`, `message`, `job_id`, `task_id`, `device`, `user`.
+     * پشتیبانی از متغیرهای زمینه‌ای (`contextvars`): `job_id_var`, `task_id_var`, `device_var`, `user_var` جهت همبستگی (Correlation) خودکار بین تسک‌ها، لاگ‌ها و کاربر عامل حتی در محیط‌های ناهمگام و چندنخی.
+     * توابع کمکی `set_log_context()` و `clear_log_context()`.
+     * متد `setup_logging()` جهت پیکربندی لاگر ریشه و ادغام آن با شیء Flask `app`.
+  2. به‌روزرسانی سیستم لاگ حسابرسی در [audit.py](file:///d:/Playground/Web-Dash/audit.py):
+     * ارتقای `record_audit`: ذخیره‌سازی داده‌های ساختاریافته در جدول رابطه‌ای `audit_logs` (مدل [backend/app/models/audit.py](file:///d:/Playground/Web-Dash/backend/app/models/audit.py)) از طریق نشست دیتابیس `get_db_session()`.
+     * استراتژی ثبت دوگانه تاب‌آور (Dual-Write Resilient Strategy): ثبت همزمان در دیتابیس و فایل `DATA_DIR/audit.log` به عنوان Fallback پشتیبان در صورت قطع ارتباط پایگاه داده.
+     * ارتقای `get_audit_entries`: واکشی رکوردهای لاگ حسابرسی از دیتابیس با کوئری `order_by(AuditLog.id.desc())` با جایگزینی خودکار فایل در صورت بروز خطا.
+     * اعمال ماسک امنیتی بر روی مقادیر کلمات عبور، توکن‌ها و سکرت‌ها (`[REDACTED]`).
+  3. توسعه موتور جمع‌آوری و اکسپورت متریک‌های پرومتئوس در [backend/app/metrics.py](file:///d:/Playground/Web-Dash/backend/app/metrics.py):
+     * تولید خروجی مبتنی بر فرمت متن پرومتئوس (Prometheus Exposition Format v0.0.4).
+     * شمارنده جاب‌ها: `webdash_jobs_total{type, status}` برگرفته مستقیم از جداول دیتابیس با حفظ مقادیر پس از ری‌استارت.
+     * شمارنده خطاهای ارتباطی SSH: `webdash_ssh_failures_total{reason}` با تفکیک دقیق کلاس خطاها (`auth_failed`, `timeout`, `connection_refused`, `unreachable`, `command_error`).
+     * هیستوگرام زمان اجرای تسک‌ها: `webdash_task_duration_seconds` با باکت‌های زمانی استاندارد (`0.5s` تا `120s`).
+     * شمارنده رخدادهای قفل دیوایس: `webdash_device_lock_waits_total`.
+  4. ادغام متریک‌ها و کانتکست در لایه ورکر [backend/app/jobs/worker.py](file:///d:/Playground/Web-Dash/backend/app/jobs/worker.py):
+     * تزریق خودکار متغیرهای کانتکست `set_log_context(job_id, task_id, device, user)` در متد `execute_task`.
+     * سنجش دقیق مدت زمان اجرای تسک با `time.monotonic()` و ثبت در هیستوگرام.
+     * دسته‌بندی و ثبت خطاهای SSH به تفکیک ریشه‌یابی خطا.
+     * ثبت زمان‌های انتظار قفل دیوایس در متریک‌ها.
+  5. راه‌اندازی اندپوینت `/metrics` و هماهنگی میدل‌ور:
+     * اضافه شدن مسیر `GET /metrics` در Application Factory (`backend/app/__init__.py`).
+     * معاف‌سازی اندپوینت `/metrics` از چک‌های امنیتی سشن و CSRF جهت امکان اسکرپ شدن توسط Prometheus و Zabbix HTTP Agent.
+  6. نگارش آزمون‌های اختصاصی در [tests/test_step_2_6_logging_audit_and_metrics.py](file:///d:/Playground/Web-Dash/tests/test_step_2_6_logging_audit_and_metrics.py):
+     * آزمون ساختار فیلدهای خروجی JSON لاگر و درستی مقداردهی ContextVars.
+     * آزمون ثبت رکورد در جدول دیتابیس و فایل `audit.log` و تأیید ماسک بودن پسوردها.
+     * آزمون فرمت استاندارد پرومتئوس و مقادیر باکت‌های هیستوگرام و شمارنده‌های `/metrics`.
+     * آزمون عملکرد پروب‌های سلامت `/healthz` و آمادگی `/readyz`.
+* **تأییدیه (Verify):**
+  * اجرای Pytest روی کلیه ۹۲ تست سیستم: **۹۲ تست با موفقیت ۱۰۰٪ پاس شدند (`92 passed in 28.17s`).**
+  * خروجی لاگ‌های جیسون و متریک‌های مانیتورینگ تأیید شدند.

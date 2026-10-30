@@ -1,4 +1,4 @@
-"""Task worker, execution context, and device-locked task runner (Target Architecture §5)."""
+import time
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, Callable
@@ -12,6 +12,12 @@ from backend.app.jobs.locks import (
 )
 from backend.app.jobs.events import event_bus
 from backend.app.jobs.cancel import is_job_cancelling
+from backend.app.logging import set_log_context, clear_log_context
+from backend.app.metrics import (
+    record_task_duration,
+    record_ssh_failure,
+    record_device_lock_wait,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +93,7 @@ def execute_task(
     # Acquire device mutex
     locked = acquire_device_lock(session, task.device_name, task.id)
     if not locked:
+        record_device_lock_wait()
         # Requeue task with 5-second backoff
         task.status = "queued"
         task.started_at = None
@@ -94,6 +101,10 @@ def execute_task(
         session.commit()
         logger.debug("Device %s is locked. Requeued task %s for +5s.", task.device_name, task.id)
         return
+
+    user_name = job.created_by if job else "system"
+    set_log_context(job_id=task.job_id, task_id=task.id, device=task.device_name, user=user_name)
+    start_time = time.monotonic()
 
     ctx = TaskContext(
         session=session,
@@ -127,7 +138,24 @@ def execute_task(
         task.error = str(exc)
         ctx.log("error", f"Task failed: {exc}")
 
+        # Classify SSH error for Prometheus metrics
+        err_str = str(exc).lower()
+        if "auth" in err_str or "password" in err_str or "credential" in err_str:
+            err_class = "auth_failed"
+        elif "timeout" in err_str or "timed out" in err_str:
+            err_class = "timeout"
+        elif "refused" in err_str:
+            err_class = "connection_refused"
+        elif "unreachable" in err_str or "no route" in err_str:
+            err_class = "unreachable"
+        else:
+            err_class = "command_error"
+        record_ssh_failure(err_class)
+
     finally:
+        duration = time.monotonic() - start_time
+        record_task_duration(duration)
+        clear_log_context()
         task.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
         release_device_lock(session, task.device_name, task.id)
         session.commit()

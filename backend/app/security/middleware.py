@@ -12,10 +12,10 @@ def init_security_middleware(app: Flask) -> None:
 
     @app.before_request
     def security_and_session_checks():
-        # 0. Skip static assets, healthz, and readyz
+        # 0. Skip static assets, healthz, readyz, and metrics
         if (
             request.path.startswith("/static/")
-            or request.path in ("/favicon.ico", "/healthz", "/readyz")
+            or request.path in ("/favicon.ico", "/healthz", "/readyz", "/metrics")
         ):
             return None
 

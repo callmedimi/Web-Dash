@@ -79,7 +79,11 @@ def create_app(config_override: dict = None) -> Flask:
     # Security & Error Middleware
     init_security_middleware(app)
 
-    # Core health probes
+    # Initialize structured JSON logging
+    from backend.app.logging import setup_logging
+    setup_logging(app)
+
+    # Core health & metrics probes
     @app.route("/healthz", methods=["GET"])
     def healthz():
         return jsonify({"status": "ok", "app": "Web-Dash", "version": "2.0.0"}), 200
@@ -100,6 +104,15 @@ def create_app(config_override: dict = None) -> Flask:
             "data_dir": settings.get_data_dir(),
             "database": "connected" if db_ok else "disconnected",
         }), 200 if db_ok else 503
+
+    @app.route("/metrics", methods=["GET"])
+    def metrics():
+        from flask import Response
+        from backend.app.metrics import generate_prometheus_metrics
+        return Response(
+            generate_prometheus_metrics(),
+            mimetype="text/plain; version=0.0.4; charset=utf-8",
+        )
 
     # Register API Blueprints
     from backend.app.api.main import main_bp
