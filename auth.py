@@ -3,6 +3,7 @@ import os
 import secrets
 import string
 import threading
+import time
 from functools import wraps
 from flask import session, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -156,13 +157,73 @@ def _find_user(users: dict, username: str) -> str | None:
     return None
 
 
+DUMMY_PASSWORD_HASH = generate_password_hash("AntigravityTimingMitigationDummyPassword2026!")
+MAX_FAILED_LOGIN_ATTEMPTS = 5
+LOCKOUT_DURATION_SECONDS = 15 * 60  # 15 minutes
+
+_LOGIN_ATTEMPTS: dict[tuple[str, str], dict] = {}
+_LOGIN_LOCK = threading.Lock()
+
+
+def check_login_rate_limit(username: str, ip: str) -> tuple[bool, int]:
+    """Check if (username, ip) is currently locked out.
+
+    Returns (is_locked, remaining_seconds).
+    """
+    key = ((username or "").strip().lower(), (ip or "").strip())
+    now = time.time()
+    with _LOGIN_LOCK:
+        record = _LOGIN_ATTEMPTS.get(key)
+        if not record:
+            return False, 0
+        locked_until = record.get("locked_until")
+        if locked_until:
+            if now < locked_until:
+                return True, int(locked_until - now)
+            # Lockout expired, reset counter
+            _LOGIN_ATTEMPTS.pop(key, None)
+            return False, 0
+        return False, 0
+
+
+def record_failed_login(username: str, ip: str) -> tuple[int, bool, int]:
+    """Record a failed login attempt.
+
+    Returns (failed_count, is_now_locked, remaining_seconds).
+    """
+    key = ((username or "").strip().lower(), (ip or "").strip())
+    now = time.time()
+    with _LOGIN_LOCK:
+        record = _LOGIN_ATTEMPTS.setdefault(key, {"failures": 0, "locked_until": None})
+        record["failures"] += 1
+        if record["failures"] >= MAX_FAILED_LOGIN_ATTEMPTS:
+            record["locked_until"] = now + LOCKOUT_DURATION_SECONDS
+            return record["failures"], True, LOCKOUT_DURATION_SECONDS
+        return record["failures"], False, 0
+
+
+def record_successful_login(username: str, ip: str) -> None:
+    """Clear failed login records upon successful login."""
+    key = ((username or "").strip().lower(), (ip or "").strip())
+    with _LOGIN_LOCK:
+        _LOGIN_ATTEMPTS.pop(key, None)
+
+
+def clear_all_rate_limits() -> None:
+    """Reset rate limiter state (for tests)."""
+    with _LOGIN_LOCK:
+        _LOGIN_ATTEMPTS.clear()
+
+
 def authenticate(username: str, password: str) -> dict | None:
     users = _load_users()
     actual = _find_user(users, username)
     if actual is None:
+        check_password_hash(DUMMY_PASSWORD_HASH, password)
         return None
     user = users[actual]
     if not user.get("is_active", True):
+        check_password_hash(DUMMY_PASSWORD_HASH, password)
         return None
     if not check_password_hash(user["password"], password):
         return None
@@ -173,6 +234,7 @@ def authenticate(username: str, password: str) -> dict | None:
         "display_name": user.get("display_name", actual),
         "must_change_password": bool(user.get("must_change_password", False)),
         "token_version": user.get("token_version", 1),
+        "is_active": user.get("is_active", True),
     }
 
 

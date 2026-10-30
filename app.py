@@ -39,7 +39,9 @@ from services.license_db import add_renewal_report, get_all_renewal_reports, get
 from auth import (
     authenticate, login_required, permission_required, user_has_access, get_accessible_features,
     get_all_users, get_user, create_user, update_user, delete_user, validate_password,
+    check_login_rate_limit, record_failed_login, record_successful_login,
 )
+from audit import record_audit, get_audit_entries
 from site_arp_service import (
     lookup_site_arp_mac_details,
     lookup_ip_arp_mac_details,
@@ -90,6 +92,13 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("COOKIE_SECURE", "false").lower() in ("true", "1", "yes")
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=int(os.environ.get("PERMANENT_SESSION_LIFETIME_HOURS", "8")))
+
+
+def get_client_ip() -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.remote_addr or "127.0.0.1"
 
 
 def get_json_payload(silent: bool = False) -> dict:
@@ -643,14 +652,33 @@ def _run_report(sid: str, routers: list[dict], username: str, password: str, age
 # ---------------------------------------------------------------------------
 @app.route("/login", methods=["POST"])
 def login():
+    client_ip = get_client_ip()
     data = get_json_payload()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
     if not username or not password:
-        return jsonify({"error": "Username and password required"}), 400
+        return jsonify({"error": "Username and password required", "code": "VALIDATION_ERROR"}), 400
+
+    # Rate limiting / brute-force lockout check (F-04)
+    is_locked, remaining_secs = check_login_rate_limit(username, client_ip)
+    if is_locked:
+        record_audit("login_blocked_rate_limit", username, client_ip, status="blocked", detail={"locked_until_seconds": remaining_secs})
+        return jsonify({
+            "error": "Too many failed login attempts. Account temporarily locked for 15 minutes.",
+            "code": "TOO_MANY_REQUESTS",
+            "message": "Too many failed login attempts. Please try again later."
+        }), 429
+
     user_info = authenticate(username, password)
     if user_info is None:
-        return jsonify({"error": "Invalid credentials"}), 401
+        failed_count, is_now_locked, lock_secs = record_failed_login(username, client_ip)
+        record_audit("login_failed", username, client_ip, status="fail", detail={"failed_attempts": failed_count})
+        if is_now_locked:
+            record_audit("account_locked", username, client_ip, status="fail", detail={"duration_seconds": lock_secs})
+        return jsonify({"error": "Invalid credentials", "code": "INVALID_CREDENTIALS"}), 401
+
+    record_successful_login(username, client_ip)
+    record_audit("login_success", username, client_ip, status="success")
 
     session.clear()  # Session fixation defense
     session.permanent = True
@@ -672,6 +700,9 @@ def login():
 
 @app.route("/logout", methods=["POST"])
 def logout():
+    username = session.get("username") or "anonymous"
+    client_ip = get_client_ip()
+    record_audit("logout", username, client_ip, status="success")
     session.clear()
     return jsonify({"status": "logged_out"})
 
@@ -723,6 +754,7 @@ def change_password():
     session["token_version"] = updated_users[actual].get("token_version", 1)
     user_info["must_change_password"] = False
     session["user"] = user_info
+    record_audit("password_changed", username, get_client_ip(), status="success")
     return jsonify({"status": "password_changed", "message": "Password updated successfully"})
 
 
@@ -831,6 +863,8 @@ def admin_create_user():
     err = create_user(username, password, role, display_name)
     if err:
         return jsonify({"error": err}), 409
+    current_admin = session.get("username") or "admin"
+    record_audit("user_created", current_admin, get_client_ip(), status="success", detail={"target_user": username, "role": role})
     return jsonify({"status": "created"})
 
 
@@ -844,6 +878,11 @@ def admin_update_user(username):
     err = update_user(username, data)
     if err:
         return jsonify({"error": err}), 404
+    current_admin = session.get("username") or "admin"
+    fields_changed = [k for k in data.keys() if k != "password"]
+    if "password" in data and data["password"]:
+        fields_changed.append("password")
+    record_audit("user_updated", current_admin, get_client_ip(), status="success", detail={"target_user": username, "fields_changed": fields_changed})
     return jsonify({"status": "updated"})
 
 
@@ -856,6 +895,8 @@ def admin_delete_user(username):
     err = delete_user(username)
     if err:
         return jsonify({"error": err}), 400
+    current_admin = session.get("username") or "admin"
+    record_audit("user_deleted", current_admin, get_client_ip(), status="success", detail={"target_user": username})
     return jsonify({"status": "deleted"})
 
 
@@ -882,7 +923,17 @@ def admin_set_permissions(username):
     if username not in users:
         return jsonify({"error": "User not found"}), 404
     update_user(username, {"permissions": permissions})
+    current_admin = session.get("username") or "admin"
+    record_audit("permissions_updated", current_admin, get_client_ip(), status="success", detail={"target_user": username})
     return jsonify({"status": "updated"})
+
+
+@app.route("/admin/audit-log", methods=["GET"])
+@permission_required("user_management")
+def admin_audit_log():
+    limit = int(request.args.get("limit", 100))
+    entries = get_audit_entries(limit=limit)
+    return jsonify({"entries": entries, "count": len(entries)})
 
 
 # ---------------------------------------------------------------------------
@@ -915,6 +966,8 @@ def run_manual():
         return jsonify({"error": "At least one valid router entry is required"}), 400
 
     sid = create_session()
+    user = session.get("username") or "unknown"
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "alarm_clear_manual", "router_count": len(routers)})
     t = threading.Thread(target=_run_manual, args=(sid, routers, username, password), daemon=True)
     t.start()
     return jsonify({"session_id": sid, "router_count": len(routers)})
@@ -958,6 +1011,8 @@ def run_bulk():
         return jsonify({"error": "At least one valid router entry is required"}), 400
 
     sid = create_session()
+    user = session.get("username") or "unknown"
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "alarm_clear_bulk", "router_count": len(routers)})
     t = threading.Thread(target=_run_bulk, args=(sid, routers, username, password), daemon=True)
     t.start()
     return jsonify({"session_id": sid, "router_count": len(routers)})
@@ -1077,6 +1132,8 @@ def run_report():
         return jsonify({"error": f"No routers found matching province '_{province}'"}), 422
 
     sid = create_report_session()
+    user = session.get("username") or "unknown"
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "reporting", "province": province, "router_count": len(filtered)})
     t = threading.Thread(
         target=_run_report, args=(sid, filtered, username, password),
         kwargs={"age_value": age_value, "age_unit": age_unit}, daemon=True
@@ -1105,6 +1162,8 @@ def run_full_report():
         return jsonify({"error": "No routers provided"}), 400
 
     sid = create_report_session()
+    user = session.get("username") or "unknown"
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "reporting_full", "router_count": len(routers_raw)})
     t = threading.Thread(
         target=_run_report, args=(sid, routers_raw, username, password),
         kwargs={"age_value": age_value, "age_unit": age_unit}, daemon=True
@@ -1252,6 +1311,8 @@ def run_license_check():
         return jsonify({"error": "At least one valid router entry is required"}), 400
 
     sid = create_license_session()
+    user = session.get("username") or "unknown"
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "license_check", "router_count": len(routers)})
     t = threading.Thread(
         target=_run_license_check, args=(sid, routers, username, password), daemon=True
     )
@@ -1655,6 +1716,8 @@ def start_renewal():
         return jsonify({"error": "No routers selected for renewal"}), 400
 
     sid = create_lic_renewal_session()
+    user = session.get("username") or "unknown"
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "license_renewal", "router_count": len(selected_routers)})
 
     def _worker():
         sess = get_lic_renewal_session(sid)
@@ -1807,6 +1870,8 @@ def confirm_renewal(sid):
     evt = sess["confirmation_events"][cid]
     evt.set()
 
+    user = session.get("username") or "unknown"
+    record_audit("renewal_confirmed", user, get_client_ip(), status="success", detail={"action": action, "session_id": sid})
     return jsonify({"status": "received", "action": action})
 @app.route("/stream-lic-renewal/<sid>")
 @login_required
@@ -1876,6 +1941,8 @@ def check_vrf_routing_route():
     cmd_to = data.get("cmd_timeout", 60)
 
     # 2. Pass target_ip explicitly as a keyword argument
+    user = session.get("username") or "unknown"
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "vrf_routing"})
     result = batch_check_routing(
         username=username,
         password=password,
@@ -1898,6 +1965,9 @@ def check_bgp_route_route():
         return jsonify({"error": "Username and password are required"}), 400
     if not target_ip:
         return jsonify({"error": "Target IP address is required"}), 400
+
+    user = session.get("username") or "unknown"
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "bgp_routing", "target_ip": target_ip})
 
     try:
         conn = netmiko.ConnectHandler(
@@ -2046,6 +2116,8 @@ def admin_refresh_zabbix_db():
         finally:
             _zabbix_refresh_lock.release()
 
+    user = session.get("username") or "unknown"
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "zabbix_db_refresh", "groups": group_names, "replace": replace})
     t = threading.Thread(target=_run_refresh_task, args=(group_names, replace), daemon=True)
     t.start()
     action = "Rebuild" if replace else "Refresh"
@@ -2451,6 +2523,8 @@ def ptp_start_troubleshoot():
         return jsonify({"error": "Network credentials (Username and Password) are required for live SSH diagnostic."}), 400
 
     sid = create_ptp_session(target)
+    user = session.get("username") or "unknown"
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "ptp_troubleshoot", "target": target})
     worker_t = threading.Thread(
         target=_run_ptp_worker,
         args=(sid, target, username, password, max_hops),
