@@ -71,6 +71,12 @@ NOC Netmate
 </div>
 </header>
 
+<!-- Read-Only Mode Banner (Step 1.8) -->
+<div id="readOnlyBanner" style="display:none;background:linear-gradient(90deg, #d29922, #b08800);color:#ffffff;padding:10px 20px;font-weight:600;font-size:0.9rem;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);letter-spacing:0.5px">
+  <span style="font-size:1.1rem;margin-right:8px">&#9888;</span>
+  READ-ONLY MODE ACTIVE: Device configuration changes and alarm clearing are disabled.
+</div>
+
 <div class="netmate-shell">
 <aside class="netmate-sidebar">
 <!-- Tabs -->
@@ -1297,6 +1303,37 @@ The database is used by the Zabbix Interface Search tab.
 <div id="toast" class="toast"></div>
 <script src="/static/js/bootstrap.bundle.min.js"></script>
 <script>
+// Global CSRF Token & Fetch Interceptor (Step 1.3)
+window.csrfToken = '';
+const _originalFetch = window.fetch;
+window.fetch = async function(url, options = {}) {
+  options = options || {};
+  const method = (options.method || 'GET').toUpperCase();
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    if (!options.headers) {
+      options.headers = {};
+    }
+    if (options.headers instanceof Headers) {
+      if (window.csrfToken && !options.headers.has('X-CSRF-Token')) {
+        options.headers.set('X-CSRF-Token', window.csrfToken);
+      }
+    } else {
+      if (window.csrfToken && !options.headers['X-CSRF-Token'] && !options.headers['x-csrf-token']) {
+        options.headers['X-CSRF-Token'] = window.csrfToken;
+      }
+    }
+  }
+  const response = await _originalFetch(url, options);
+  if (response.status === 401 && typeof url === 'string' && !url.includes('/login') && !url.includes('/me')) {
+    if (typeof showLogin === 'function') {
+      currentUser = null;
+      currentFeatures = {};
+      showLogin();
+    }
+  }
+  return response;
+};
+
 function initTabs(containerId) {
 const container = document.querySelector(containerId);
 if (!container) return;
@@ -4276,6 +4313,7 @@ try {
 const resp = await fetch('/me');
 const data = await resp.json();
 if (data.authenticated) {
+window.csrfToken = data.csrf_token || '';
 currentUser = data;
 currentFeatures = data.features || {};
 hideLoading();
@@ -4302,6 +4340,12 @@ async function showApp() {
   document.getElementById('mainContent').classList.add('authenticated');
   document.getElementById('userDisplayName').textContent = currentUser.display_name || currentUser.username;
   document.getElementById('userRoleTag').textContent = currentUser.role;
+
+  const roBanner = document.getElementById('readOnlyBanner');
+  if (roBanner) {
+    roBanner.style.display = (currentUser && currentUser.read_only) ? 'block' : 'none';
+  }
+
   await applyFeatureVisibility();
 
   if (hasPerm('user_management')) {
@@ -4479,6 +4523,7 @@ document.getElementById('loginSpinner').style.display = 'none';
 return;
 }
 currentUser = data;
+window.csrfToken = data.csrf_token || '';
 currentFeatures = data.features || {};
 showApp();
 } catch(e) {
@@ -4493,6 +4538,7 @@ try {
 await fetch('/logout', { method: 'POST' });
 } catch(_) {}
 currentUser = null;
+window.csrfToken = '';
 currentFeatures = {};
 showLogin();
 }

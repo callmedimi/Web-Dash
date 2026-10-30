@@ -169,7 +169,13 @@ def process_one(
 
         targets: list[tuple[str, str, list]] = []
 
-        for iface in sorted(interface_to_alarms.keys()):
+        from validators import validate_interface_name
+        for raw_iface in sorted(interface_to_alarms.keys()):
+            try:
+                iface = validate_interface_name(raw_iface)
+            except ValueError:
+                log(f"Invalid interface name '{raw_iface}' in alarm description — skipping", "warn")
+                continue
             admin_down = False
             try:
                 out = conn.send_command(f"display interface {iface}", read_timeout=cmd_timeout)
