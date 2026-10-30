@@ -25,7 +25,12 @@ class AppConfig(BaseSettings):
     read_only_mode: bool = Field(default=False)
 
     def get_data_dir(self) -> str:
-        data_dir = self.data_dir or os.environ.get("DATA_DIR", "./data")
+        if os.environ.get("WEBDASH_DATA_DIR"):
+            data_dir = os.environ["WEBDASH_DATA_DIR"]
+        elif os.environ.get("DATA_DIR"):
+            data_dir = os.environ["DATA_DIR"]
+        else:
+            data_dir = self.data_dir or "./data"
         os.makedirs(data_dir, exist_ok=True)
         return os.path.abspath(data_dir)
 

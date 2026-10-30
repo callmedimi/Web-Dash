@@ -32,7 +32,8 @@ def admin_create_user():
     display_name = (data.get("display_name") or "").strip()
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
-    if role not in ("god", "admin", "user"):
+    ALLOWED_ROLES = ("god", "admin", "operator", "viewer", "user")
+    if role not in ALLOWED_ROLES:
         return jsonify({"error": "Invalid role"}), 400
     err = create_user(username, password, role, display_name)
     if err:
@@ -59,11 +60,12 @@ def admin_update_user(username):
     data = {k: raw_data[k] for k in allowed_keys if k in raw_data}
 
     # Validate role if provided
+    ALLOWED_ROLES = ("god", "admin", "operator", "viewer", "user")
     if "role" in data:
         role = str(data["role"]).strip()
-        if role not in ("god", "admin", "user"):
+        if role not in ALLOWED_ROLES:
             return jsonify({
-                "error": f"Invalid role '{role}'. Role must be one of: god, admin, user",
+                "error": f"Invalid role '{role}'. Role must be one of: {', '.join(ALLOWED_ROLES)}",
                 "code": "VALIDATION_ERROR",
             }), 400
         data["role"] = role

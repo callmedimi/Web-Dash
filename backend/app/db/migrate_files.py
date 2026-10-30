@@ -68,7 +68,12 @@ def migrate_users_from_json(session: Session, file_path: Optional[str] = None) -
         session.flush()
 
         # Sync permissions
-        features = udata.get("features", [])
+        features = set(udata.get("features", []))
+        perms_dict = udata.get("permissions")
+        if isinstance(perms_dict, dict):
+            for k, v in perms_dict.items():
+                if v:
+                    features.add(k)
         existing_perms = {p.feature: p for p in existing_user.permissions}
         for feat in features:
             if feat in existing_perms:

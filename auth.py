@@ -82,11 +82,57 @@ def _load_users() -> dict:
             return users
 
 
+def _sync_to_db(users: dict) -> None:
+    """Synchronize users and permissions into database tables."""
+    try:
+        from backend.app.extensions import get_db_session
+        from backend.app.models.user import User, Permission
+        with get_db_session() as s:
+            for username, data in users.items():
+                u = s.query(User).filter(User.username == username).first()
+                if not u:
+                    u = User(username=username)
+                    s.add(u)
+                u.password_hash = data.get("password", "")
+                role_val = data.get("role", "operator")
+                u.role = "operator" if role_val == "user" else role_val
+                u.display_name = data.get("display_name", username)
+                u.is_active = data.get("is_active", True)
+                u.token_version = data.get("token_version", 1)
+                u.must_change_password = data.get("must_change_password", False)
+                s.flush()
+
+                # Sync permissions
+                perms = data.get("permissions", {})
+                existing_perms = {p.feature: p for p in u.permissions}
+                for feat, granted in perms.items():
+                    if feat in existing_perms:
+                        existing_perms[feat].granted = bool(granted)
+                    else:
+                        s.add(Permission(user_id=u.id, feature=feat, granted=bool(granted)))
+            s.commit()
+    except Exception:
+        pass
+
+
+def _sync_delete_from_db(username: str) -> None:
+    """Delete user from database table upon deletion in users.json."""
+    try:
+        from backend.app.extensions import get_db_session
+        from backend.app.models.user import User
+        with get_db_session() as s:
+            s.query(User).filter(User.username == username).delete()
+            s.commit()
+    except Exception:
+        pass
+
+
 def _save_users(users: dict) -> None:
     users_file = _get_users_file()
     with LOCK:
         with open(users_file, "w", encoding="utf-8") as f:
             json.dump(users, f, indent=2, ensure_ascii=False)
+        _sync_to_db(users)
 
 
 WEAK_PASSWORDS = {
@@ -242,6 +288,16 @@ def user_has_access(user_info: dict, feature: str) -> bool:
     role = user_info.get("role", "user")
     if role == "god":
         return True
+    if role == "viewer":
+        # Viewer role has access to read-only diagnostic features only (Step 2.7)
+        read_only_features = {
+            "reporting",
+            "vrf_routing",
+            "zabbix_search",
+            "code_site_search",
+            "session_extractor",
+        }
+        return feature in read_only_features
     if role == "admin":
         return feature not in ("user_management", "permission_management", "zabbix_db_refresh", "license_renewal_admin")
     perms = user_info.get("permissions", {})
@@ -403,4 +459,5 @@ def delete_user(username: str) -> str | None:
         return "Cannot delete god user"
     del users[actual]
     _save_users(users)
+    _sync_delete_from_db(actual)
     return None
