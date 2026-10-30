@@ -66,8 +66,28 @@ from validators import (
     validate_interface_name, validate_vrf_name, validate_province,
     validate_age, validate_timeout, validate_routers_list, sanitize_cli_arg,
 )
+from settings import is_read_only_mode
 
 app = Flask(__name__)
+
+
+def read_only_blocked(f):
+    """Safety kill-switch decorator: blocks device-modifying operations when READ_ONLY_MODE is enabled (Step 1.8)."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if is_read_only_mode():
+            return jsonify({
+                "error": {
+                    "code": "READ_ONLY",
+                    "message": "System is running in READ-ONLY mode. Device-modifying operations are disabled.",
+                    "fields": {}
+                },
+                "code": "READ_ONLY",
+                "message": "System is running in READ-ONLY mode. Device-modifying operations are disabled."
+            }), 403
+        return f(*args, **kwargs)
+    return decorated
 
 DATA_DIR = os.environ.get("DATA_DIR", "./data")
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -749,6 +769,7 @@ def login():
         "must_change_password": user_info.get("must_change_password", False),
         "features": get_accessible_features(user_info),
         "csrf_token": session["csrf_token"],
+        "read_only": is_read_only_mode(),
     })
 
 
@@ -765,7 +786,7 @@ def logout():
 def current_user():
     user_info = session.get("user")
     if user_info is None:
-        return jsonify({"authenticated": False}), 200
+        return jsonify({"authenticated": False, "read_only": is_read_only_mode()}), 200
     if "csrf_token" not in session:
         session["csrf_token"] = secrets.token_hex(32)
     return jsonify({
@@ -776,6 +797,7 @@ def current_user():
         "must_change_password": user_info.get("must_change_password", False),
         "features": get_accessible_features(user_info),
         "csrf_token": session["csrf_token"],
+        "read_only": is_read_only_mode(),
     })
 
 
@@ -1052,6 +1074,7 @@ def index():
 
 @app.route("/run-manual", methods=["POST"])
 @permission_required("alarm_clear_manual")
+@read_only_blocked
 def run_manual():
     data = get_json_payload()
     routers_raw = data.get("routers", [])
@@ -1089,6 +1112,7 @@ def parse_csv():
 
 @app.route("/run-bulk", methods=["POST"])
 @permission_required("alarm_clear_bulk")
+@read_only_blocked
 def run_bulk():
     data = get_json_payload()
     routers_raw = data.get("routers", [])
@@ -1786,6 +1810,7 @@ def match_licenses():
 
 @app.route("/start-renewal", methods=["POST"])
 @permission_required("license_check")
+@read_only_blocked
 def start_renewal():
     data = get_json_payload()
     selected_routers_raw = data.get("selected_routers", [])
@@ -1936,6 +1961,7 @@ def download_renewal_report(sid):
 
 @app.route("/confirm-renewal/<sid>", methods=["POST"])
 @login_required
+@read_only_blocked
 def confirm_renewal(sid):
     data = get_json_payload()
     cid = data.get("confirmation_id")

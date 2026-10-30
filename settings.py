@@ -133,3 +133,24 @@ TARGET_NE_PREFIXES = _settings.TARGET_NE_PREFIXES
 HARDCODED_ROUTER_NAME = VRF_ROUTER_NAME
 HARDCODED_ROUTER_IP = VRF_ROUTER_IP
 HARDCODED_RR_IP = VRF_RR_IP
+
+
+def is_read_only_mode() -> bool:
+    """Check if system is in READ_ONLY_MODE (env var or config.ini)."""
+    env_val = os.environ.get("READ_ONLY_MODE", "").strip().lower()
+    if env_val in ("true", "1", "yes", "on"):
+        return True
+    if env_val in ("false", "0", "no", "off"):
+        return False
+
+    cfg_file = _find_config_file()
+    if cfg_file and os.path.isfile(cfg_file):
+        cp = configparser.ConfigParser()
+        try:
+            cp.read(cfg_file, encoding="utf-8")
+            for sec in ("app", "security", "vrf"):
+                if cp.has_section(sec) and cp.has_option(sec, "read_only_mode"):
+                    return cp.get(sec, "read_only_mode").strip().lower() in ("true", "1", "yes", "on")
+        except Exception:
+            pass
+    return False

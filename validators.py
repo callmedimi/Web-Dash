@@ -172,8 +172,6 @@ def validate_routers_list(routers: Any, max_items: int = 2000) -> list[dict]:
             raise ValueError(f"Router at index {idx} is missing 'host' or 'ip'")
         clean_host = validate_host_or_ip(host)
         clean_name = validate_router_name(name) if name else clean_host
-        item = {"name": clean_name, "host": clean_host}
-        if "ip" in r:
-            item["ip"] = clean_host
+        item = {"name": clean_name, "host": clean_host, "ip": clean_host}
         clean_list.append(item)
     return clean_list

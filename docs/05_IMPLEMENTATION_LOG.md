@@ -220,3 +220,38 @@
   * اجرای Pytest روی کلیه تست‌های پروژه: ۵۲ تست با موفقیت کامل پاس شدند (`52 passed in 12.53s`).
   * اجرای آزمون گریپ تأیید کرد هیچ IP نقطه‌داری در کدهای برنامه وجود ندارد (`SUCCESS: No hardcoded dotted IPs found in any non-test python files`).
 
+---
+
+### گام ۱.۸ — کلید قطع اضطراری و حالت فقط‌خواندنی (Step 1.8 Safety Net: Kill-Switch & Read-Only Mode)
+* **هدف:** ایجاد سازوکار حفاظتی سطح پلتفرم جهت جلوگیری از ارسال ناخواسته دستورات تغییر پیکربندی به تجهیزات زنده شبکه با فعال‌سازی متغیر محیطی `READ_ONLY_MODE=true` (یا تعریف در `config.ini`) و نمایش بنر هشدار دائمی در رابط کاربری ادمین.
+* **اقدامات انجام‌شده:**
+  1. پیاده‌سازی متد `is_read_only_mode()` در [settings.py](file:///d:/Playground/Web-Dash/settings.py):
+     * بررسی متغیرهای محیطی `READ_ONLY_MODE` (مقادیر مجاز `true`، `1`، `yes`، `on`).
+     * بررسی پشتیبان از فایل `config.ini` در بخش‌های `[app]` یا `[security]`.
+     * مقدار پیش‌فرض: `False`.
+  2. پیاده‌سازی دکوراتور محافظتی `@read_only_blocked` در [app.py](file:///d:/Playground/Web-Dash/app.py):
+     * در صورت فعال بودن وضعیت فقط‌خواندنی، درخواست‌های ارسالی به روت‌های تغییردهنده وضعیت تجهیزات بلافاصله با خطای 403 و فرمت ساختاریافته معماری هدف متوقف می‌شوند:
+       `{"error": {"code": "READ_ONLY", "message": "System is running in READ-ONLY mode. Device-modifying operations are disabled.", "fields": {}}, "code": "READ_ONLY", "message": "..."}`.
+  3. اعمال محدودیت روی کلیه روت‌های ارائه‌دهنده دستورات پیکربندی (Configuring Routes):
+     * `/run-manual` (پاکسازی دستی آلارم و خاموش‌سازی پورت).
+     * `/run-bulk` (پاکسازی گروهی آلارم‌ها و shutdown اینترفیس‌ها بر مبنای CSV).
+     * `/start-renewal` (عملیات اعمال و تمدید لایسنس تجهیزات و رفتن به `system-view`).
+     * `/confirm-renewal/<sid>` (تأیید اقدام تمدید لایسنس).
+  4. حفظ عملکرد کامل بخش‌های تشخیصی و تحلیلی:
+     * اندپوینت‌های فقط‌خواندنی نظیر `/run-report`، `/run-full-report`، `/check-vrf-routing`، `/check-bgp-route`، `/run-license-check` و جستجوهای زبیکس بدون وقفه به کار خود ادامه می‌دهند.
+  5. بازتاب وضعیت در رابط کاربری (Frontend & Admin UI):
+     * ارسال فیلد `"read_only": is_read_only_mode()` در پاسخ اندپوینت‌های `/login` و `/me`.
+     * ایجاد بنر اخطار نارنجی رنگ با هویت بصری مشخص در [templates/index.html](file:///d:/Playground/Web-Dash/templates/index.html) با پیام:
+       `READ-ONLY MODE ACTIVE: Device configuration changes and alarm clearing are disabled`.
+     * کنترل پویای نمایش بنر در متد `showApp()` پس از احراز هویت.
+  6. نگارش تست‌های خودکار در [tests/test_step_1_8_read_only_mode.py](file:///d:/Playground/Web-Dash/tests/test_step_1_8_read_only_mode.py):
+     * تست بررسی پیش‌فرض غیرفعال بودن حالت فقط‌خواندنی.
+     * تست فعال‌سازی با مقادیر مختلف متغیر محیطی.
+     * تست دریافت وضعیت فقط‌خواندنی در اندپوینت `/me`.
+     * تست رد کلیه درخواست‌های تغییردهنده (`/run-manual`، `/run-bulk`، `/start-renewal`، `/confirm-renewal`) با خطای 403 `READ_ONLY`.
+     * تست ادامه کار صحیح اندپوینت‌های گزارش‌گیری و بررسی تشخیصی لایسنس در حالت فعال بودن Kill-Switch.
+* **تأییدیه (Verify):**
+  * اجرای Pytest روی کلیه تست‌های پروژه: ۵۷ تست با موفقیت کامل پاس شدند (`57 passed in 12.98s`).
+  * با فعال بودن فلگ `READ_ONLY_MODE=true`، روت‌های `/run-manual` و `/run-bulk` اجرا را رد کرده و گزارش‌گیری‌ها کماکان به درستی کار می‌کنند.
+
+

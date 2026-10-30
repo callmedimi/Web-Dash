@@ -71,6 +71,12 @@ NOC Netmate
 </div>
 </header>
 
+<!-- Read-Only Mode Banner (Step 1.8) -->
+<div id="readOnlyBanner" style="display:none;background:linear-gradient(90deg, #d29922, #b08800);color:#ffffff;padding:10px 20px;font-weight:600;font-size:0.9rem;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);letter-spacing:0.5px">
+  <span style="font-size:1.1rem;margin-right:8px">&#9888;</span>
+  READ-ONLY MODE ACTIVE: Device configuration changes and alarm clearing are disabled.
+</div>
+
 <div class="netmate-shell">
 <aside class="netmate-sidebar">
 <!-- Tabs -->
@@ -4334,6 +4340,12 @@ async function showApp() {
   document.getElementById('mainContent').classList.add('authenticated');
   document.getElementById('userDisplayName').textContent = currentUser.display_name || currentUser.username;
   document.getElementById('userRoleTag').textContent = currentUser.role;
+
+  const roBanner = document.getElementById('readOnlyBanner');
+  if (roBanner) {
+    roBanner.style.display = (currentUser && currentUser.read_only) ? 'block' : 'none';
+  }
+
   await applyFeatureVisibility();
 
   if (hasPerm('user_management')) {
