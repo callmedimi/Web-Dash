@@ -144,6 +144,7 @@ def create_app(config_override: dict = None) -> Flask:
     from backend.app.api.configs import configs_bp
     from backend.app.api.devices import devices_bp
     from backend.app.api.features import features_bp
+    from backend.app.api.alarms import alarms_bp
 
     # Trigger features and job handlers registration
     import backend.app.features  # noqa: F401
@@ -164,6 +165,8 @@ def create_app(config_override: dict = None) -> Flask:
     app.register_blueprint(configs_bp, url_prefix="/devices", name="configs_alias")
     app.register_blueprint(features_bp, url_prefix="/api/v1/features")
     app.register_blueprint(features_bp, url_prefix="/features", name="features_alias")
+    app.register_blueprint(alarms_bp, url_prefix="/api/v1/alarms")
+    app.register_blueprint(alarms_bp, url_prefix="/alarms", name="alarms_alias")
     app.register_blueprint(alarm_clear_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(license_bp)

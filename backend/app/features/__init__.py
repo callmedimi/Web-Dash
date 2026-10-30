@@ -4,6 +4,7 @@ from backend.app.features.registry import feature_registry, FeatureRegistry
 
 # Import features to trigger registration
 from backend.app.features.inventory.feature import InventoryDiscoveryFeature, inventory_feature
+from backend.app.features.alarm_center.feature import AlarmCenterFeature, alarm_center_feature
 
 __all__ = [
     "BaseFeature",
@@ -13,4 +14,7 @@ __all__ = [
     "FeatureRegistry",
     "InventoryDiscoveryFeature",
     "inventory_feature",
+    "AlarmCenterFeature",
+    "alarm_center_feature",
 ]
+
