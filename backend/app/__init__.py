@@ -60,4 +60,8 @@ def create_app(config_override: dict = None) -> Flask:
             "database": "connected" if db_ok else "disconnected",
         }), 200 if db_ok else 503
 
+    # Register API Blueprints
+    from backend.app.api.jobs import jobs_bp
+    app.register_blueprint(jobs_bp)
+
     return app
