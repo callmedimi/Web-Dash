@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import netmiko
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
+from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from flask import (
     Flask, render_template, request, jsonify, Response, stream_with_context, send_file, session, abort
@@ -60,6 +61,11 @@ from ptp_troubleshoot_service import (
     resolve_router_info,
     run_ptp_troubleshoot_traceback,
 )
+from validators import (
+    validate_router_name, validate_host_or_ip, validate_target_ip,
+    validate_interface_name, validate_vrf_name, validate_province,
+    validate_age, validate_timeout, validate_routers_list, sanitize_cli_arg,
+)
 
 app = Flask(__name__)
 
@@ -93,6 +99,52 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("COOKIE_SECURE", "false").lower() in ("true", "1", "yes")
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=int(os.environ.get("PERMANENT_SESSION_LIFETIME_HOURS", "8")))
 
+# Payload limits and validation error handlers (Step 1.6 - F-09, F-10)
+app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_CONTENT_LENGTH_MB", "10")) * 1024 * 1024
+
+
+@app.errorhandler(413)
+def handle_payload_too_large(e):
+    max_mb = int(os.environ.get("MAX_CONTENT_LENGTH_MB", "10"))
+    msg = f"Request payload exceeds maximum allowed size ({max_mb} MB)"
+    return jsonify({
+        "error": {
+            "code": "PAYLOAD_TOO_LARGE",
+            "message": msg,
+            "fields": {}
+        },
+        "code": "PAYLOAD_TOO_LARGE",
+        "message": msg
+    }), 413
+
+
+@app.errorhandler(ValueError)
+def handle_value_error(e):
+    msg = str(e)
+    return jsonify({
+        "error": {
+            "code": "VALIDATION_ERROR",
+            "message": msg,
+            "fields": {}
+        },
+        "code": "VALIDATION_ERROR",
+        "message": msg
+    }), 400
+
+
+@app.errorhandler(KeyError)
+def handle_key_error(e):
+    msg = f"Missing required field: {e}"
+    return jsonify({
+        "error": {
+            "code": "VALIDATION_ERROR",
+            "message": msg,
+            "fields": {}
+        },
+        "code": "VALIDATION_ERROR",
+        "message": msg
+    }), 400
+
 
 def get_client_ip() -> str:
     forwarded = request.headers.get("X-Forwarded-For")
@@ -123,6 +175,8 @@ def get_json_payload(silent: bool = False) -> dict:
     try:
         data = request.get_json(force=False, silent=False)
         return data if data is not None else {}
+    except RequestEntityTooLarge:
+        raise
     except Exception as e:
         if silent:
             return {}
@@ -1007,15 +1061,7 @@ def run_manual():
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    routers = []
-    for r in routers_raw:
-        host = (r.get("host") or "").strip()
-        name = (r.get("name") or "").strip() or host
-        if host:
-            routers.append({"name": name, "host": host})
-
-    if not routers:
-        return jsonify({"error": "At least one valid router entry is required"}), 400
+    routers = validate_routers_list(routers_raw, max_items=2000)
 
     sid = create_session()
     user = session.get("username") or "unknown"
@@ -1052,15 +1098,7 @@ def run_bulk():
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    routers = []
-    for r in routers_raw:
-        name = (r.get("name") or "").strip()
-        ip = (r.get("ip") or "").strip()
-        if name and ip:
-            routers.append({"name": name, "ip": ip})
-
-    if not routers:
-        return jsonify({"error": "At least one valid router entry is required"}), 400
+    routers = validate_routers_list(routers_raw, max_items=2000)
 
     sid = create_session()
     user = session.get("username") or "unknown"
@@ -1168,18 +1206,19 @@ def parse_csv_nodes():
 def run_report():
     data = get_json_payload()
     routers_raw = data.get("routers", [])
-    province = (data.get("province") or "").strip().upper()
+    province_raw = data.get("province")
+    if not province_raw:
+        return jsonify({"error": "Province code is required"}), 400
+    province = validate_province(province_raw)
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
-    age_value = int(data.get("age_value", 2))
-    age_unit = data.get("age_unit", "days")
+    age_value, age_unit = validate_age(data.get("age_value", 2), data.get("age_unit", "days"))
 
-    if not province:
-        return jsonify({"error": "Province code is required"}), 400
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    filtered = filter_routers_by_province(routers_raw, province)
+    routers = validate_routers_list(routers_raw, max_items=2000)
+    filtered = filter_routers_by_province(routers, province)
     if not filtered:
         return jsonify({"error": f"No routers found matching province '_{province}'"}), 422
 
@@ -1205,25 +1244,24 @@ def run_full_report():
     routers_raw = data.get("routers", [])
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
-    age_value = int(data.get("age_value", 2))
-    age_unit = data.get("age_unit", "days")
+    age_value, age_unit = validate_age(data.get("age_value", 2), data.get("age_unit", "days"))
 
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
-    if not routers_raw:
-        return jsonify({"error": "No routers provided"}), 400
+
+    routers = validate_routers_list(routers_raw, max_items=2000)
 
     sid = create_report_session()
     user = session.get("username") or "unknown"
-    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "reporting_full", "router_count": len(routers_raw)})
+    record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "reporting_full", "router_count": len(routers)})
     t = threading.Thread(
-        target=_run_report, args=(sid, routers_raw, username, password),
+        target=_run_report, args=(sid, routers, username, password),
         kwargs={"age_value": age_value, "age_unit": age_unit}, daemon=True
     )
     t.start()
     return jsonify({
         "session_id": sid,
-        "router_count": len(routers_raw),
+        "router_count": len(routers),
         "province": "ALL",
     })
 
@@ -1352,15 +1390,7 @@ def run_license_check():
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    routers = []
-    for r in routers_raw:
-        name = (r.get("name") or "").strip()
-        ip = (r.get("ip") or "").strip()
-        if name and ip:
-            routers.append({"name": name, "ip": ip})
-
-    if not routers:
-        return jsonify({"error": "At least one valid router entry is required"}), 400
+    routers = validate_routers_list(routers_raw, max_items=2000)
 
     sid = create_license_session()
     user = session.get("username") or "unknown"
@@ -1758,14 +1788,14 @@ def match_licenses():
 @permission_required("license_check")
 def start_renewal():
     data = get_json_payload()
-    selected_routers = data.get("selected_routers", [])
+    selected_routers_raw = data.get("selected_routers", [])
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
 
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
-    if not selected_routers:
-        return jsonify({"error": "No routers selected for renewal"}), 400
+
+    selected_routers = validate_routers_list(selected_routers_raw, max_items=2000)
 
     sid = create_lic_renewal_session()
     user = session.get("username") or "unknown"
@@ -1981,16 +2011,17 @@ def check_vrf_routing_route():
     password = data.get("password") or ""
     config_text = data.get("config", "")
     
-    # 1. Extract target_ip from the frontend request
-    target_ip = (data.get("target_ip") or "").strip()
+    # 1. Extract and validate target_ip from the frontend request
+    target_ip_raw = (data.get("target_ip") or "").strip()
+    target_ip = validate_target_ip(target_ip_raw) if target_ip_raw else ""
 
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
     if not config_text.strip():
         return jsonify({"error": "No interface configuration provided"}), 400
 
-    conn_to = data.get("conn_timeout", 20)
-    cmd_to = data.get("cmd_timeout", 60)
+    conn_to = validate_timeout(data.get("conn_timeout", 20), default=20)
+    cmd_to = validate_timeout(data.get("cmd_timeout", 60), default=60)
 
     # 2. Pass target_ip explicitly as a keyword argument
     user = session.get("username") or "unknown"
@@ -2011,12 +2042,14 @@ def check_bgp_route_route():
     data = get_json_payload()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
-    target_ip = (data.get("target_ip") or "").strip()
+    target_ip_raw = (data.get("target_ip") or "").strip()
 
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
-    if not target_ip:
+    if not target_ip_raw:
         return jsonify({"error": "Target IP address is required"}), 400
+
+    target_ip = validate_target_ip(target_ip_raw)
 
     user = session.get("username") or "unknown"
     record_audit("job_started", user, get_client_ip(), status="success", detail={"feature": "bgp_routing", "target_ip": target_ip})
@@ -2057,21 +2090,24 @@ def show_originator_interfaces_route():
     data = get_json_payload()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
-    originator_ip = (data.get("originator_ip") or "").strip()
-    target_ip = (data.get("target_ip") or "").strip()
-    prefix = (data.get("prefix") or "").strip()
+    originator_ip_raw = (data.get("originator_ip") or "").strip()
+    target_ip_raw = (data.get("target_ip") or "").strip()
+    prefix_raw = (data.get("prefix") or "").strip()
 
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
-    if not originator_ip:
+    if not originator_ip_raw:
         return jsonify({"error": "Originator IP is required"}), 400
-    if not target_ip:
+    if not target_ip_raw:
         return jsonify({"error": "Target IP is required"}), 400
-    target_ip = target_ip.split('/')[0]
-    vrf = (data.get("vrf") or "").strip()
-
-    if not vrf:
+    vrf_raw = (data.get("vrf") or "").strip()
+    if not vrf_raw:
         return jsonify({"error": "VRF name is required"}), 400
+
+    originator_ip = validate_host_or_ip(originator_ip_raw)
+    target_ip = validate_target_ip(target_ip_raw.split('/')[0])
+    vrf = validate_vrf_name(vrf_raw)
+    prefix = validate_target_ip(prefix_raw) if prefix_raw else ""
 
     connect_ip = transform_originator_ip(originator_ip)
 
@@ -2293,10 +2329,12 @@ def search_zabbix_interfaces():
 @permission_required("zabbix_search")
 def search_zabbix_ip():
     data = get_json_payload()
-    ip = (data.get("ip") or "").strip()
+    ip_raw = (data.get("ip") or "").strip()
 
-    if not ip:
+    if not ip_raw:
         return jsonify({"error": "IP address is required"}), 400
+
+    ip = validate_host_or_ip(ip_raw)
 
     if not os.path.isfile(_ZABBIX_DB):
         return jsonify({
@@ -2551,7 +2589,11 @@ def ptp_search_targets():
 @permission_required("ptp_troubleshoot")
 def ptp_start_troubleshoot():
     data = get_json_payload(silent=True)
-    target = (data.get("target") or data.get("host") or "").strip()
+    target_raw = (data.get("target") or data.get("host") or "").strip()
+    if not target_raw:
+        return jsonify({"error": "Target router name, Site Code, or IP is required"}), 400
+    target = sanitize_cli_arg(target_raw, "target")
+
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
 
@@ -2563,13 +2605,7 @@ def ptp_start_troubleshoot():
         if not password:
             password = sess_creds.get("password") or ""
 
-    try:
-        max_hops = int(data.get("max_hops", 5))
-    except Exception:
-        max_hops = 5
-
-    if not target:
-        return jsonify({"error": "Target router name, Site Code, or IP is required"}), 400
+    max_hops = validate_timeout(data.get("max_hops", 5), default=5, min_val=1, max_val=20)
 
     if not username or not password:
         return jsonify({"error": "Network credentials (Username and Password) are required for live SSH diagnostic."}), 400

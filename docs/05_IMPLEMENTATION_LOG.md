@@ -150,3 +150,45 @@
   * تنزل یا غیرفعال کردن آخرین ادمین کل با خطای 400 مسدود می‌شود.
   * ارسال پرمیشن نامعتبر یا مقدار غیربولین با خطای 400 رد می‌شود.
   * دیکشنری فراخواننده در حین آپدیت دچار تغییر نمی‌شود.
+
+---
+
+### گام ۱.۶ — اعتبارسنجی ورودی‌ها و حدود مجاز (Step 1.6 Input Validation & Limits - F-09, F-10, F-90)
+* **هدف:** رفع آسیب‌پذیری‌های منع سرویس از طریق ارسال پی‌لودهای بسیار حجیم (F-09)، جلوگیری از تزریق دستور به تجهیزات شبکه (CLI Command Injection - F-90)، اعتبارسنجی دقیق و اسکیما‌محور کلیه پارامترهای ارسالی در اندپوینت‌های API و لایه دستورات روترها، و یکپارچه‌سازی فرمت خروجی خطاها مطابق معماری هدف (Target Architecture §4).
+* **اقدامات انجام‌شده:**
+  1. پیاده‌سازی ماژول مستقل اعتبارسنجی و بهسازی در [validators.py](file:///d:/Playground/Web-Dash/validators.py):
+     * تعریف لیست سیاه کاراکترهای خطرناک CLI شامل `\r`، `\n`، `;`، `|`، `&`، `$`، `` ` ``، `<`، `>`، `\`، `!`، `"` و `'`.
+     * `sanitize_cli_arg`: بررسی نوع رشته، مسدودسازی کاراکترهای مخرب و جلوگیری از فضای خالی (Whitespace) در میان پارامترهای مستقیم CLI.
+     * `validate_router_name`: بررسی نام روتر تا حداکثر ۶۴ کاراکتر با الگوی `^[A-Za-z0-9._-]{1,64}$`.
+     * `validate_host_or_ip`: اعتبارسنجی آدرس IPv4/IPv6 با ماژول استاندارد `ipaddress` یا انطباق با استاندارد RFC 1123 Hostname بدون بخش‌های ناقص یا کاراکترهای ممنوعه.
+     * `validate_target_ip`: اعتبارسنجی IP مقصد و پیشوندهای شبکه (CIDR) و تفکیک امن بخش IP از Mask.
+     * `validate_interface_name`: اعتبارسنجی ساختار اینترفیس‌های تجهیزات هواوی (مانند `GE0/0/1`، `Eth-Trunk1.100`، `LoopBack0`، `Vlanif100`، `Serial1/0/0:0`) و ممانعت قطعی از تزریق دستوراتی مثل `GE0/0/1\nundo shutdown`.
+     * `validate_vrf_name`: اعتبارسنجی نام VRF / VPN-Instance (حداکثر ۳۱ کاراکتر امن).
+     * `validate_province`: اعتبارسنجی کد استان (۲ تا ۶ حرف بزرگ انگلیسی ASCII).
+     * `validate_age`: اعتبارسنجی سن آلارم‌ها (مقدار عددی ۱ تا ۳۶۵۰ و واحد زمانی منحصراً `hours` یا `days`).
+     * `validate_timeout`: اعتبارسنجی مهلت‌های زمانی SSH و دستورات (۱ تا ۳۰۰ ثانیه).
+     * `validate_routers_list`: اعتبارسنجی لیست روترها (حداقل ۱ و حداکثر ۲۰۰۰ عضو) و پاکسازی و اعتبارسنجی همزمان تک‌تک آدرس‌ها و نام‌ها.
+  2. محدودسازی حداکثر حجم بدنه درخواست (Payload Size Limit):
+     * تنظیم `MAX_CONTENT_LENGTH = 10 MB` (قابلیت تغییر با متغیر محیطی `MAX_CONTENT_LENGTH_MB`).
+     * پیاده‌سازی Error Handler خطای 413 (`@app.errorhandler(413)`) جهت بازگرداندن پاسخ ساختاریافته استاندارد `PAYLOAD_TOO_LARGE`.
+     * عدم بلعیده شدن استثنای `RequestEntityTooLarge` در متد کمکی `get_json_payload()`.
+  3. تبدیل خطاهای ارزیابی و ورودی نامعتبر به خطای استاندارد 400:
+     * ثبت هندلرهای سراسری خطای `ValueError` و `KeyError` در [app.py](file:///d:/Playground/Web-Dash/app.py) جهت تولید پاسخ با فرمت معماری هدف:
+       `{"error": {"code": "VALIDATION_ERROR", "message": "...", "fields": {}}, "code": "VALIDATION_ERROR", "message": "..."}`.
+  4. اعمال اعتبارسنجی در تمامی اندپوینت‌های پردازشی:
+     * `/run-manual` و `/run-bulk`: کنترل سقف ۲۰۰۰ روتر و اعتبارسنجی تک‌تک نام‌ها و IPها.
+     * `/run-report` و `/run-full-report`: اعتبارسنجی روترها، کد استان و پارامترهای `age_value` و `age_unit`.
+     * `/run-license-check` و `/start-renewal`: اعتبارسنجی لیست روترهای منتخب.
+     * `/check-vrf-routing`، `/check-bgp-route` و `/show-originator-interfaces`: اعتبارسنجی دقیق `target_ip`، `originator_ip`، `vrf` و تایم‌اوت‌ها قبل از ساخت رشته دستور CLI.
+     * `/search-zabbix-ip` و `/ptp/start-troubleshoot`: اعتبارسنجی ورودی IP و تارگت ترابل‌شوتینگ.
+  5. حفاظت لایه تجهیزات شبکه:
+     * در [check_vrf_routing.py](file:///d:/Playground/Web-Dash/check_vrf_routing.py): اعتبارسنجی `clean_name = validate_interface_name(interface_name)`، `validate_target_ip(target_ip)` و `validate_vrf_name(vrf)` قبل از ارسال هرگونه دستور `display` به سوئیچ/روتر.
+     * در [auto_clear_noconf.py](file:///d:/Playground/Web-Dash/auto_clear_noconf.py): اعتبارسنجی اینترفیس‌های استخراج شده از شرح آلارم‌ها پیش از اعمال دستورات `interface {iface}` و `shutdown`.
+  6. نگارش تست‌های خودکار و آزمون‌های نفوذ/فازینگ در [tests/test_step_1_6_input_validation_and_limits.py](file:///d:/Playground/Web-Dash/tests/test_step_1_6_input_validation_and_limits.py).
+* **تأییدیه (Verify):**
+  * اجرای Pytest روی کلیه تست‌های پروژه: ۴۷ تست با موفقیت کامل پاس شدند (`47 passed in 16.08s`).
+  * ارسال پی‌لود با `"age_value": "abc"` با خطای 400 `VALIDATION_ERROR` متوقف می‌شود.
+  * ارسال اینترفیس‌های آلوده به کاراکترهای تزریقی با خطای 400 متوقف می‌شود.
+  * ارسال لیست روترهای بالای ۲۰۰۰ عدد با خطای 400 رد می‌شود.
+  * ارسال بدنه بزرگ‌تر از سقف مجاز بلافاصله با خطای 413 `PAYLOAD_TOO_LARGE` متوقف می‌شود.
+  * ساختار کلیه خطاهای اعتبارسنجی کاملاً منطبق با Target Architecture §4 است.

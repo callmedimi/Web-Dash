@@ -159,7 +159,9 @@ def transform_originator_ip(ip: str) -> str:
 
 
 def check_bgp_route(conn, target_ip: str, cmd_timeout=60) -> tuple[list[dict], str]:
-    cmd = f'display bgp vpnv4 all routing-table peer {HARDCODED_RR_IP} received-routes {target_ip}'
+    from validators import validate_target_ip
+    clean_ip = validate_target_ip(target_ip)
+    cmd = f'display bgp vpnv4 all routing-table peer {HARDCODED_RR_IP} received-routes {clean_ip}'
     output = conn.send_command(cmd, read_timeout=cmd_timeout)
     entries = parse_bgp_received_routes(output)
     return entries, output
@@ -228,7 +230,11 @@ def get_interface_config_text(conn, interface_name: str, cmd_timeout=60) -> str:
     if not interface_name or interface_name.lower() in ('null0', 'inloopback0', 'inloop0'):
         return ''
 
-    clean_name = interface_name.strip()
+    from validators import validate_interface_name
+    try:
+        clean_name = validate_interface_name(interface_name)
+    except ValueError:
+        return ''
     commands = [
         f'display current-configuration interface {clean_name}',
         f'display cu int {clean_name}',
@@ -476,10 +482,13 @@ def split_interface_configs(text: str) -> list[str]:
 
 
 def get_vrf_routes(conn, vrf: str, ip: str = '', cmd_timeout=60) -> tuple[list[dict], str]:
+    from validators import validate_vrf_name, validate_target_ip
+    clean_vrf = validate_vrf_name(vrf)
     if ip:
-        cmd = f'display ip routing-table vpn-instance {vrf} {ip}'
+        clean_ip = validate_target_ip(ip)
+        cmd = f'display ip routing-table vpn-instance {clean_vrf} {clean_ip}'
     else:
-        cmd = f'display ip routing-table vpn-instance {vrf}'
+        cmd = f'display ip routing-table vpn-instance {clean_vrf}'
     output = conn.send_command(cmd, read_timeout=cmd_timeout)
     return _parse_routing_table(output), output
 
