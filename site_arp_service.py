@@ -485,7 +485,7 @@ CSV_HEADERS = [
     "vlan", "vrf", "arp_interface", "mac_port", "collected_at",
 ]
 
-TARGET_NE_PREFIXES = ("IL", "BR", "BA", "BC")
+from settings import TARGET_NE_PREFIXES
 
 NE_TYPE_MAP = {
     "ne20e":   "huawei",

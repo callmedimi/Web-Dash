@@ -86,7 +86,7 @@ def validate_host_or_ip(host_or_ip: Any) -> str:
 
 
 def validate_target_ip(ip_str: Any) -> str:
-    """Validate IP address or prefix (e.g., 10.0.0.1 or 10.0.0.0/24)."""
+    """Validate IP address or CIDR prefix (IPv4 or IPv6)."""
     clean = sanitize_cli_arg(ip_str, "target IP")
     base_ip = clean.split("/")[0]
     try:

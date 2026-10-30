@@ -192,3 +192,31 @@
   * ارسال لیست روترهای بالای ۲۰۰۰ عدد با خطای 400 رد می‌شود.
   * ارسال بدنه بزرگ‌تر از سقف مجاز بلافاصله با خطای 413 `PAYLOAD_TOO_LARGE` متوقف می‌شود.
   * ساختار کلیه خطاهای اعتبارسنجی کاملاً منطبق با Target Architecture §4 است.
+
+---
+
+### گام ۱.۷ — انتقال مقادیر ثابت زیرساخت به فایل پیکربندی (Step 1.7 Move Hardcoded Infra Constants to Config - F-12)
+* **هدف:** حذف کامل آدرس‌های IP و نام‌های هاردکدشده تجهیزات شبکه از کدهای پایتون (`HARDCODED_ROUTER_NAME`، `HARDCODED_ROUTER_IP`، `HARDCODED_RR_IP` و `TARGET_NE_PREFIXES`) و انتقال آنها به ماژول متمرکز تنظیمات [settings.py](file:///d:/Playground/Web-Dash/settings.py) با پشتیبانی همزمان از متغیرهای محیطی و فایل `config.ini`.
+* **اقدامات انجام‌شده:**
+  1. طراحی و ساخت ماژول متمرکز [settings.py](file:///d:/Playground/Web-Dash/settings.py):
+     * اولویت‌بندی لایه‌ای بارگذاری: ابتدا متغیرهای محیطی سیستم، سپس فایل پیکربندی `config.ini` و در نهایت مسیرهای کاندید.
+     * اعتبارسنجی مقادیر زیرساختی هنگام راه‌اندازی با ماژول `validators` (اطمینان از ساختار معتبر نام روتر و آدرس‌های IP/Host).
+     * شکست سریع و ایمن در شروع به کار (Fail-Fast): در صورت مفقود بودن هر یک از مقادیر حیاتی (`VRF_ROUTER_NAME`، `VRF_ROUTER_IP`، `VRF_RR_IP`)، استثنای صریح `RuntimeError` با پیام راهنمای شفاف بالا می‌آید.
+     * حفظ کامل سازگاری عقبرو (Backward Compatibility) با تعریف نام‌های مستعار قدیمی (`HARDCODED_ROUTER_*`).
+  2. توسعه فایل‌های نمونه و پیکربندی پیش‌فرض:
+     * اضافه شدن بخش‌های `[vrf]` و `[site_arp]` به [config.example.ini](file:///d:/Playground/Web-Dash/config.example.ini) و [config.example.env](file:///d:/Playground/Web-Dash/config.example.env).
+     * ایجاد فایل پیش‌فرض [config.ini](file:///d:/Playground/Web-Dash/config.ini) در ریشه مخزن.
+  3. بازنویسی کدهای مصرف‌کننده:
+     * حذف ثابت‌های هاردکدشده در [check_vrf_routing.py](file:///d:/Playground/Web-Dash/check_vrf_routing.py) و جایگزینی با ایمپورت از `settings.py`.
+     * اتصال پیشوندهای هدف در [site_arp_service.py](file:///d:/Playground/Web-Dash/site_arp_service.py) به مقدار پیکربندی‌شده `TARGET_NE_PREFIXES`.
+     * پاکسازی نمونه‌های کامنتی و داک‌استرینگ حاوی IP نقطه‌دار در کد منبع.
+  4. نگارش تست‌های خودکار در [tests/test_step_1_7_settings_and_config.py](file:///d:/Playground/Web-Dash/tests/test_step_1_7_settings_and_config.py):
+     * تست بارگذاری صحیح از فایل `config.ini`.
+     * تست تقدم متغیرهای محیطی بر مقادیر فایل `config.ini`.
+     * تست بالا آمدن `RuntimeError` در صورت نبودن تنظیمات حیاتی.
+     * تست اعتبارسنجی و رد مقادیر IP نامعتبر در تنظیمات.
+     * تست سراسری و خودکار گریپ روی کلیه فایل‌های پایتون مخزن (خارج از پوشه tests) جهت تأیید عدم وجود حتی یک IP زیرساختی هاردکدشده.
+* **تأییدیه (Verify):**
+  * اجرای Pytest روی کلیه تست‌های پروژه: ۵۲ تست با موفقیت کامل پاس شدند (`52 passed in 12.53s`).
+  * اجرای آزمون گریپ تأیید کرد هیچ IP نقطه‌داری در کدهای برنامه وجود ندارد (`SUCCESS: No hardcoded dotted IPs found in any non-test python files`).
+

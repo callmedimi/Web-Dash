@@ -23,10 +23,15 @@ PROTOCOL_CATEGORY_MAP = {
     'UNR':     'UNR',
 }
 
-# Hardcoded route reflector device
-HARDCODED_ROUTER_NAME = "IRRHAC"
-HARDCODED_ROUTER_IP = "10.0.101.23"
-HARDCODED_RR_IP = "10.0.7.10"  # RR IP used in BGP commands (may differ from management IP)
+# Infrastructure route reflector device from central settings (Step 1.7 - F-12)
+from settings import (
+    VRF_ROUTER_NAME,
+    VRF_ROUTER_IP,
+    VRF_RR_IP,
+    HARDCODED_ROUTER_NAME,
+    HARDCODED_ROUTER_IP,
+    HARDCODED_RR_IP,
+)
 
 # VRF name -> list of import RT values
 VRF_RT_MAP = {
@@ -99,7 +104,7 @@ def parse_bgp_received_routes(output: str) -> list[dict]:
         full_text = '\n'.join(lines)
 
         prefix_m = re.search(r"BGP routing table entry information of\s+(\S+)", full_text)
-        # FIX: Strip the trailing colon from the prefix (e.g., "185.5.156.0/24:")
+        # FIX: Strip the trailing colon from the prefix (e.g., "<prefix>/24:")
         prefix = prefix_m.group(1).rstrip(':') if prefix_m else ''
 
         ext_m = re.search(r"Ext-Community:\s*(.*?)(?:\n\S|\Z)", full_text, re.DOTALL)
