@@ -45,6 +45,12 @@ class JobEngine:
         except Exception as exc:
             logger.warning("Could not register default config_backup handler: %s", exc)
 
+        try:
+            from backend.app.jobs.handlers.license_renewal import LicenseRenewalHandler
+            self.register_handler("license_renewal", LicenseRenewalHandler.run_task)
+        except Exception as exc:
+            logger.warning("Could not register default license_renewal handler: %s", exc)
+
     def register_handler(self, job_type: str, handler_fn: Callable) -> None:
         """Register a handler function for a given job type."""
         self._handlers[job_type] = handler_fn

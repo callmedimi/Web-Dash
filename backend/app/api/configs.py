@@ -125,3 +125,18 @@ def trigger_backup(device_id: int):
         "device_name": device_name,
         "kind": kind,
     }), 202
+
+
+@configs_bp.route("/<int:device_id>/compliance", methods=["GET"])
+@login_required
+def get_device_compliance(device_id: int):
+    """Evaluate compliance rules against the latest configuration snapshot."""
+    from backend.app.services.compliance import evaluate_device_compliance
+
+    with get_db_session() as session:
+        dev = session.query(Device).filter(Device.id == device_id).first()
+        if not dev:
+            return jsonify({"error": "NOT_FOUND", "message": f"Device {device_id} not found"}), 404
+
+        report = evaluate_device_compliance(session, device_id)
+        return jsonify(report), 200
