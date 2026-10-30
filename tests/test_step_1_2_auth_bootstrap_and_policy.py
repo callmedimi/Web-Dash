@@ -140,18 +140,20 @@ def test_must_change_password_blocks_apis(monkeypatch):
         assert users_res.status_code == 403
         assert users_res.json["code"] == "PASSWORD_CHANGE_REQUIRED"
 
+        csrf = login_res.json["csrf_token"]
+
         # Change password to a weak password -> fails
         weak_change_res = client.post("/change-password", json={
             "current_password": "TemporaryPass2026!#",
             "new_password": "short"
-        })
+        }, headers={"X-CSRF-Token": csrf})
         assert weak_change_res.status_code == 400
 
         # Change password to a strong password -> succeeds
         valid_change_res = client.post("/change-password", json={
             "current_password": "TemporaryPass2026!#",
             "new_password": "BrandNewPermanentPassword2026!#"
-        })
+        }, headers={"X-CSRF-Token": csrf})
         assert valid_change_res.status_code == 200
         assert valid_change_res.json["status"] == "password_changed"
 

@@ -18,7 +18,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
 
 from flask import (
-    Flask, render_template, request, jsonify, Response, stream_with_context, send_file, session
+    Flask, render_template, request, jsonify, Response, stream_with_context, send_file, session, abort
 )
 
 from auto_clear_noconf import process_one
@@ -38,7 +38,7 @@ from services.zabbix_service import ZabbixService, create_zabbix_service
 from services.license_db import add_renewal_report, get_all_renewal_reports, get_renewal_report
 from auth import (
     authenticate, login_required, permission_required, user_has_access, get_accessible_features,
-    get_all_users, create_user, update_user, delete_user, validate_password,
+    get_all_users, get_user, create_user, update_user, delete_user, validate_password,
 )
 from site_arp_service import (
     lookup_site_arp_mac_details,
@@ -84,6 +84,48 @@ else:
 
 app.config['UPLOAD_FOLDER'] = os.path.join(DATA_DIR, 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Session cookie and security configuration (Step 1.3)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("COOKIE_SECURE", "false").lower() in ("true", "1", "yes")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=int(os.environ.get("PERMANENT_SESSION_LIFETIME_HOURS", "8")))
+
+
+def get_json_payload(silent: bool = False) -> dict:
+    """Extract and validate JSON payload from request body.
+
+    Enforces Content-Type: application/json (HTTP 415 otherwise).
+    Returns HTTP 400 on malformed JSON.
+    """
+    content_type = request.headers.get("Content-Type", "")
+    if not (request.is_json or content_type.lower().startswith("application/json")):
+        if silent:
+            return {}
+        abort(Response(
+            json.dumps({
+                "error": "Unsupported Media Type",
+                "code": "UNSUPPORTED_MEDIA_TYPE",
+                "message": "Content-Type must be application/json"
+            }),
+            status=415,
+            mimetype="application/json"
+        ))
+    try:
+        data = request.get_json(force=False, silent=False)
+        return data if data is not None else {}
+    except Exception as e:
+        if silent:
+            return {}
+        abort(Response(
+            json.dumps({
+                "error": "Bad Request",
+                "code": "INVALID_JSON",
+                "message": f"Malformed JSON: {e}"
+            }),
+            status=400,
+            mimetype="application/json"
+        ))
 
 # ---------------------------------------------------------------------------
 # License renewal session store
@@ -601,7 +643,7 @@ def _run_report(sid: str, routers: list[dict], username: str, password: str, age
 # ---------------------------------------------------------------------------
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
     if not username or not password:
@@ -609,19 +651,28 @@ def login():
     user_info = authenticate(username, password)
     if user_info is None:
         return jsonify({"error": "Invalid credentials"}), 401
+
+    session.clear()  # Session fixation defense
+    session.permanent = True
+    session["username"] = user_info["username"]
+    session["token_version"] = user_info.get("token_version", 1)
+    session["csrf_token"] = secrets.token_hex(32)
+    session["last_seen"] = datetime.now().timestamp()
     session["user"] = user_info
+
     return jsonify({
         "username": username,
         "role": user_info["role"],
         "display_name": user_info["display_name"],
         "must_change_password": user_info.get("must_change_password", False),
         "features": get_accessible_features(user_info),
+        "csrf_token": session["csrf_token"],
     })
 
 
 @app.route("/logout", methods=["POST"])
 def logout():
-    session.pop("user", None)
+    session.clear()
     return jsonify({"status": "logged_out"})
 
 
@@ -630,6 +681,8 @@ def current_user():
     user_info = session.get("user")
     if user_info is None:
         return jsonify({"authenticated": False}), 200
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_hex(32)
     return jsonify({
         "authenticated": True,
         "username": user_info["username"],
@@ -637,13 +690,14 @@ def current_user():
         "display_name": user_info["display_name"],
         "must_change_password": user_info.get("must_change_password", False),
         "features": get_accessible_features(user_info),
+        "csrf_token": session["csrf_token"],
     })
 
 
 @app.route("/change-password", methods=["POST"])
 @login_required
 def change_password():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     current_pass = data.get("current_password") or ""
     new_pass = data.get("new_password") or ""
 
@@ -664,25 +718,95 @@ def change_password():
     if err:
         return jsonify({"error": err}), 400
 
+    # User's token_version was bumped, update current session to match
+    updated_users = _load_users()
+    session["token_version"] = updated_users[actual].get("token_version", 1)
     user_info["must_change_password"] = False
     session["user"] = user_info
     return jsonify({"status": "password_changed", "message": "Password updated successfully"})
 
 
 @app.before_request
-def enforce_password_change():
-    user = session.get("user")
-    if not user:
+def security_and_session_checks():
+    # 0. Skip static assets
+    if request.path.startswith("/static/") or request.path == "/favicon.ico":
         return None
-    if user.get("must_change_password"):
+
+    # 1. CSRF Protection for mutating HTTP methods
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        # Exempt only /login
+        if request.path != "/login":
+            expected_csrf = session.get("csrf_token")
+            provided_csrf = request.headers.get("X-CSRF-Token")
+            if not expected_csrf or not provided_csrf or not secrets.compare_digest(provided_csrf, expected_csrf):
+                return jsonify({
+                    "error": "CSRF token missing or invalid",
+                    "code": "CSRF_ERROR",
+                    "message": "A valid X-CSRF-Token header matching your active session is required."
+                }), 403
+
+    # 2. Session validation & re-load user from users.json on every request
+    username = session.get("username")
+    if username:
+        now = datetime.now().timestamp()
+        last_seen = session.get("last_seen")
+        # 30 minutes idle timeout
+        if last_seen and (now - last_seen > 30 * 60):
+            session.clear()
+            return jsonify({
+                "error": "Session expired due to inactivity",
+                "code": "SESSION_EXPIRED",
+                "message": "Session expired due to inactivity. Please log in again."
+            }), 401
+
+        user_record = get_user(username)
+        if not user_record:
+            session.clear()
+            return jsonify({
+                "error": "User account no longer exists",
+                "code": "USER_NOT_FOUND",
+                "message": "User account no longer exists."
+            }), 401
+
+        if not user_record.get("is_active", True):
+            session.clear()
+            return jsonify({
+                "error": "Account is disabled",
+                "code": "USER_DISABLED",
+                "message": "Account has been deactivated."
+            }), 401
+
+        current_token_ver = user_record.get("token_version", 1)
+        stored_token_ver = session.get("token_version", 1)
+        if stored_token_ver != current_token_ver:
+            session.clear()
+            return jsonify({
+                "error": "Session invalidated due to credential or role change",
+                "code": "SESSION_INVALIDATED",
+                "message": "Session has been invalidated. Please log in again."
+            }), 401
+
+        session["last_seen"] = now
+        session["user"] = {
+            "username": user_record["username"],
+            "role": user_record["role"],
+            "permissions": user_record.get("permissions", {}),
+            "display_name": user_record.get("display_name", user_record["username"]),
+            "must_change_password": bool(user_record.get("must_change_password", False)),
+            "token_version": current_token_ver,
+            "is_active": user_record.get("is_active", True),
+        }
+
+    # 3. Enforce must_change_password restriction
+    user = session.get("user")
+    if user and user.get("must_change_password"):
         exempt_paths = {"/", "/me", "/logout", "/change-password"}
-        if request.path in exempt_paths or request.path.startswith("/static/"):
-            return None
-        return jsonify({
-            "error": "Password change required",
-            "code": "PASSWORD_CHANGE_REQUIRED",
-            "message": "You must change your temporary password before accessing other features."
-        }), 403
+        if request.path not in exempt_paths:
+            return jsonify({
+                "error": "Password change required",
+                "code": "PASSWORD_CHANGE_REQUIRED",
+                "message": "You must change your temporary password before accessing other features."
+            }), 403
 
 
 @app.route("/admin/users", methods=["GET"])
@@ -695,7 +819,7 @@ def admin_list_users():
 @app.route("/admin/users", methods=["POST"])
 @permission_required("user_management")
 def admin_create_user():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
     role = (data.get("role") or "user").strip()
@@ -713,7 +837,7 @@ def admin_create_user():
 @app.route("/admin/users/<username>", methods=["PUT"])
 @permission_required("user_management")
 def admin_update_user(username):
-    data = request.get_json(force=True)
+    data = get_json_payload()
     current_info = session.get("user", {})
     if username == current_info.get("username") and data.get("role") and data["role"] != current_info.get("role"):
         return jsonify({"error": "Cannot change your own role"}), 403
@@ -752,7 +876,7 @@ def admin_get_permissions():
 @app.route("/admin/permissions/<username>", methods=["PUT"])
 @permission_required("permission_management")
 def admin_set_permissions(username):
-    data = request.get_json(force=True)
+    data = get_json_payload()
     permissions = data.get("permissions", {})
     users = get_all_users()
     if username not in users:
@@ -772,7 +896,7 @@ def index():
 @app.route("/run-manual", methods=["POST"])
 @permission_required("alarm_clear_manual")
 def run_manual():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     routers_raw = data.get("routers", [])
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
@@ -815,7 +939,7 @@ def parse_csv():
 @app.route("/run-bulk", methods=["POST"])
 @permission_required("alarm_clear_bulk")
 def run_bulk():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     routers_raw = data.get("routers", [])
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
@@ -935,7 +1059,7 @@ def parse_csv_nodes():
 @app.route("/run-report", methods=["POST"])
 @permission_required("reporting")
 def run_report():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     routers_raw = data.get("routers", [])
     province = (data.get("province") or "").strip().upper()
     username = (data.get("username") or "").strip()
@@ -968,7 +1092,7 @@ def run_report():
 @app.route("/run-full-report", methods=["POST"])
 @permission_required("reporting")
 def run_full_report():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     routers_raw = data.get("routers", [])
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
@@ -1109,7 +1233,7 @@ def report_analytics(sid):
 @app.route("/run-license-check", methods=["POST"])
 @permission_required("license_check")
 def run_license_check():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     routers_raw = data.get("routers", [])
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
@@ -1520,7 +1644,7 @@ def match_licenses():
 @app.route("/start-renewal", methods=["POST"])
 @permission_required("license_check")
 def start_renewal():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     selected_routers = data.get("selected_routers", [])
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
@@ -1668,7 +1792,7 @@ def download_renewal_report(sid):
 @app.route("/confirm-renewal/<sid>", methods=["POST"])
 @login_required
 def confirm_renewal(sid):
-    data = request.get_json(force=True)
+    data = get_json_payload()
     cid = data.get("confirmation_id")
     action = data.get("action")  # 'proceed' or 'skip'
 
@@ -1724,7 +1848,7 @@ def vrf_router_info():
 @app.route("/parse-interface-config", methods=["POST"])
 @permission_required("vrf_routing")
 def parse_interface_config_route():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     config_text = data.get("config", "")
     if not config_text.strip():
         return jsonify({"error": "No interface configuration provided"}), 400
@@ -1735,7 +1859,7 @@ def parse_interface_config_route():
 @app.route("/check-vrf-routing", methods=["POST"])
 @permission_required("vrf_routing")
 def check_vrf_routing_route():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
     config_text = data.get("config", "")
@@ -1765,7 +1889,7 @@ def check_vrf_routing_route():
 @app.route("/check-bgp-route", methods=["POST"])
 @permission_required("vrf_routing")
 def check_bgp_route_route():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
     target_ip = (data.get("target_ip") or "").strip()
@@ -1808,7 +1932,7 @@ def check_bgp_route_route():
 @app.route("/show-originator-interfaces", methods=["POST"])
 @permission_required("vrf_routing")
 def show_originator_interfaces_route():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
     originator_ip = (data.get("originator_ip") or "").strip()
@@ -1898,7 +2022,7 @@ def admin_get_zabbix_groups():
 @app.route("/admin/refresh-zabbix-db", methods=["POST"])
 @permission_required("zabbix_db_refresh")
 def admin_refresh_zabbix_db():
-    data = request.get_json(silent=True) or {}
+    data = get_json_payload(silent=True)
     group_names = data.get('groups')
     replace = data.get('replace', False)
     if not group_names or not isinstance(group_names, list):
@@ -2007,7 +2131,7 @@ def refresh_zabbix_progress():
 @app.route("/search-zabbix-interfaces", methods=["POST"])
 @permission_required("zabbix_search")
 def search_zabbix_interfaces():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     keyword = (data.get("keyword") or "").strip()
 
     if not keyword:
@@ -2044,7 +2168,7 @@ def search_zabbix_interfaces():
 @app.route("/search-zabbix-ip", methods=["POST"])
 @permission_required("zabbix_search")
 def search_zabbix_ip():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     ip = (data.get("ip") or "").strip()
 
     if not ip:
@@ -2087,7 +2211,7 @@ def search_site_arp_mac():
     if not (user_has_access(user_info, "zabbix_search") or user_has_access(user_info, "code_site_search")):
         return jsonify({"error": "Forbidden"}), 403
 
-    data = request.get_json(force=True)
+    data = get_json_payload()
     ip_val = (data.get("ip") or "").strip()
     site_code = (data.get("site_code") or data.get("keyword") or "").strip()
 
@@ -2148,7 +2272,7 @@ def admin_run_arp_mac_collector():
             matched, _, _ = parse_ne_csv_content(content)
             routers = matched
     else:
-        data = request.get_json(silent=True) or {}
+        data = get_json_payload()
         username = (data.get("username") or "").strip()
         password = data.get("password") or ""
         try:
@@ -2249,7 +2373,7 @@ def session_extractor_parse():
 @login_required
 @permission_required("session_extractor")
 def session_extractor_download():
-    data = request.get_json(force=True)
+    data = get_json_payload()
     sid = (data.get("sid") or "").strip()
     selected_subnets = data.get("selected_subnets")
     username = (data.get("username") or "").strip()
@@ -2284,7 +2408,7 @@ def session_extractor_download():
 @login_required
 @permission_required("ptp_troubleshoot")
 def ptp_search_targets():
-    data = request.get_json(silent=True) or {}
+    data = get_json_payload(silent=True)
     keyword = (data.get("keyword") or "").strip()
 
     if not keyword:
@@ -2302,7 +2426,7 @@ def ptp_search_targets():
 @login_required
 @permission_required("ptp_troubleshoot")
 def ptp_start_troubleshoot():
-    data = request.get_json(silent=True) or {}
+    data = get_json_payload(silent=True)
     target = (data.get("target") or data.get("host") or "").strip()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
@@ -2342,14 +2466,12 @@ def ptp_start_troubleshoot():
 
 
 @app.route("/ptp/stream/<sid>")
+@login_required
+@permission_required("ptp_troubleshoot")
 def ptp_stream(sid):
     sess = get_ptp_session(sid)
     if sess is None:
         return "Session not found", 404
-
-    user_info = session.get("user")
-    if user_info and not user_has_access(user_info, "ptp_troubleshoot"):
-        return jsonify({"error": "Forbidden"}), 403
 
     def generate():
         q = sess["log_queue"]
@@ -2376,14 +2498,12 @@ def ptp_stream(sid):
 
 
 @app.route("/ptp/session/<sid>", methods=["GET"])
+@login_required
+@permission_required("ptp_troubleshoot")
 def ptp_session_details(sid):
     sess = get_ptp_session(sid)
     if sess is None:
         return jsonify({"error": "Session not found"}), 404
-
-    user_info = session.get("user")
-    if user_info and not user_has_access(user_info, "ptp_troubleshoot"):
-        return jsonify({"error": "Forbidden"}), 403
 
     return jsonify({
         "session_id": sid,

@@ -72,7 +72,13 @@ def _load_users() -> dict:
         if not os.path.exists(users_file):
             _init_default_users()
         with open(users_file, "r", encoding="utf-8") as f:
-            return json.load(f)
+            users = json.load(f)
+            for u, data in users.items():
+                if "token_version" not in data:
+                    data["token_version"] = 1
+                if "is_active" not in data:
+                    data["is_active"] = True
+            return users
 
 
 def _save_users(users: dict) -> None:
@@ -136,6 +142,8 @@ Please change your password immediately upon first login!
             "permissions": {},
             "display_name": "Administrator",
             "must_change_password": must_change,
+            "token_version": 1,
+            "is_active": True,
         }
     }
     _save_users(default_users)
@@ -154,6 +162,8 @@ def authenticate(username: str, password: str) -> dict | None:
     if actual is None:
         return None
     user = users[actual]
+    if not user.get("is_active", True):
+        return None
     if not check_password_hash(user["password"], password):
         return None
     return {
@@ -162,6 +172,7 @@ def authenticate(username: str, password: str) -> dict | None:
         "permissions": user.get("permissions", {}),
         "display_name": user.get("display_name", actual),
         "must_change_password": bool(user.get("must_change_password", False)),
+        "token_version": user.get("token_version", 1),
     }
 
 
@@ -217,6 +228,23 @@ def permission_required(feature: str):
     return decorator
 
 
+def get_user(username: str) -> dict | None:
+    users = _load_users()
+    actual = _find_user(users, username)
+    if actual is None:
+        return None
+    user = users[actual]
+    return {
+        "username": actual,
+        "role": user.get("role", "user"),
+        "permissions": user.get("permissions", {}),
+        "display_name": user.get("display_name", actual),
+        "must_change_password": bool(user.get("must_change_password", False)),
+        "token_version": user.get("token_version", 1),
+        "is_active": user.get("is_active", True),
+    }
+
+
 def get_all_users() -> dict:
     users = _load_users()
     result = {}
@@ -226,6 +254,8 @@ def get_all_users() -> dict:
             "display_name": data.get("display_name", username),
             "permissions": data.get("permissions", {}),
             "must_change_password": bool(data.get("must_change_password", False)),
+            "token_version": data.get("token_version", 1),
+            "is_active": data.get("is_active", True),
         }
     return result
 
@@ -246,6 +276,8 @@ def create_user(username: str, password: str, role: str, display_name: str = "",
         "permissions": permissions,
         "display_name": display_name or username,
         "must_change_password": False,
+        "token_version": 1,
+        "is_active": True,
     }
     _save_users(users)
     return None
@@ -256,6 +288,8 @@ def update_user(username: str, updates: dict) -> str | None:
     actual = _find_user(users, username)
     if actual is None:
         return "User not found"
+    
+    bump_token = False
     if "password" in updates and updates["password"]:
         policy_err = validate_password(updates["password"], username)
         if policy_err:
@@ -263,11 +297,21 @@ def update_user(username: str, updates: dict) -> str | None:
         updates["password"] = generate_password_hash(updates["password"])
         if "must_change_password" not in updates:
             updates["must_change_password"] = False
+        bump_token = True
     else:
         updates.pop("password", None)
+
+    for field in ("role", "permissions", "is_active"):
+        if field in updates:
+            bump_token = True
+
     for key, value in updates.items():
         if value is not None:
             users[actual][key] = value
+
+    if bump_token:
+        users[actual]["token_version"] = users[actual].get("token_version", 1) + 1
+
     _save_users(users)
     return None
 
