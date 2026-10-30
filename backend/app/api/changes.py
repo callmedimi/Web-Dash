@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify, g
 from typing import Dict, Any, List
 
-from backend.app.api.common import login_required, role_required
+from auth import login_required, role_required
 from backend.app.db.session import get_db_session
 from backend.app.models.config_change import ChangeRequest
 from backend.app.models.device import Device
