@@ -25,7 +25,7 @@ def create_schedule():
     """Create a new cron schedule."""
     data = get_json_payload()
     job_type = (data.get("job_type") or "").strip()
-    cron_expr = (data.get("cron") or data.get("cron_expression") or "").strip()
+    cron_expr = (data.get("cron") or data.get("cron_expression") or data.get("cron_expr") or "").strip()
     params = data.get("params") or {}
     enabled = bool(data.get("enabled", True))
 

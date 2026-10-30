@@ -21,17 +21,27 @@ ScopedSession = None
 def get_engine(db_url: str = None) -> Engine:
     """Initialize or return the global SQLAlchemy engine."""
     global _engine, _session_factory, ScopedSession
-    if _engine is not None and db_url is None:
+    url = db_url or settings.get_database_url()
+    if _engine is not None and db_url is None and str(_engine.url) == str(url):
         return _engine
 
-    url = db_url or settings.get_database_url()
+    if _engine is not None:
+        try:
+            if ScopedSession is not None:
+                ScopedSession.remove()
+            _engine.dispose()
+        except Exception:
+            pass
+
     logger.info("Initializing database engine with URL: %s", url.split("@")[-1] if "@" in url else url)
 
     if url.startswith("sqlite"):
-        # SQLite with WAL mode, busy timeout, and foreign keys enabled
+        from sqlalchemy.pool import NullPool
+        # SQLite with WAL mode, busy timeout, and NullPool for zero file lock retention
         engine = create_engine(
             url,
             connect_args={"check_same_thread": False},
+            poolclass=NullPool,
             echo=settings.debug,
         )
 
@@ -57,13 +67,38 @@ def get_engine(db_url: str = None) -> Engine:
     _engine = engine
     _session_factory = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
     ScopedSession = scoped_session(_session_factory)
+
+    if url.startswith("sqlite"):
+        try:
+            import backend.app.models  # noqa: F401
+            Base.metadata.create_all(bind=_engine)
+        except Exception:
+            pass
+
     return _engine
+
+
+def close_db() -> None:
+    """Close and dispose all active sessions and engine connections."""
+    global _engine, _session_factory, ScopedSession
+    if ScopedSession is not None:
+        try:
+            ScopedSession.remove()
+        except Exception:
+            pass
+    if _engine is not None:
+        try:
+            _engine.dispose()
+        except Exception:
+            pass
+    _engine = None
+    _session_factory = None
+    ScopedSession = None
 
 
 def get_session() -> Session:
     """Return a scoped database session."""
-    if ScopedSession is None:
-        get_engine()
+    get_engine()
     return ScopedSession()
 
 
