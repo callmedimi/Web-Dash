@@ -350,24 +350,40 @@ def update_user(username: str, updates: dict) -> str | None:
     actual = _find_user(users, username)
     if actual is None:
         return "User not found"
-    
+
+    # Do not mutate caller's dict
+    clean_updates = dict(updates)
+
+    # Protect against demoting or disabling the last active god user
+    if users[actual].get("role") == "god":
+        new_role = clean_updates.get("role")
+        is_active = clean_updates.get("is_active")
+        other_gods = [
+            u for u, d in users.items()
+            if u != actual and d.get("role") == "god" and d.get("is_active", True)
+        ]
+        if new_role and new_role != "god" and not other_gods:
+            return "Cannot demote the last god user"
+        if is_active is False and not other_gods:
+            return "Cannot disable the last god user"
+
     bump_token = False
-    if "password" in updates and updates["password"]:
-        policy_err = validate_password(updates["password"], username)
+    if "password" in clean_updates and clean_updates["password"]:
+        policy_err = validate_password(clean_updates["password"], username)
         if policy_err:
             return policy_err
-        updates["password"] = generate_password_hash(updates["password"])
-        if "must_change_password" not in updates:
-            updates["must_change_password"] = False
+        clean_updates["password"] = generate_password_hash(clean_updates["password"])
+        if "must_change_password" not in clean_updates:
+            clean_updates["must_change_password"] = False
         bump_token = True
     else:
-        updates.pop("password", None)
+        clean_updates.pop("password", None)
 
     for field in ("role", "permissions", "is_active"):
-        if field in updates:
+        if field in clean_updates:
             bump_token = True
 
-    for key, value in updates.items():
+    for key, value in clean_updates.items():
         if value is not None:
             users[actual][key] = value
 
