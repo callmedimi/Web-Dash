@@ -67,8 +67,10 @@ from validators import (
     validate_age, validate_timeout, validate_routers_list, sanitize_cli_arg,
 )
 from settings import is_read_only_mode
+from backend.app import create_app
+from backend.app.extensions import get_db_session
 
-app = Flask(__name__)
+app = create_app()
 
 
 def read_only_blocked(f):
@@ -1063,28 +1065,6 @@ def admin_audit_log():
     entries = get_audit_entries(limit=limit)
     return jsonify({"entries": entries, "count": len(entries)})
 
-
-@app.route("/healthz", methods=["GET"])
-def healthz():
-    """Liveness probe."""
-    return jsonify({"status": "ok", "app": "Web-Dash"}), 200
-
-
-@app.route("/readyz", methods=["GET"])
-def readyz():
-    """Readiness probe."""
-    try:
-        test_file = os.path.join(DATA_DIR, ".ready_check")
-        with open(test_file, "w") as f:
-            f.write("ok")
-        os.remove(test_file)
-        return jsonify({
-            "status": "ready",
-            "read_only": is_read_only_mode(),
-            "data_dir": DATA_DIR,
-        }), 200
-    except Exception as e:
-        return jsonify({"status": "not_ready", "error": str(e)}), 503
 
 
 # ---------------------------------------------------------------------------

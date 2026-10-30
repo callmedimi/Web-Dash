@@ -278,5 +278,44 @@
   * اجرای سراسری Pytest روی تمامی تست‌های فاز ۱: مجموعاً ۵۹ تست بدون هیچ هشدار یا خطایی پاس شدند (`59 passed in 13.53s`).
   * شاخه `phase1` دارای پوشش آزمون کامل، پایداری امنیتی و قابلیت ادغام سبز (Green Merge) می‌باشد.
 
+---
 
-
+### گام ۲.۱ — اسکلت پکیج backend/app، دیتابیس رابطه‌ای PostgreSQL، آرشیو ARP/MAC و مهاجرت داده‌ها (Step 2.1 Package Skeleton, Config, Relational DB & Schema - F-06, F-15)
+* **هدف:** مهاجرت از معماری تک‌فایلی به اسکلت ماژولار `backend/app/`، اتصال تنظیمات متمرکز با `pydantic-settings`، پیاده‌سازی لایه دسترسی داده‌ها بر پایه **PostgreSQL** با استفاده از **SQLAlchemy 2.0** و **Alembic** (با حفظ پشتیبانی آسان از SQLite WAL در حالت محلی)، ایجاد جداول اختصاصی وضعیت فعال و آرشیو تاریخی ARP/MAC، و پیاده‌سازی اسکریپت و ماژول خودکار مهاجرت داده‌ها (ETL) از فایل‌های JSON و CSV.
+* **اقدامات انجام‌شده:**
+  1. ساخت ساختار پوشه‌ای معماری مقصد مطابق [plan/02_TARGET_ARCHITECTURE.md](file:///d:/Playground/Web-Dash/plan/02_TARGET_ARCHITECTURE.md):
+     * [backend/app/config.py](file:///d:/Playground/Web-Dash/backend/app/config.py): تنظیمات با پیشوند `WEBDASH_`، خواندن `DATABASE_URL`، مسیر داده‌ها و استراتژی اتصال.
+     * [backend/app/db/base.py](file:///d:/Playground/Web-Dash/backend/app/db/base.py) و [backend/app/db/session.py](file:///d:/Playground/Web-Dash/backend/app/db/session.py): موتور دیتابیس، پولینگ اتصالات، پشتیبانی خودکار از دستورات `PRAGMA` در SQLite و استخر اتصالات امن در PostgreSQL.
+     * [backend/app/extensions.py](file:///d:/Playground/Web-Dash/backend/app/extensions.py): راه‌انداز سشن‌های Scoped و توابع `init_db` و `get_db_session`.
+  2. طراحی و پیاده‌سازی ۱۹ جدول در مدل‌های داده [backend/app/models/](file:///d:/Playground/Web-Dash/backend/app/models/):
+     * **مدل‌های اصلی سامانه (Target Architecture §3):**
+       * `User` و `Permission`: تفکیک کاربران، هش رمزها، وضعیت قفل و فیلدهای دسترسی مجزا به جای ساختار غیرنرمالایز قبلی.
+       * `Device`, `Credential`, `DeviceLock`: مدیریت مشخصات روترها، نگهداری امن کلیدها/پسوردها، و قفل همزمانی توزیع‌شده بر روی روترها (`device_locks`).
+       * `Job`, `JobTask`, `JobEvent`: صف کارهای ناهمگام، ثبت رویدادهای زنده برای استریم SSE و تفکیک جاب‌ها و وظایف روترها.
+       * `AuditLog`: جدول ثبت ممیزی بدون امکان دستکاری با نگهداری جزییات JSONB.
+       * `ConfigSnapshot`, `ChangeRequest`, `Event`, `Schedule`: مدیریت کانفیگ، درخواست‌های تغییر، رویدادهای زبیکس و زمان‌بندی جاب‌ها.
+     * **مدل‌های اختصاصی و بهینه‌سازی‌شده برای دیتای حجیم شبکه:**
+       * `ArpMacRecord` (`arp_mac_records`): جدول ذخیره بیش از ۲۰,۰۰۰ رکورد زنده جدول ARP/MAC با ایندکس‌های ترکیبی B-Tree روی `(arp_ip, arp_mac)` و `(ne_name)`.
+       * `ArpMacSnapshot` و `ArpMacHistory`: ایجاد ساختار نگهداری آرشیو تاریخی اسکن‌های کالکتور ادمین. هر اسکن با شناسه مجزا و متادیتا ذخیره شده و امکان دانلود CSV، بازیابی وضعیت گذشته و مشاهده تایم‌لاین تغییر اینترفیس هر IP/MAC را فراهم می‌کند.
+       * `SiteInventory` (`sites_inventory`): ساختار داده تمیز متناظر با فایل `unified_sites.csv` با ایندکس روی `site_code` و `ip`.
+       * `ZabbixInventoryCache` (`zabbix_inventory_cache`): کش داده‌های مانیتورینگ زبیکس با ستون‌های `JSONB` برای نگهداری و جستجوی بسیار سریع بیش از ۵۰۰ متریک و اینترفیس به ازای هر دیوایس.
+       * `LicenseRenewalReport` (`license_renewal_reports`): جدول تاریخچه گزارشات تمدید لایسنس.
+  3. پیکربندی سیستم مهاجرت اسکیما (Alembic Migrations):
+     * تنظیم [backend/migrations/env.py](file:///d:/Playground/Web-Dash/backend/migrations/env.py) متصل به تنظیمات و متادیتای مدل‌ها.
+     * تولید نخستین مایگریشن خودکار در [backend/migrations/versions/d3a52d1724ac_initial_schema.py](file:///d:/Playground/Web-Dash/backend/migrations/versions/d3a52d1724ac_initial_schema.py) و اعمال موفق بر پایگاه داده با دستور `alembic upgrade head`.
+  4. پیاده‌سازی خط‌لوله انتقال داده‌ها (Data Migration ETL):
+     * ایجاد ماژول مستقل و بدون خطا [backend/app/db/migrate_files.py](file:///d:/Playground/Web-Dash/backend/app/db/migrate_files.py).
+     * شناسایی، پارس و انتقال خودکار اطلاعات از فایل‌های `users.json`، `arp_mac.csv`، `unified_sites.csv`، `zabbix_router_db.json` و `license_renewals.json`.
+     * تضمین خاصیت Idempotency (تکرارپذیری بدون ایجاد رکوردهای تکراری در اجرای مجدد).
+  5. اتصال یکپارچه با سامانه فعلی:
+     * فکتوری `create_app()` در [backend/app/__init__.py](file:///d:/Playground/Web-Dash/backend/app/__init__.py) تنظیم شد و در [app.py](file:///d:/Playground/Web-Dash/app.py) مورد استفاده قرار گرفت.
+     * پروب‌های `/healthz` و `/readyz` با بررسی زنده بودن موتور دیتابیس ارتقا یافتند.
+     * وابستگی‌های مدرن (`SQLAlchemy`, `alembic`, `pydantic-settings`, `psycopg[binary]`) به [requirements.txt](file:///d:/Playground/Web-Dash/requirements.txt) افزوده شدند.
+  6. نگارش آزمون‌های اختصاصی در [tests/test_step_2_1_db_models_and_migration.py](file:///d:/Playground/Web-Dash/tests/test_step_2_1_db_models_and_migration.py):
+     * آزمون چرخه حیات مدل‌های کاربر، سطوح دسترسی، جاب‌ها و تسک‌ها.
+     * آزمون مدل‌های آرشیو و اسنپ‌شات‌های تاریخی ARP/MAC.
+     * آزمون شبیه‌سازی مهاجرت کامل از فایل‌های تستی و تکرارپذیری بدون خطای مایگریشن.
+     * آزمون پروب‌های سلامت و وضعیت دیتابیس.
+* **تأییدیه (Verify):**
+  * اجرای Pytest روی کلیه ۶۵ تست پروژه با موفقیت ۱۰۰٪ همراه بود (`65 passed in 13.75s`).
+  * کلیه قابلیت‌های قبلی بدون هیچ‌گونه شکست یا پس‌رفتی به کار خود ادامه می‌دهند.
