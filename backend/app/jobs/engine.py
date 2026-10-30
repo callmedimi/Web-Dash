@@ -29,6 +29,15 @@ class JobEngine:
         self._dispatcher_thread: Optional[threading.Thread] = None
         self._active_task_futures = set()
         self._lock = threading.Lock()
+        self._register_default_handlers()
+
+    def _register_default_handlers(self) -> None:
+        """Register built-in job task handlers."""
+        try:
+            from backend.app.jobs.handlers.alarm_clear import AlarmClearHandler
+            self.register_handler("alarm_clear", AlarmClearHandler.run_task)
+        except Exception as exc:
+            logger.warning("Could not register default alarm_clear handler: %s", exc)
 
     def register_handler(self, job_type: str, handler_fn: Callable) -> None:
         """Register a handler function for a given job type."""
