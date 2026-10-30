@@ -1064,6 +1064,29 @@ def admin_audit_log():
     return jsonify({"entries": entries, "count": len(entries)})
 
 
+@app.route("/healthz", methods=["GET"])
+def healthz():
+    """Liveness probe."""
+    return jsonify({"status": "ok", "app": "Web-Dash"}), 200
+
+
+@app.route("/readyz", methods=["GET"])
+def readyz():
+    """Readiness probe."""
+    try:
+        test_file = os.path.join(DATA_DIR, ".ready_check")
+        with open(test_file, "w") as f:
+            f.write("ok")
+        os.remove(test_file)
+        return jsonify({
+            "status": "ready",
+            "read_only": is_read_only_mode(),
+            "data_dir": DATA_DIR,
+        }), 200
+    except Exception as e:
+        return jsonify({"status": "not_ready", "error": str(e)}), 503
+
+
 # ---------------------------------------------------------------------------
 # Feature routes
 # ---------------------------------------------------------------------------
