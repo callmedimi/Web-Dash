@@ -13,11 +13,12 @@ ENV/
 .continue/
 .claude/
 
-# Environment variables and secrets
-.env
-.env.local
+# Data directory and secrets (Step 1.1)
+data/
 users.json
 .secret_key
+*.env
+!config.example.env
 alarm-clearing.tar
 zabbix_config.ini
 

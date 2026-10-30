@@ -14,3 +14,4 @@
 | [02_AUTOMATION_MODULES.md](file:///d:/Playground/Web-Dash/docs/02_AUTOMATION_MODULES.md) | مستندات ماژول‌های اتوماسیون | تحلیل تفصیلی ۸ ماژول اتوماسیون شبکه (آلارم، گزارش داون‌لینک، لایسنس، روتینگ، PTP، ARP/MAC، سشن‌ها، زبیکس) |
 | [03_SECURITY_AND_DATA.md](file:///d:/Playground/Web-Dash/docs/03_SECURITY_AND_DATA.md) | امنیت و مدیریت داده‌ها | مدل احراز هویت، RBAC، نحوه هندل و پردازش CSV، ذخیره‌سازی داده‌ها و ریسک‌های امنیتی شناسایی‌شده |
 | [04_AUDIT_AND_ROADMAP.md](file:///d:/Playground/Web-Dash/docs/04_AUDIT_AND_ROADMAP.md) | ممیزی عمیق و نقشه‌راه اجرایی | نتایج ممیزی کدها (گام ۱.۰)، جدول یافته‌های F-xx، و مراحل گام‌به‌گام فاز ۱ تا ۸ |
+| [05_IMPLEMENTATION_LOG.md](file:///d:/Playground/Web-Dash/docs/05_IMPLEMENTATION_LOG.md) | لاگ پیاده‌سازی گام‌به‌گام | گزارش پیشرفت فنی و آزمون‌های گام‌های اجرایی به تفکیک فازها |

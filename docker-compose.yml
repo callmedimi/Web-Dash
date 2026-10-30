@@ -1,9 +1,15 @@
 services:
   alarm-clearing:
+    build: .
     image: alarm-clearing:latest
     container_name: alarm-clearing
     ports:
       - "7676:5000"
+    environment:
+      - DATA_DIR=/data
     volumes:
-      - .:/app
+      - webdash_data:/data
     restart: unless-stopped
+
+volumes:
+  webdash_data:

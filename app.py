@@ -59,7 +59,11 @@ from ptp_troubleshoot_service import (
 )
 
 app = Flask(__name__)
-_secret_key_file = os.path.join(os.path.dirname(__file__), ".secret_key")
+
+DATA_DIR = os.environ.get("DATA_DIR", "./data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+_secret_key_file = os.path.join(DATA_DIR, ".secret_key")
 if os.environ.get("FLASK_SECRET_KEY"):
     app.secret_key = os.environ["FLASK_SECRET_KEY"]
 elif os.path.exists(_secret_key_file):
@@ -67,10 +71,17 @@ elif os.path.exists(_secret_key_file):
         app.secret_key = f.read().strip()
 else:
     app.secret_key = secrets.token_hex(32)
-    with open(_secret_key_file, "w") as f:
-        f.write(app.secret_key)
+    try:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        mode = 0o600
+        fd = os.open(_secret_key_file, flags, mode)
+        with os.fdopen(fd, "w") as f:
+            f.write(app.secret_key)
+    except Exception:
+        with open(_secret_key_file, "w") as f:
+            f.write(app.secret_key)
 
-app.config['UPLOAD_FOLDER'] = os.path.join(tempfile.gettempdir(), 'noc_uploads')
+app.config['UPLOAD_FOLDER'] = os.path.join(DATA_DIR, 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # ---------------------------------------------------------------------------

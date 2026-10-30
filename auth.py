@@ -5,8 +5,18 @@ from functools import wraps
 from flask import session, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 
-USERS_FILE = os.path.join(os.path.dirname(__file__), "users.json")
+DATA_DIR = os.environ.get("DATA_DIR", "./data")
+os.makedirs(DATA_DIR, exist_ok=True)
+USERS_FILE = os.path.join(DATA_DIR, "users.json")
 LOCK = threading.RLock()
+
+
+def _get_users_file() -> str:
+    """Return the path to users.json resolved against the current DATA_DIR."""
+    data_dir = os.environ.get("DATA_DIR", "./data")
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, "users.json")
+
 
 DEFAULT_FEATURES = [
     "alarm_clear_manual",
@@ -55,16 +65,18 @@ DEFAULT_USER_FEATURES = [
 
 
 def _load_users() -> dict:
+    users_file = _get_users_file()
     with LOCK:
-        if not os.path.exists(USERS_FILE):
+        if not os.path.exists(users_file):
             _init_default_users()
-        with open(USERS_FILE, "r", encoding="utf-8") as f:
+        with open(users_file, "r", encoding="utf-8") as f:
             return json.load(f)
 
 
 def _save_users(users: dict) -> None:
+    users_file = _get_users_file()
     with LOCK:
-        with open(USERS_FILE, "w", encoding="utf-8") as f:
+        with open(users_file, "w", encoding="utf-8") as f:
             json.dump(users, f, indent=2, ensure_ascii=False)
 
 
