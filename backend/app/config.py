@@ -24,6 +24,7 @@ class AppConfig(BaseSettings):
     job_event_retention_days: int = Field(default=30)
     read_only_mode: bool = Field(default=False)
     vault_key: Optional[str] = Field(default=None)
+    enable_netconf: bool = Field(default=False)
 
     def get_vault_key(self) -> Optional[str]:
         key = self.vault_key or os.environ.get("WEBDASH_VAULT_KEY") or os.environ.get("VAULT_KEY")
