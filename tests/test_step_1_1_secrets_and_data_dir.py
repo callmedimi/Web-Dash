@@ -18,7 +18,7 @@ def test_users_file_placed_under_data_dir(monkeypatch):
         # Load users should create users.json in tmpdir
         users = auth._load_users()
         assert os.path.exists(users_file)
-        assert "Dimi" in users
+        assert "admin" in users
 
 
 def test_secret_key_precedence_env(monkeypatch):

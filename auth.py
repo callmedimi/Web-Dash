@@ -1,5 +1,7 @@
 import json
 import os
+import secrets
+import string
 import threading
 from functools import wraps
 from flask import session, jsonify, request
@@ -80,16 +82,63 @@ def _save_users(users: dict) -> None:
             json.dump(users, f, indent=2, ensure_ascii=False)
 
 
+WEAK_PASSWORDS = {
+    "god", "admin", "password", "123456", "12345678", "123456789", "1234567890",
+    "qwerty", "letmein", "welcome", "admin123", "password123", "administrator",
+}
+
+
+def validate_password(password: str, username: str = "") -> str | None:
+    """Validate password against security policy.
+
+    Policy:
+    - Minimum 12 characters.
+    - Cannot equal or contain username (case-insensitive, if username len >= 3).
+    - Cannot be in known weak passwords list.
+    """
+    if not password or len(password) < 12:
+        return "Password must be at least 12 characters long"
+    clean_pass = password.strip().lower()
+    if clean_pass in WEAK_PASSWORDS:
+        return "Password is in the weak password blocklist"
+    if username and len(username.strip()) >= 3 and username.strip().lower() in clean_pass:
+        return "Password cannot contain the username"
+    return None
+
+
 def _init_default_users() -> None:
-    default = {
-        "Dimi": {
-            "password": generate_password_hash("god"),
+    """Bootstrap initial admin user if zero users exist."""
+    initial_user = (os.environ.get("INITIAL_ADMIN_USER") or "admin").strip()
+    env_password = os.environ.get("INITIAL_ADMIN_PASSWORD")
+
+    if env_password:
+        password = env_password
+        must_change = False
+    else:
+        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+        password = "".join(secrets.choice(alphabet) for _ in range(20))
+        must_change = True
+
+        banner = f"""
+======================================================================
+[BOOTSTRAP] FIRST RUN INITIAL ADMIN ACCOUNT CREATED
+Username: {initial_user}
+Password: {password}
+Please change your password immediately upon first login!
+======================================================================
+"""
+        print(banner, flush=True)
+
+    default_users = {
+        initial_user: {
+            "password": generate_password_hash(password),
             "role": "god",
             "permissions": {},
-            "display_name": "God",
+            "display_name": "Administrator",
+            "must_change_password": must_change,
         }
     }
-    _save_users(default)
+    _save_users(default_users)
 
 
 def _find_user(users: dict, username: str) -> str | None:
@@ -112,6 +161,7 @@ def authenticate(username: str, password: str) -> dict | None:
         "role": user["role"],
         "permissions": user.get("permissions", {}),
         "display_name": user.get("display_name", actual),
+        "must_change_password": bool(user.get("must_change_password", False)),
     }
 
 
@@ -175,6 +225,7 @@ def get_all_users() -> dict:
             "role": data["role"],
             "display_name": data.get("display_name", username),
             "permissions": data.get("permissions", {}),
+            "must_change_password": bool(data.get("must_change_password", False)),
         }
     return result
 
@@ -184,6 +235,9 @@ def create_user(username: str, password: str, role: str, display_name: str = "",
     existing = _find_user(users, username)
     if existing:
         return f"User already exists (as '{existing}')"
+    policy_err = validate_password(password, username)
+    if policy_err:
+        return policy_err
     if permissions is None:
         permissions = {feat: True for feat in DEFAULT_USER_FEATURES}
     users[username] = {
@@ -191,6 +245,7 @@ def create_user(username: str, password: str, role: str, display_name: str = "",
         "role": role,
         "permissions": permissions,
         "display_name": display_name or username,
+        "must_change_password": False,
     }
     _save_users(users)
     return None
@@ -202,7 +257,12 @@ def update_user(username: str, updates: dict) -> str | None:
     if actual is None:
         return "User not found"
     if "password" in updates and updates["password"]:
+        policy_err = validate_password(updates["password"], username)
+        if policy_err:
+            return policy_err
         updates["password"] = generate_password_hash(updates["password"])
+        if "must_change_password" not in updates:
+            updates["must_change_password"] = False
     else:
         updates.pop("password", None)
     for key, value in updates.items():

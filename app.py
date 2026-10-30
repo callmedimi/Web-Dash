@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import netmiko
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash
 
 from flask import (
     Flask, render_template, request, jsonify, Response, stream_with_context, send_file, session
@@ -37,7 +38,7 @@ from services.zabbix_service import ZabbixService, create_zabbix_service
 from services.license_db import add_renewal_report, get_all_renewal_reports, get_renewal_report
 from auth import (
     authenticate, login_required, permission_required, user_has_access, get_accessible_features,
-    get_all_users, create_user, update_user, delete_user,
+    get_all_users, create_user, update_user, delete_user, validate_password,
 )
 from site_arp_service import (
     lookup_site_arp_mac_details,
@@ -613,6 +614,7 @@ def login():
         "username": username,
         "role": user_info["role"],
         "display_name": user_info["display_name"],
+        "must_change_password": user_info.get("must_change_password", False),
         "features": get_accessible_features(user_info),
     })
 
@@ -633,8 +635,54 @@ def current_user():
         "username": user_info["username"],
         "role": user_info["role"],
         "display_name": user_info["display_name"],
+        "must_change_password": user_info.get("must_change_password", False),
         "features": get_accessible_features(user_info),
     })
+
+
+@app.route("/change-password", methods=["POST"])
+@login_required
+def change_password():
+    data = request.get_json(force=True)
+    current_pass = data.get("current_password") or ""
+    new_pass = data.get("new_password") or ""
+
+    user_info = session.get("user", {})
+    username = user_info.get("username", "")
+
+    from auth import _load_users, _find_user
+    users = _load_users()
+    actual = _find_user(users, username)
+    if not actual or not check_password_hash(users[actual]["password"], current_pass):
+        return jsonify({"error": "Current password incorrect"}), 400
+
+    policy_err = validate_password(new_pass, username)
+    if policy_err:
+        return jsonify({"error": policy_err}), 400
+
+    err = update_user(username, {"password": new_pass, "must_change_password": False})
+    if err:
+        return jsonify({"error": err}), 400
+
+    user_info["must_change_password"] = False
+    session["user"] = user_info
+    return jsonify({"status": "password_changed", "message": "Password updated successfully"})
+
+
+@app.before_request
+def enforce_password_change():
+    user = session.get("user")
+    if not user:
+        return None
+    if user.get("must_change_password"):
+        exempt_paths = {"/", "/me", "/logout", "/change-password"}
+        if request.path in exempt_paths or request.path.startswith("/static/"):
+            return None
+        return jsonify({
+            "error": "Password change required",
+            "code": "PASSWORD_CHANGE_REQUIRED",
+            "message": "You must change your temporary password before accessing other features."
+        }), 403
 
 
 @app.route("/admin/users", methods=["GET"])
