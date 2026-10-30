@@ -700,3 +700,103 @@
   * اجرای ۸ آزمون لایه تله‌متری با موفقیت ۱۰۰٪ (`8 passed`).
   * تایید عدم وجود هرگونه سوکت مستقیم SNMP یا پکیج `pysnmp` در کل مخزن کد.
   * اجرای سراسری کل ۱۵۸ تست خودکار پروژه: **۱۵۸ تست با موفقیت ۱۰۰٪ پاس شدند (`158 passed in 71.86s`).**
+
+---
+
+## فاز ۴: پایپ‌لاین تغییرات امن، پشتیبان‌گیری و تطبیق انطباق (Phase 4: Safe Change Pipeline)
+
+### گام ۴.۱ — موتور پایپ‌لاین تغییرات و ماشین حالت (Step 4.1 Change Pipeline Engine & State Machine)
+* **هدف:** پیاده‌سازی چرخه حیات و ترنزیشن‌های استاندارد تغییرات شبکه بر اساس الگوی قطعی **Plan → Pre-check → Approve → Apply → Verify → (Rollback)** و برچیدن رویکرد ارسال مستقیم و ناامن دستورات تغییر کانفیگ به روترها.
+* **اقدامات انجام‌شده:**
+  1. ارتقای مدل‌های پایگاه‌داده در [backend/app/models/config_change.py](file:///d:/Playground/Web-Dash/backend/app/models/config_change.py):
+     * تعریف فیلدهای تخصصی برای `ChangeRequest` شامل `risk_level`, `creator_id`, `precheck_results`, `verification_results`, `snapshot_id` و متد استاندارد `to_dict()`.
+  2. توسعه موتور پایپ‌لاین در [backend/app/jobs/change.py](file:///d:/Playground/Web-Dash/backend/app/jobs/change.py):
+     * تعریف ماشین حالت قطعی `ChangeState`:
+       - `PLANNED` -> `PRECHECKED` -> `AWAITING_APPROVAL` -> `APPLYING` -> `VERIFYING` -> `VERIFIED`.
+       - انشعاب‌های امنیتی: `REJECTED`, `ROLLED_BACK`, `FAILED_NEEDS_ATTENTION`.
+       - پشتیبانی از Rollback پس از تایید (`VERIFIED` -> `ROLLED_BACK`).
+     * مدل ارزیابی ریسک (Risk Model):
+       - سطح `low`: عملیات فقط خواندنی یا پاکسازی آلارم روی پورت‌های از قبل خاموش (قابلیت Auto-approve در صورت فعال بودن).
+       - سطح `medium`: خاموش‌سازی اینترفیس‌های noconf تایید شده (نیازمند تایید نقش `admin` یا `god`).
+       - سطح `high`: تغییرات گسترده مسیریابی، VRF، BGP، ترانک یا عبور از سقف شعاع انفجار (نیازمند تایید انحصاری `god`).
+     * کنترل تفکیک وظایف (Separation of Duties): ممانعت از خود-تاییدی (`requester != approver`) برای تغییرات با ریسک بالاتر از low.
+     * پشتیبانی از اجرای دسته‌ای (Batch Execution) با سقف خطای مجاز ۲۰٪ و بازگرداندن قطعی روتر به نمای کاربری با اجرای `return` در بلوک‌های `finally`.
+  3. توسعه لایه REST API در [backend/app/api/changes.py](file:///d:/Playground/Web-Dash/backend/app/api/changes.py):
+     * مسیرهای ثبت برنامه `POST /api/v1/changes/plan`، استعلام وضعیت `GET /api/v1/changes/{id}`، تصمیم‌گیری `POST /api/v1/changes/{id}/approve` و `reject`، اعمال `POST /api/v1/changes/{id}/apply`، و بازگردانی `POST /api/v1/changes/{id}/rollback`.
+  4. نگارش آزمون‌های واحد و یکپارچگی در [tests/test_step_4_1_change_pipeline_skeleton.py](file:///d:/Playground/Web-Dash/tests/test_step_4_1_change_pipeline_skeleton.py).
+* **تأییدیه (Verify):**
+  * اجرای ۵ آزمون با موفقیت ۱۰۰٪، شامل اعتبارسنجی ممانعت از ترنزیشن‌های غیرمجاز، جلوگیری از اعمال مضاعف (Idempotency)، و اجرای قوانین تاییدیه.
+
+---
+
+### گام ۴.۲ — بازپیاده‌سازی ماژول پرچمدار پاکسازی آلارم و شات‌داون پورت‌های بدون کانفیگ (Step 4.2 Alarm Clear + Noconf Shutdown)
+* **هدف:** جایگزینی کامل اسکریپت قدیمی `auto_clear_noconf.py` با یک هندلر امن در پایپ‌لاین تغییرات بر اساس جدول تصمیم‌گیری قطعی و رفع نواقص F-20, F-21, F-23, F-24.
+* **اقدامات انجام‌شده:**
+  1. توسعه هندلر `AlarmClearHandler` در [backend/app/jobs/handlers/alarm_clear.py](file:///d:/Playground/Web-Dash/backend/app/jobs/handlers/alarm_clear.py):
+     * پیاده‌سازی جدول تصمیم‌گیری بدون ابهام:
+       - در صورتی که اینترفیس `Administratively DOWN` باشد: صرفاً آلارم‌ها پاکسازی می‌شوند (ریسک `low`).
+       - در صورتی که خروجی روتر خطا داشته باشد یا `EMPTY_OUTPUT` برگردد: توقف فوری و ثبت وضعیت `SKIP` با دلیل `CONFIG_UNREADABLE` (رفع قطعی نقص فاجعه‌بار F-20: جلوگیری از شات‌داون اشتباه اینترفیس‌های فعال به دلیل عدم پاسخگویی روتر).
+       - در صورتی که اینترفیس دارای کانفیگ فراتر از کانفیگ‌های ناچیز، دارای توضیحات (Description)، عضو ترانک، والد ساب‌اینترفیس یا دارای آپ‌تایم خاموشی کمتر از ۶۰ دقیقه باشد: توقف با دلیل `HAS_CONFIG_OR_UP`.
+       - در صورت احراز تمامی شرایط امنیتی noconf: برنامه‌ریزی `shutdown` با سطح ریسک `medium` و تعویق پاکسازی آلارم تا پس از موفقیت مرحله وریفای.
+     * رفع نقص F-21: جداسازی آلارم‌های ساب‌اینترفیس‌ها؛ عملیات صرفاً بر روی همان ساب‌اینترفیس متمرکز شده و هرگز بر روی اینترفیس والد اعمال نمی‌شود.
+     * رفع نقص F-23: تاییدیه پاکسازی آلارم منحصراً با تطابق الگوهای خروجی موفقیت هواوی؛ در صورت عدم وجود آلارم وضعیت `NOT_PRESENT` ثبت شده و هرگز به عنوان پاکسازی موفق شمرده نمی‌شود.
+     * رفع نقص F-24: بررسی دسترسی به نمای آلارم (`alarm view`)؛ در صورت قفل بودن یا عدم دسترسی، جاب با وضعیت `ALARM_VIEW_UNAVAILABLE` متوقف شده و از ارسال دستورات اجتناب می‌شود.
+     * تولید خروجی گزارش CSV با ساختار غنی و ردیابی کامل شناسه کار و تاییدکننده.
+  2. نگارش آزمون‌های سناریوهای طلایی در [tests/test_step_4_2_alarm_clear_pipeline.py](file:///d:/Playground/Web-Dash/tests/test_step_4_2_alarm_clear_pipeline.py).
+* **تأییدیه (Verify):**
+  * اجرای ۵ آزمون تخصصی شامل خروجی خالی، ساب‌اینترفیس، پورت‌های ادمین داون، و سناریوی شکست وریفای و رول‌بک خودکار با موفقیت ۱۰۰٪.
+
+---
+
+### گام ۴.۳ — سرویس پشتیبان‌گیری، مقایسه تفاوت‌ها (Diff) و رمزنگاری کانفیگ (Step 4.3 Config Backup & Diff Service)
+* **هدف:** ثبت خودکار و زمان‌بندی‌شده آخرین وضعیت کانفیگ روترها، کشف هوشمند تغییرات، رمزنگاری در حالت استراحت و مصورسازی تفاوت‌ها.
+* **اقدامات انجام‌شده:**
+  1. توسعه سرویس [backend/app/services/config_backup.py](file:///d:/Playground/Web-Dash/backend/app/services/config_backup.py):
+     * نرمال‌سازی اختصاصی کانفیگ هواوی VRP: حذف تایم‌استمپ‌های متغیر سیستم، بنرهای صفحه‌بندی `---- More ----` و علائم پایانی.
+     * جلوگیری از افزونگی رکوردهای مشابه (Deduplication): تولید هش SHA-256 و در صورت عدم تغییر، به‌روزرسانی فیلد `last_checked_at` بدون درج رکورد اضافی در دیتابیس.
+     * رمزنگاری محتوا در حالت استراحت (Encryption at Rest) با استفاده از رمزنگاری متقارن Fernet بر پایه کلید والت محیط (`WEBDASH_VAULT_KEY`) جهت محافظت از کلمات عبور و رشته‌های SNMP در دیتابیس.
+     * موتور مقایسه تفاوت‌ها (Diff Engine): تولید Unified Diff متنی استاندارد و آرایه‌ای از تکه‌های ساختاریافته (Structured Hunks) شامل متادیتا و شماره خطوط قبل و بعد.
+     * سیاست ماندگاری و پاکسازی (Retention Policy): حفظ ۳۰ اسنپ‌شات آخر بعلاوه ۱ نسخه به ازای هر ماه در ۱۲ ماه گذشته (`prune_device_snapshots`).
+  2. توسعه هندلر جاب `ConfigBackupHandler` در [backend/app/jobs/handlers/config_backup.py](file:///d:/Playground/Web-Dash/backend/app/jobs/handlers/config_backup.py).
+  3. توسعه کنترلرهای REST در [backend/app/api/configs.py](file:///d:/Playground/Web-Dash/backend/app/api/configs.py) شامل دریافت لیست اسنپ‌شات‌ها، متن رمزگشایی‌شده، مقایسه دو نسخه و تریگر بکاپ فوری.
+  4. نگارش آزمون‌های جامع در [tests/test_step_4_3_config_backup_and_diff.py](file:///d:/Playground/Web-Dash/tests/test_step_4_3_config_backup_and_diff.py).
+* **تأییدیه (Verify):**
+  * اجرای ۶ آزمون با موفقیت ۱۰۰٪ شامل نرمال‌سازی، حذف افزونگی هش، رمزنگاری/رمزگشایی، تولید دیف و پاکسازی اسنپ‌شات‌های قدیمی.
+
+---
+
+### گام ۴.۴ و ۴.۵ — تمدید لایسنس بر بستر پایپ‌لاین و موتور تطبیق قوانین انطباق (Step 4.4 License & Step 4.5 Compliance)
+* **هدف:** مهاجرت تایید لایسنس به پایپ‌لاین امن، و راه‌اندازی موتور سنجش انطباق کانفیگ با سیاست‌های شبکه بر مبنای الگوی Policy as Data.
+* **اقدامات انجام‌شده:**
+  1. توسعه هندلر تمدید لایسنس در [backend/app/jobs/handlers/license_renewal.py](file:///d:/Playground/Web-Dash/backend/app/jobs/handlers/license_renewal.py):
+     * تفکیک حالت پیش‌نمایش (Dry-run / Plan) جهت استخراج اطلاعات فایل لایسنس بدون تغییر روتر.
+     * الزام تاییدیه مرحله‌ای قبل از بارگذاری فایل لایسنس به حافظه دائمی روتر.
+     * اعتبارسنجی خودکار انقضای لایسنس بعد از فعال‌سازی با اجرای `display license` و مقایسه تاریخ انقضای جدید.
+  2. پیاده‌سازی موتور تطبیق قوانین انطباق در [backend/app/services/compliance.py](file:///d:/Playground/Web-Dash/backend/app/services/compliance.py):
+     * بارگذاری قوانین از فایل‌های پیکربندی YAML در دایرکتوری داده به همراه قواعد پیش‌فرض تعبیه‌شده:
+       - `SEC-001`: غیرفعال بودن Telnet و الزام فعال بودن پروتکل امن SSH (`stelnet server enable`).
+       - `OPS-001`: بررسی پیکربندی سرورهای ساعت شبکه (NTP unicast-server).
+       - `SEC-002`: غیرفعال بودن SNMPv1/v2c و انطباق با نسخه امن SNMPv3 در کانفیگ روترها.
+       - `OPS-002`: الزام به تعریف Description معنادار برای تمامی پورت‌های فیزیکی در وضعیت UP.
+     * ارزیابی اسنپ‌شات‌های اخیر دستگاه‌ها، محاسبه امتیاز انطباق (Compliance Score)، صدور هشدار و ارائه راهنمای رفع نقص (Remediation Hint).
+  3. نگارش آزمون‌های اعتبارسنجی در [tests/test_step_4_4_license_and_compliance.py](file:///d:/Playground/Web-Dash/tests/test_step_4_4_license_and_compliance.py).
+* **تأییدیه (Verify):**
+  * اجرای ۹ آزمون تخصصی لایسنس و قوانین انطباق با موفقیت ۱۰۰٪.
+
+---
+
+### گام ۴.۶ — گارد شعاع انفجار و تاییدیه ریسک بحرانی (Step 4.6 Blast-Radius Guard)
+* **هدف:** جلوگیری از بروز خطای انسانی در تغییرات توده‌ای شبکه و الزام به تاییدیه دومنظوره سطح بالا برای تغییرات گسترده.
+* **اقدامات انجام‌شده:**
+  1. ارتقای متد `evaluate_risk` در [backend/app/jobs/change.py](file:///d:/Playground/Web-Dash/backend/app/jobs/change.py):
+     * ارزیابی خودکار گستره تغییرات: در صورتی که تعداد روترهای هدف بیشتر از ۵۰ دستگاه (`MAX_DEVICES_PER_CHANGE`) یا تعداد اینترفیس‌های هدف روی یک دستگاه بیشتر از ۲۰ پورت (`MAX_INTERFACES_PER_DEVICE`) باشد:
+       - سطح ریسک تغییرات به صورت اجباری به `high` تغییر می‌یابد.
+       - پرچم `blast_radius_exceeded = True` ثبت می‌گردد.
+  2. تقویت گیت تاییدیه در `approve_change`:
+     * تایید تغییراتی که از شعاع انفجار عبور کرده‌اند منحصراً به کاربران با نقش `god` محدود می‌شود.
+     * الزام ارسال رشته تاییدیه تایپ‌شده: `confirmation_token="I_CONFIRM_BLAST_RADIUS"`؛ در صورت عدم ارسال توکن یا ارسال توکن نادرست، درخواست تایید رد می‌شود (`BLAST_RADIUS_TOKEN_REQUIRED`).
+  3. نگارش آزمون‌های ایمنی شعاع انفجار در [tests/test_step_4_6_blast_radius_and_regression.py](file:///d:/Playground/Web-Dash/tests/test_step_4_6_blast_radius_and_regression.py).
+* **تأییدیه (Verify):**
+  * اجرای ۹ آزمون تخصصی شامل ممانعت از تایید کاربران ادمین عادی، صحت‌سنجی توکن، ارزیابی سقف پورت‌ها و روترها با موفقیت ۱۰۰٪.
+  * **اجرای رگرسیون سراسری کل پروژه:** اجرای تمامی ۱۹۵ آزمون خودکار در فازهای ۱ تا ۴: **۱۹۵ تست با موفقیت ۱۰۰٪ و بدون رگرسیون پاس شدند (`195 passed in 85.59s`).**
+

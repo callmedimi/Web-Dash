@@ -4,7 +4,7 @@ Supports both PostgreSQL (primary target) and SQLite WAL mode (development/air-g
 import logging
 from contextlib import contextmanager
 from typing import Generator
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy.engine import Engine
 
@@ -72,6 +72,18 @@ def get_engine(db_url: str = None) -> Engine:
         try:
             import backend.app.models  # noqa: F401
             Base.metadata.create_all(bind=_engine)
+            # Lightweight schema sync for development SQLite
+            with _engine.connect() as conn:
+                try:
+                    res = conn.execute(text("PRAGMA table_info(config_snapshots)")).fetchall()
+                    cols = {r[1] for r in res}
+                    if cols and "last_checked_at" not in cols:
+                        conn.execute(text("ALTER TABLE config_snapshots ADD COLUMN last_checked_at DATETIME"))
+                    if cols and "size_bytes" not in cols:
+                        conn.execute(text("ALTER TABLE config_snapshots ADD COLUMN size_bytes INTEGER"))
+                    conn.commit()
+                except Exception:
+                    pass
         except Exception:
             pass
 

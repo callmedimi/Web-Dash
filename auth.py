@@ -346,6 +346,21 @@ def permission_required(feature: str):
     return decorator
 
 
+def role_required(*allowed_roles: str):
+    """Decorator ensuring current session user has one of allowed roles (or god)."""
+    def decorator(f):
+        @wraps(f)
+        @login_required
+        def decorated(*args, **kwargs):
+            user_info = session.get("user", {})
+            user_role = user_info.get("role", "user")
+            if user_role == "god" or user_role in allowed_roles:
+                return f(*args, **kwargs)
+            return jsonify({"error": "Forbidden", "message": f"Requires role in {allowed_roles}"}), 403
+        return decorated
+    return decorator
+
+
 def get_user(username: str) -> dict | None:
     users = _load_users()
     actual = _find_user(users, username)

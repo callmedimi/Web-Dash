@@ -1,6 +1,6 @@
 """Configuration snapshot, change request, intake event, and schedule models (Target Architecture §3)."""
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy import (
     String,
@@ -29,11 +29,25 @@ class ConfigSnapshot(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     device_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    taken_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    taken_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
+    last_checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     kind: Mapped[str] = mapped_column(String(20), default="running", nullable=False)  # running | saved
     sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     content_encrypted_or_text: Mapped[str] = mapped_column(Text, nullable=False)
+    size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     job_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "device_id": self.device_id,
+            "taken_at": self.taken_at.isoformat() if self.taken_at else None,
+            "last_checked_at": self.last_checked_at.isoformat() if self.last_checked_at else None,
+            "kind": self.kind,
+            "sha256": self.sha256,
+            "size_bytes": self.size_bytes,
+            "job_id": self.job_id,
+        }
 
 
 class ChangeRequest(Base):
@@ -46,13 +60,35 @@ class ChangeRequest(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     job_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     device_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    creator_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    risk_level: Mapped[str] = mapped_column(String(20), default="low", nullable=False)  # low, medium, high
     plan: Mapped[Dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
     diff: Mapped[str] = mapped_column(Text, default="", nullable=False)
     status: Mapped[str] = mapped_column(
-        String(50), default="proposed", nullable=False
-    )  # proposed, approved, applied, verified, rolled_back, rejected
+        String(50), default="planned", nullable=False
+    )  # planned, prechecked, awaiting_approval, applying, verifying, verified, rolled_back, rejected, failed_needs_attention
+    precheck_results: Mapped[Dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
+    verification_results: Mapped[Dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
+    snapshot_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     approver_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "job_id": self.job_id,
+            "device_id": self.device_id,
+            "creator_id": self.creator_id,
+            "risk_level": self.risk_level,
+            "status": self.status,
+            "plan": self.plan,
+            "diff": self.diff,
+            "precheck_results": self.precheck_results,
+            "verification_results": self.verification_results,
+            "snapshot_id": self.snapshot_id,
+            "approver_id": self.approver_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 class Event(Base):
