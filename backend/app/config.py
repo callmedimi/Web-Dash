@@ -23,6 +23,17 @@ class AppConfig(BaseSettings):
     max_ssh_workers: int = Field(default=20)
     job_event_retention_days: int = Field(default=30)
     read_only_mode: bool = Field(default=False)
+    vault_key: Optional[str] = Field(default=None)
+
+    def get_vault_key(self) -> Optional[str]:
+        key = self.vault_key or os.environ.get("WEBDASH_VAULT_KEY") or os.environ.get("VAULT_KEY")
+        if key:
+            key_str = str(key).strip()
+            if os.path.isfile(key_str):
+                with open(key_str, "r", encoding="utf-8") as f:
+                    return f.read().strip()
+            return key_str
+        return None
 
     def get_data_dir(self) -> str:
         if os.environ.get("WEBDASH_DATA_DIR"):

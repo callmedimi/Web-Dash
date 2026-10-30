@@ -20,7 +20,11 @@ from validators import (
     validate_host_or_ip,
     validate_vrf_name,
 )
-from backend.app.api.common import get_client_ip, get_json_payload
+from backend.app.api.common import (
+    get_client_ip,
+    get_json_payload,
+    resolve_request_credentials,
+)
 
 routing_bp = Blueprint("routing_api", __name__)
 
@@ -46,8 +50,7 @@ def parse_interface_config_route():
 @permission_required("vrf_routing")
 def check_vrf_routing_route():
     data = get_json_payload()
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    username, password = resolve_request_credentials(data)
     config_text = data.get("config", "")
 
     # 1. Extract and validate target_ip from the request
@@ -85,8 +88,7 @@ def check_vrf_routing_route():
 @permission_required("vrf_routing")
 def check_bgp_route_route():
     data = get_json_payload()
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    username, password = resolve_request_credentials(data)
     target_ip_raw = (data.get("target_ip") or "").strip()
 
     if not username or not password:
@@ -139,8 +141,7 @@ def check_bgp_route_route():
 @permission_required("vrf_routing")
 def show_originator_interfaces_route():
     data = get_json_payload()
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    username, password = resolve_request_credentials(data)
     originator_ip_raw = (data.get("originator_ip") or "").strip()
     target_ip_raw = (data.get("target_ip") or "").strip()
     prefix_raw = (data.get("prefix") or "").strip()

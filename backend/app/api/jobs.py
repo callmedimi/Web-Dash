@@ -103,6 +103,31 @@ def submit_job():
         }), 403
 
     params = data.get("params") or {}
+
+    # Disallow plaintext passwords in job params (Step 2.8 - F-06)
+    def _has_plaintext_creds(val):
+        forbidden = {"password", "secret", "ssh_password", "plaintext_password"}
+        if isinstance(val, dict):
+            for k, v in val.items():
+                if str(k).lower() in forbidden:
+                    return True
+                if _has_plaintext_creds(v):
+                    return True
+        elif isinstance(val, list):
+            for item in val:
+                if _has_plaintext_creds(item):
+                    return True
+        return False
+
+    if _has_plaintext_creds(params):
+        return jsonify({
+            "error": {
+                "code": "FORBIDDEN_PARAM",
+                "message": "Plaintext passwords in job params are forbidden (F-06). Store credentials in vault and reference via credential_id.",
+                "fields": {"params": "Plaintext credentials forbidden in job params"},
+            }
+        }), 400
+
     devices = data.get("devices") or []
     username, _ = _get_current_user_info()
 

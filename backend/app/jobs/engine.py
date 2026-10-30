@@ -194,7 +194,21 @@ class JobEngine:
                 job_type = job.type if job else ""
                 handler = self._handlers.get(job_type, self._default_unknown_handler)
 
-                execute_task(session, task, handler)
+                # Resolve credentials from vault via job param credential_id or device attachment (Step 2.8)
+                resolved_creds = None
+                cred_id = None
+                if job and job.params and isinstance(job.params, dict):
+                    cred_id = job.params.get("credential_id")
+
+                try:
+                    from backend.app.security.vault import VaultService
+                    resolved_creds = VaultService.resolve_credentials(
+                        session, credential_id=cred_id, device_name=task.device_name
+                    )
+                except Exception as exc:
+                    logger.warning("Could not resolve credentials for task %s: %s", task.id, exc)
+
+                execute_task(session, task, handler, creds=resolved_creds)
         except Exception as exc:
             logger.exception("Worker execution uncaught exception: %s", exc)
 

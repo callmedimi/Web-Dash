@@ -34,6 +34,7 @@ from backend.app.api.common import (
     get_json_payload,
     read_only_blocked,
     parse_csv_to_routers,
+    resolve_request_credentials,
 )
 
 license_bp = Blueprint("license_api", __name__)
@@ -256,8 +257,7 @@ def compute_grace_status(expiry_str: str):
 def run_license_check():
     data = get_json_payload()
     routers_raw = data.get("routers", [])
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    username, password = resolve_request_credentials(data)
 
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
@@ -654,8 +654,7 @@ def match_licenses():
 def start_renewal():
     data = get_json_payload()
     selected_routers_raw = data.get("selected_routers", [])
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    username, password = resolve_request_credentials(data)
 
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400

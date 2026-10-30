@@ -25,6 +25,7 @@ from backend.app.api.common import (
     get_client_ip,
     get_json_payload,
     parse_csv_to_routers,
+    resolve_request_credentials,
 )
 
 reports_bp = Blueprint("reports_api", __name__)
@@ -163,8 +164,7 @@ def run_report():
     if not province_raw:
         return jsonify({"error": "Province code is required"}), 400
     province = validate_province(province_raw)
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    username, password = resolve_request_credentials(data)
     age_value, age_unit = validate_age(data.get("age_value", 2), data.get("age_unit", "days"))
 
     if not username or not password:
@@ -203,8 +203,7 @@ def run_report():
 def run_full_report():
     data = get_json_payload()
     routers_raw = data.get("routers", [])
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    username, password = resolve_request_credentials(data)
     age_value, age_unit = validate_age(data.get("age_value", 2), data.get("age_unit", "days"))
 
     if not username or not password:

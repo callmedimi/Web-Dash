@@ -32,6 +32,17 @@ class Credential(Base):
 
     devices: Mapped[List["Device"]] = relationship("Device", back_populates="credential")
 
+    def to_dict(self) -> dict:
+        meta = self.meta_info if isinstance(self.meta_info, dict) else {}
+        return {
+            "id": self.id,
+            "name": self.name,
+            "kind": self.kind,
+            "username": meta.get("username", ""),
+            "meta": meta,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
 
 class Device(Base):
     __tablename__ = "devices"

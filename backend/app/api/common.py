@@ -136,3 +136,30 @@ def parse_csv_to_routers(file_storage) -> tuple[list[dict], str | None]:
         })
 
     return routers, None
+
+
+def resolve_request_credentials(data: dict) -> tuple[str, str]:
+    """
+    Extract (username, password) from request body, either via:
+    1. Direct 'credential_id' pointing to encrypted vault (Step 2.8)
+    2. Legacy 'username' and 'password' (logs deprecation warning for F-06)
+    """
+    cred_id = data.get("credential_id")
+    if cred_id:
+        try:
+            from backend.app.db.session import get_db_session
+            from backend.app.security.vault import VaultService
+            with get_db_session() as session:
+                username, password = VaultService.get_decrypted_secret(session, int(cred_id))
+                return username, password
+        except Exception as exc:
+            logger.warning("Failed to resolve credential_id %s: %s", cred_id, exc)
+
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    if password:
+        logger.warning(
+            "DEPRECATION [F-06]: Endpoint %s received plaintext password in request body. Migrate to vault credential_id.",
+            request.path if request else "unknown",
+        )
+    return username, password

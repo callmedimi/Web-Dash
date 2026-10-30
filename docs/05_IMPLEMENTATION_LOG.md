@@ -536,3 +536,50 @@
 * **تأییدیه (Verify):**
   * اجرای Pytest روی کلیه ۹۶ تست سیستم: **۹۶ تست با موفقیت ۱۰۰٪ پاس شدند (`96 passed in 37.08s`).**
   * صحت عملیات همگام‌سازی دوطرفه دیتابیس و فایل `users.json` تأیید شد.
+
+---
+
+### گام ۲.۸ — گاوصندوق رمزنگاری‌شده اعتبارسنجی تجهیزات شبکه و ممنوعیت ارسال کلمات عبور متنی (Step 2.8 Credential Vault & Plaintext Password Prohibition - F-06)
+* **هدف:** رفع قطعی آسیب‌پذیری بحرانی F-06 (انتقال کلمات عبور تجهیزات شبکه در بدنه درخواست‌ها و آرگومان‌های خام)، ایجاد گاوصندوق متمرکز اعتبارسنجی با رمزنگاری متقارن نظامی استاندارد Fernet با استفاده از کلید ۳۲ بایتی امنیتی `WEBDASH_VAULT_KEY`، ممانعت قطعی از ذخیره کلمات عبور متنی در دیتابیس و جاب‌ها، اعمال کنترل دسترسی RBAC، حل و فصل خودکار کلمات عبور توسط ورکرها از طریق شناسه `credential_id` یا پیوند به دیوایس، و پشتیبانی سازگار عقبرو از اندپوینت‌های قدیمی همراه با ثبت هشدارهای Deprecation.
+* **اقدامات انجام‌شده:**
+  1. پیاده‌سازی موتور رمزنگاری و مدیریت گاوصندوق در [backend/app/security/vault.py](file:///d:/Playground/Web-Dash/backend/app/security/vault.py):
+     * توابع رمزنگاری متقارن `encrypt_secret` و `decrypt_secret` مبتنی بر کتابخانه `cryptography.fernet.Fernet`.
+     * مدیریت کلید `get_vault_key`: خواندن از متغیر محیطی `WEBDASH_VAULT_KEY` یا مسیر فایل. در محیط عملیاتی (Production)، در صورت مفقود بودن کلید سامانه از بالا آمدن امتناع کرده و استثنای صریح `RuntimeError` بالا می‌آورد (Fail-Fast). در محیط توسعه و تست، کلید به صورت امن در فایل `.vault_key` نگهداری می‌شود.
+     * کلاس `VaultService`: پیاده‌سازی متدهای ساخت (`create_credential`)، فهرست‌بندی ایمن بدون افشای سکرت (`list_credentials`)، استخراج سکرت رمزگشایی‌شده منحصراً برای ورکرها (`get_decrypted_secret`)، ویرایش/چرخش کلیدها (`update_credential`)، حذف و آزادسازی ارجاعات کلید خارجی دیوایس‌ها (`delete_credential`)، پیوند به دیوایس (`attach_to_device`)، حل و فصل خودکار اعتبارسنجی (`resolve_credentials`)، و بازرمزنگاری گروهی کلیدها (`rotate_all`).
+  2. محافظت لایه مدل در [backend/app/models/device.py](file:///d:/Playground/Web-Dash/backend/app/models/device.py):
+     * پیاده‌سازی متد `to_dict()` در مدل `Credential`: خروجی دیکشنری شامل `id`, `name`, `kind`, `username`, `meta`, `created_at` بوده و هرگز فیلد `secret_encrypted` یا سکرت متنی را فاش نمی‌کند.
+     * کلید خارجی `devices.credential_id` با خاصیت `ondelete="SET NULL"`.
+  3. توسعه بلوپرینت متمرکز [backend/app/api/credentials.py](file:///d:/Playground/Web-Dash/backend/app/api/credentials.py):
+     * اندپوینت‌های استاندارد RESTful:
+       - `GET /api/v1/credentials` و `/credentials`: دریافت لیست متادیتای مدارک اعتباری (بدون سکرت).
+       - `POST /api/v1/credentials`: ایجاد مدرک اعتباری جدید و رمزنگاری بلادرنگ سکرت (نیاز به نقش `admin` یا `god`).
+       - `GET /api/v1/credentials/<id>`: دریافت اطلاعات تکمیلی یک مدرک اعتباری.
+       - `PUT /api/v1/credentials/<id>`: ویرایش مشخصات یا چرخش (Rotate) کلمه عبور با رمزنگاری مجدد.
+       - `DELETE /api/v1/credentials/<id>`: حذف مدرک اعتباری و خروج از دیوایس‌های منتسب.
+       - `POST /api/v1/credentials/<id>/attach`: پیوند یک مدرک اعتباری به تجهیزات شبکه (`device_name`).
+     * کنترل دسترسی RBAC: مسدودسازی کامل دسترسی نقش `viewer` (خطای 403)، دسترسی فقط‌خواندنی نقش `operator` و حقوق مدیریتی کامل برای `admin` و `god`.
+  4. اعمال ممانعت قطعی از ارسال رمز عبور متنی در جاب‌ها (F-06 Hardening) در [backend/app/api/jobs.py](file:///d:/Playground/Web-Dash/backend/app/api/jobs.py):
+     * تابع `_has_plaintext_creds`: بررسی بازگشتی ساختار پارامترهای ارسالی در درخواست `POST /api/v1/jobs`.
+     * در صورت وجود فیلدهای کلمه عبور متنی (`password`, `secret`, `ssh_password`, `plaintext_password`)، درخواست بلافاصله با خطای استاندارد 400 و کد `FORBIDDEN_PARAM` رد می‌شود:
+       `"Plaintext passwords in job params are forbidden (F-06). Store credentials in vault and reference via credential_id."`
+  5. حل و فصل خودکار در موتور جاب‌ها در [backend/app/jobs/engine.py](file:///d:/Playground/Web-Dash/backend/app/jobs/engine.py):
+     * در تابع `_worker_execute`، قبل از اجرای تسک توسط ورکرها، مدارک اعتباری به صورت خودکار از طریق `job.params["credential_id"]` یا از فیلد `device.credential_id` مربوط به نام روتر، توسط `VaultService.resolve_credentials` استخراج و به شکل رمزگشایی‌شده در کانتکست ایزوله `TaskContext.creds` به ورکر تزریق می‌شود.
+  6. پشتیبانی سازگار و ثبت رویداد Deprecation در اندپوینت‌های قدیمی:
+     * طراحی تابع کمکی `resolve_request_credentials` در [backend/app/api/common.py](file:///d:/Playground/Web-Dash/backend/app/api/common.py):
+       - در صورت ارسال `credential_id`، مقادیر کاربری و رمز از گاوصندوق دیتابیس استخراج می‌شود.
+       - در صورت ارسال سنتی `username`/`password` متنی، ضمن حفظ سازگاری جهت عدم شکست کلاینت‌های قدیمی، هشدار لاگ ساختاریافته `DEPRECATION [F-06]: Endpoint ... received plaintext password in request body. Migrate to vault credential_id.` ثبت می‌شود.
+     * ادغام این تابع در اندپوینت‌های `/run-manual`، `/run-bulk`، `/run-report`، `/run-full-report`، `/run-license-check`، `/start-renewal`، `/check-vrf-routing`، `/check-bgp-route`، `/show-originator-interfaces`، `/admin/run-arp-mac-collector` و `/ptp/start-troubleshoot`.
+  7. راه‌اندازی و اعتبارسنجی بوت در Application Factory ([backend/app/__init__.py](file:///d:/Playground/Web-Dash/backend/app/__init__.py)):
+     * ثبت بلوپرینت `credentials_bp` در مسیرهای `/api/v1/credentials` و `/credentials`.
+     * اعتبارسنجی اولیه کلید گاوصندوق هنگام شروع به کار سرور.
+  8. نگارش آزمون‌های خودکار جامع در [tests/test_step_2_8_credential_vault.py](file:///d:/Playground/Web-Dash/tests/test_step_2_8_credential_vault.py):
+     * آزمون صحت رمزنگاری متقارن Fernet و تأیید قطعی عدم وجود رمز عبور متنی در دیتابیس با بازرسی مستقیم SQL.
+     * آزمون چرخش کلیدها (Secret / Key Rotation).
+     * آزمون امتناع از بوت در صورت نبود کلید در محیط Production.
+     * آزمون کلیه اندپوینت‌های CRUD، متادیتای ایمن و ماتریکس دسترسی نقش‌های RBAC.
+     * آزمون ممانعت از ارسال رمز متنی در اندپوینت جاب‌ها و تأیید تخلیه پارامترها در دیتابیس.
+     * آزمون انتساب مدارک به دیوایس و حل و فصل خودکار در تسک‌ها.
+     * آزمون سازگاری اندپوینت‌های قدیمی با `credential_id` و ثبت لاگ Deprecation برای کلمات عبور متنی.
+* **تأییدیه (Verify):**
+  * اجرای Pytest روی کلیه ۱۰۳ تست سیستم: **۱۰۳ تست با موفقیت ۱۰۰٪ پاس شدند (`103 passed, 20 warnings in 38.20s`).**
+  * عدم وجود هرگونه رمز عبور متنی در پایگاه داده و برقراری کامل ایزولاسیون امنیتی تأیید شد.

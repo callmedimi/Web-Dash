@@ -12,7 +12,11 @@ from ptp_troubleshoot_service import search_candidate_routers, run_ptp_troublesh
 from auth import login_required, permission_required
 from audit import record_audit
 from validators import sanitize_cli_arg, validate_timeout
-from backend.app.api.common import get_client_ip, get_json_payload
+from backend.app.api.common import (
+    get_client_ip,
+    get_json_payload,
+    resolve_request_credentials,
+)
 
 ptp_bp = Blueprint("ptp_api", __name__)
 logger = logging.getLogger(__name__)
@@ -119,8 +123,7 @@ def ptp_start_troubleshoot():
         return jsonify({"error": "Target router name, Site Code, or IP is required"}), 400
     target = sanitize_cli_arg(target_raw, "target")
 
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    username, password = resolve_request_credentials(data)
 
     # Fallback to active Flask session credentials
     if not username or not password:

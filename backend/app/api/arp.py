@@ -17,7 +17,11 @@ from site_arp_service import (
     TARGET_NE_PREFIXES,
 )
 from auth import login_required, permission_required, user_has_access
-from backend.app.api.common import get_client_ip, get_json_payload
+from backend.app.api.common import (
+    get_client_ip,
+    get_json_payload,
+    resolve_request_credentials,
+)
 from backend.app.extensions import get_db_session
 from backend.app.models.arp_mac import ArpMacRecord, ArpMacSnapshot, ArpMacHistory
 
@@ -76,14 +80,11 @@ def admin_parse_ne_csv():
 @arp_bp.route("/admin/run-arp-mac-collector", methods=["POST"])
 @login_required
 def admin_run_arp_mac_collector():
-    username = ""
-    password = ""
     threads = 10
     routers = []
 
     if request.content_type and "multipart/form-data" in request.content_type:
-        username = (request.form.get("username") or "").strip()
-        password = request.form.get("password") or ""
+        username, password = resolve_request_credentials(request.form)
         try:
             threads = int(request.form.get("threads", 10))
         except Exception:
@@ -95,8 +96,7 @@ def admin_run_arp_mac_collector():
             routers = matched
     else:
         data = get_json_payload()
-        username = (data.get("username") or "").strip()
-        password = data.get("password") or ""
+        username, password = resolve_request_credentials(data)
         try:
             threads = int(data.get("threads", 10))
         except Exception:

@@ -19,6 +19,7 @@ from backend.app.api.common import (
     get_json_payload,
     read_only_blocked,
     parse_csv_to_routers,
+    resolve_request_credentials,
 )
 
 alarm_clear_bp = Blueprint("alarm_clear_api", __name__)
@@ -163,8 +164,7 @@ def _run_bulk(sid: str, routers: list[dict], username: str, password: str) -> No
 def run_manual():
     data = get_json_payload()
     routers_raw = data.get("routers", [])
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    username, password = resolve_request_credentials(data)
 
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
@@ -207,8 +207,7 @@ def parse_csv():
 def run_bulk():
     data = get_json_payload()
     routers_raw = data.get("routers", [])
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+    username, password = resolve_request_credentials(data)
 
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400

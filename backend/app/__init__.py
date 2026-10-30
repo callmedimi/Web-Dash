@@ -1,5 +1,6 @@
 """Flask Application Factory with Database, Security Middleware, and Blueprint initialization."""
 import os
+import sys
 import secrets
 import logging
 from datetime import timedelta
@@ -79,6 +80,16 @@ def create_app(config_override: dict = None) -> Flask:
     # Security & Error Middleware
     init_security_middleware(app)
 
+    # Initialize Credential Vault key (Step 2.8 - F-06)
+    from backend.app.security.vault import get_vault_key
+    try:
+        is_testing = bool(app.config.get("TESTING") or "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"))
+        get_vault_key(require_prod=not is_testing)
+    except Exception as exc:
+        if not app.config.get("TESTING"):
+            logger.error("Vault key initialization failed: %s", exc)
+            raise
+
     # Initialize structured JSON logging
     from backend.app.logging import setup_logging
     setup_logging(app)
@@ -128,12 +139,15 @@ def create_app(config_override: dict = None) -> Flask:
     from backend.app.api.sessions_export import sessions_export_bp
     from backend.app.api.ptp import ptp_bp
     from backend.app.api.schedules import schedules_bp
+    from backend.app.api.credentials import credentials_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(jobs_bp, url_prefix="/api/v1/jobs")
     app.register_blueprint(jobs_bp, url_prefix="/jobs", name="jobs_alias")
+    app.register_blueprint(credentials_bp, url_prefix="/api/v1/credentials")
+    app.register_blueprint(credentials_bp, url_prefix="/credentials", name="credentials_alias")
     app.register_blueprint(alarm_clear_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(license_bp)
