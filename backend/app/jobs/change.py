@@ -43,7 +43,7 @@ VALID_TRANSITIONS: Dict[str, Set[str]] = {
     ChangeState.AWAITING_APPROVAL: {ChangeState.APPLYING, ChangeState.REJECTED},
     ChangeState.APPLYING: {ChangeState.VERIFYING, ChangeState.FAILED_NEEDS_ATTENTION, ChangeState.ROLLED_BACK},
     ChangeState.VERIFYING: {ChangeState.VERIFIED, ChangeState.ROLLED_BACK, ChangeState.FAILED_NEEDS_ATTENTION},
-    ChangeState.VERIFIED: set(),
+    ChangeState.VERIFIED: {ChangeState.ROLLED_BACK},
     ChangeState.REJECTED: set(),
     ChangeState.ROLLED_BACK: set(),
     ChangeState.FAILED_NEEDS_ATTENTION: {ChangeState.ROLLED_BACK},
@@ -82,6 +82,13 @@ def evaluate_change_risk(
     return "medium" if has_shutdown else "low"
 
 
+def is_blast_radius_exceeded(devices_count: int = 1, interfaces_count: int = 1) -> bool:
+    """Check if change plan exceeds blast-radius thresholds (>50 devices or >20 ports)."""
+    max_dev = getattr(settings, "max_devices_per_change", 50)
+    max_if = getattr(settings, "max_interfaces_per_device", 20)
+    return devices_count > max_dev or interfaces_count > max_if
+
+
 def transition_change_state(change: ChangeRequest, target_state: str) -> None:
     """Validate and apply state transition."""
     allowed = VALID_TRANSITIONS.get(change.status, set())
@@ -103,9 +110,14 @@ class ChangePipelineService:
         reason: str = "",
         risk_level: Optional[str] = None,
         job_id: Optional[str] = None,
+        devices_count: int = 1,
+        interfaces_count: int = 1,
     ) -> ChangeRequest:
         """Create planned ChangeRequest and calculate unified diff."""
-        computed_risk = risk_level or evaluate_change_risk(lines)
+        blast_exceeded = is_blast_radius_exceeded(devices_count, interfaces_count)
+        computed_risk = "high" if blast_exceeded else (
+            risk_level or evaluate_change_risk(lines, devices_count=devices_count, interfaces_per_device=interfaces_count)
+        )
 
         diff_lines = [f"# Reason: {reason}"]
         for line in lines:
@@ -117,6 +129,9 @@ class ChangePipelineService:
             "inverse_lines": inverse_lines,
             "reason": reason,
             "auto_rollback": True,
+            "devices_count": devices_count,
+            "interfaces_count": interfaces_count,
+            "blast_radius_exceeded": blast_exceeded,
         }
 
         cr = ChangeRequest(
@@ -203,6 +218,14 @@ class ChangePipelineService:
         if require_second_person and cr.risk_level != "low":
             if cr.creator_id and cr.creator_id == approver_username:
                 raise PermissionError("Separation of duties violation: creator cannot approve their own change")
+
+        # 3. Blast-radius guard (Step 4.6): > 50 devices or > 20 ports requires god approval + typed confirmation
+        plan = cr.plan or {}
+        if plan.get("blast_radius_exceeded"):
+            if approver_role != "god":
+                raise PermissionError("Blast-radius threshold exceeded (> 50 devices or > 20 ports). Requires 'god' approval.")
+            if confirmation_token != "I_CONFIRM_BLAST_RADIUS":
+                raise ValueError("Typed confirmation 'I_CONFIRM_BLAST_RADIUS' required for high blast-radius changes.")
 
         cr.approver_id = approver_username
         transition_change_state(cr, ChangeState.APPLYING)
@@ -350,10 +373,8 @@ class ChangePipelineService:
         # Encrypt content at rest using vault key
         encrypted_content = config_text
         try:
-            from cryptography.fernet import Fernet
-            key = get_vault_key(require_prod=False)
-            f = Fernet(key.encode("utf-8"))
-            encrypted_content = f.encrypt(config_text.encode("utf-8")).decode("utf-8")
+            from backend.app.services.config_backup import encrypt_config_content
+            encrypted_content = encrypt_config_content(config_text)
         except Exception:
             pass
 

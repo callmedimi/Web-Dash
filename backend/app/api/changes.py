@@ -81,6 +81,8 @@ def plan_change():
             reason=reason,
             risk_level=risk_override,
             job_id=data.get("job_id"),
+            devices_count=data.get("devices_count", 1),
+            interfaces_count=data.get("interfaces_count", 1),
         )
         return jsonify(cr.to_dict()), 201
 
