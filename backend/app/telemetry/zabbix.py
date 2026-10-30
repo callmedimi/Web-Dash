@@ -195,13 +195,21 @@ class ZabbixProvider(TelemetryProvider):
                 params.update(filters)
 
             raw_hosts = self._call("host.get", params)
+            if not isinstance(raw_hosts, list):
+                raw_hosts = []
             hosts: List[TelemetryHost] = []
             for h in raw_hosts:
+                if not isinstance(h, dict):
+                    continue
                 interfaces = [
                     {"ip": iface.get("ip", ""), "main": str(iface.get("main", "0"))}
                     for iface in h.get("interfaces", [])
+                    if isinstance(iface, dict)
                 ]
-                groups = [g.get("name", "") for g in h.get("groups", [])]
+                groups = [
+                    g.get("name", "") for g in h.get("groups", [])
+                    if isinstance(g, dict)
+                ]
                 hosts.append(TelemetryHost(
                     host_id=str(h.get("hostid")),
                     name=h.get("host", ""),
