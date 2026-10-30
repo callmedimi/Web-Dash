@@ -51,6 +51,13 @@ class JobEngine:
         except Exception as exc:
             logger.warning("Could not register default license_renewal handler: %s", exc)
 
+        try:
+            from backend.app.jobs.handlers.inventory_sync import InventorySyncHandler
+            self.register_handler("inventory_sync", InventorySyncHandler.run_task)
+        except Exception as exc:
+            logger.warning("Could not register default inventory_sync handler: %s", exc)
+
+
     def register_handler(self, job_type: str, handler_fn: Callable) -> None:
         """Register a handler function for a given job type."""
         self._handlers[job_type] = handler_fn

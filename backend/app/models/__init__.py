@@ -1,7 +1,7 @@
 """SQLAlchemy Models Registry."""
 from backend.app.db.base import Base
 from backend.app.models.user import User, Permission
-from backend.app.models.device import Device, Credential, DeviceLock
+from backend.app.models.device import Device, Credential, DeviceLock, TargetSet
 from backend.app.models.job import Job, JobTask, JobEvent
 from backend.app.models.audit import AuditLog
 from backend.app.models.config_change import (
@@ -26,6 +26,7 @@ __all__ = [
     "Device",
     "Credential",
     "DeviceLock",
+    "TargetSet",
     "Job",
     "JobTask",
     "JobEvent",
