@@ -319,3 +319,52 @@
 * **تأییدیه (Verify):**
   * اجرای Pytest روی کلیه ۶۵ تست پروژه با موفقیت ۱۰۰٪ همراه بود (`65 passed in 13.75s`).
   * کلیه قابلیت‌های قبلی بدون هیچ‌گونه شکست یا پس‌رفتی به کار خود ادامه می‌دهند.
+
+---
+
+### گام ۲.۲ — موتور پردازش مرکزی جاب‌ها، استخر ورکرها و زمان‌بند کرون (Step 2.2 Central Job Engine, Worker Pool & Cron Scheduler - F-15, F-17)
+* **هدف:** پیاده‌سازی قلب تپنده پلتفرم اتوماسیون شامل موتور صف‌بندی ناهمگام وظایف در پایگاه داده، استخر نخ‌های کارگری (`MAX_SSH_WORKERS`)، انحصار قفل دستگاه‌ها (`device_locks`)، صف‌بندی عادلانه (Fair Scheduling)، توکن لغو آنی جاب‌ها، گذرگاه رویدادها جهت استریم زنده SSE، ریکاوری خودکار هنگام استارت‌آپ سرور، و موتور زمان‌بندی وظایف دوره‌ای (Cron Scheduler) با استفاده از `pycron`.
+* **اقدامات انجام‌شده:**
+  1. ساخت پکیج جامع [backend/app/jobs/](file:///d:/Playground/Web-Dash/backend/app/jobs/):
+     * [backend/app/jobs/locks.py](file:///d:/Playground/Web-Dash/backend/app/jobs/locks.py):
+       * پیاده‌سازی قفل انحصاری روترها بر روی جدول `device_locks` با مکانیزم Heartbeat.
+       * جلوگیری قطعی از اجرای همزمان دو دستور یا تسک کانفیگ روی یک روتر واحد.
+       * بازیابی خودکار قفل‌های مرده (Stale Locks با عمر بیش از ۱۰ دقیقه بدون ضربان).
+     * [backend/app/jobs/events.py](file:///d:/Playground/Web-Dash/backend/app/jobs/events.py):
+       * پیاده‌سازی کلاس `JobEventBroadcaster` به عنوان باس رویدادها.
+       * ذخیره پایدار رویدادها در جدول `job_events` همراه با شناسه افزایشی (`BigInt`) و بازپخش آنی روی صف‌های مشترکین (SSE Replay Source).
+     * [backend/app/jobs/cancel.py](file:///d:/Playground/Web-Dash/backend/app/jobs/cancel.py):
+       * پیاده‌سازی متد `request_job_cancellation`.
+       * تغییر وضعیت جاب به `cancelling`، لغو بلادرنگ کلیه وظایف در صف (`queued` -> `cancelled`)، و توقف ایمن تسک‌های در حال اجرا در نخستین بازرسی توکن (`ctx.cancelled()`).
+     * [backend/app/jobs/queue.py](file:///d:/Playground/Web-Dash/backend/app/jobs/queue.py):
+       * پیاده‌سازی صف کارهای مبتنی بر DB با زمان‌بندی عادلانه نوبتی (Round-Robin Fair Scheduling) بین جاب‌های فعال.
+       * ادعای اتمیک وظایف با دستور `UPDATE job_tasks SET status='running' WHERE id=:id AND status='queued'`.
+       * پشتیبانی از فیلد `not_before` جهت تأخیر مجدد تسک‌هایی که روتر آنها در حال حاضر قفل است (Backoff 5s).
+     * [backend/app/jobs/worker.py](file:///d:/Playground/Web-Dash/backend/app/jobs/worker.py):
+       * تزریق شئ کانتکست اجرایی `TaskContext` شامل متدهای ثبت لاگ زنده (`ctx.log`)، بررسی لغو (`ctx.cancelled`)، ضربان قلب (`ctx.heartbeat`)، و مشخصات دستگاه.
+       * آزادسازی تضمین‌شده قفل دستگاه در بلوک `finally`.
+       * مکانیزم محاسبه و خلاصه وضعیت جاب والد (Status Roll-up):
+         * همه تسک‌ها موفق -> `succeeded`.
+         * ترکیب موفق و ناموفق/لغو -> `partial`.
+         * همه ناموفق/لغو -> `failed` / `cancelled`.
+     * [backend/app/jobs/engine.py](file:///d:/Playground/Web-Dash/backend/app/jobs/engine.py):
+       * مدیریت چرخه حیات استخر ورکرها (`ThreadPoolExecutor`) با ظرفیت `MAX_SSH_WORKERS`.
+       * ثبت هندلرهای تسک‌ها با `register_handler(job_type, fn)`.
+       * ثبت جاب‌های جدید و تولید خودکار تسک‌ها به ازای روترهای هدف (`submit`).
+       * ریکاوری خودکار در شروع برنامه (`recover_on_startup`): تغییر وضعیت تسک‌های رهاشده در وضعیت `running` به `failed` با پیام `interrupted by restart` و پاکسازی قفل‌های یتیم.
+       * پاکسازی دوره‌ای لاگ رویدادهای قدیمی (`purge_old_events`).
+     * [backend/app/jobs/scheduler.py](file:///d:/Playground/Web-Dash/backend/app/jobs/scheduler.py):
+       * موتور پس‌زمینه زمان‌بندی وظایف با پشتیبانی از فرمت استاندارد کرون (پکیج `pycron`).
+       * امکان ثبت وظایف دوره‌ای (نظیر به‌روزرسانی خودکار ARP/MAC، ریفرش دیتابیس زبیکس، بررسی انقضای لایسنس).
+       * ارائه متد `trigger_now` جهت اجرای درجا و بدون وقفه (On-Demand Run Now).
+       * کلید فعال‌سازی/غیرفعال‌سازی بدون نیاز به حذف کانفیگ (`toggle_schedule`).
+  2. نگارش آزمون‌های جامع در [tests/test_step_2_2_job_engine_and_scheduler.py](file:///d:/Playground/Web-Dash/tests/test_step_2_2_job_engine_and_scheduler.py):
+     * آزمون انحصار قفل دستگاه‌ها و تصاحب قفل‌های مرده.
+     * آزمون ثبت جاب و دریافت استریم رویدادهای زنده.
+     * آزمون لغو ایمن جاب‌ها و تسک‌های صف‌بندی‌شده.
+     * آزمون ریکاوری بازراه‌اندازی سرور (Crash Recovery).
+     * آزمون کامل چرخه حیات زمان‌بند کرون (ثبت، اجرا، کلید Run Now، و غیرفعال‌سازی).
+     * **تست استرس سنگین (Stress Test):** اجرای هماهنگ ۲۰۰ تسک بر روی ۲۰ روتر هدف توسط ۱۰ ورکر موازی؛ بررسی عدم وجود هرگونه تداخل قفل، عدم ایجاد Deadlock، و رول‌آپ صحیح ۱۰۰٪ نتایج.
+* **تأییدیه (Verify):**
+  * اجرای سراسری Pytest روی تمامی تست‌های پروژه: **۷۱ تست با موفقیت ۱۰۰٪ پاس شدند (`71 passed in 26.71s`).**
+  * هیچ‌گونه رگرسیونی در قابلیت‌های فاز ۱ و گام‌های پیشین مشاهده نشد.
