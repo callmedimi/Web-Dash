@@ -434,3 +434,37 @@
 * **تأییدیه (Verify):**
   * اجرای Pytest روی کلیه ۸۲ تست پروژه: **۸۲ تست با موفقیت ۱۰۰٪ پاس شدند (`82 passed in 35.33s`).**
   * امنیت، ایزولاسیون دسترسی و تضمین کیفیت صادرات داده تأیید شد.
+
+---
+
+### گام ۲.۵ — تفکیک ماژولار روت‌ها به بلوپرینت‌ها و تبدیل app.py به Shim تمیز (Step 2.5 Blueprints & Entrypoint Shim - F-15, F-16, F-43)
+* **هدف:** حذف ساختار یکپارچه و غول‌پیکر ۲۷۰۰ خطی فایل ریشه `app.py` (F-43)، تفکیک کامل قابلیت‌ها به بلوپرینت‌های ماژولار و مستقل در پکیج `backend/app/api/`، ثبت خودکار و منسجم در Application Factory (`create_app()`)، تبدیل `app.py` به یک بارگذار تمیز و سبک (Shim) جهت حفظ سازگاری کامل با کلاینت‌های WSGI و ایمپورت‌های موروثی، و افزودن اندپوینت‌های مدیریت زمان‌بندی کرون (`schedules`).
+* **اقدامات انجام‌شده:**
+  1. تفکیک روت‌های قدیمی به ۱۳ بلوپرینت مجزا در [backend/app/api/](file:///d:/Playground/Web-Dash/backend/app/api):
+     * [main.py](file:///d:/Playground/Web-Dash/backend/app/api/main.py): روت اصلی نمایش رابط کاربری داشبورد (`GET /`).
+     * [auth.py](file:///d:/Playground/Web-Dash/backend/app/api/auth.py): روت‌های نشست و اعتبارسنجی کاربر (`/login`, `/logout`, `/me`, `/change-password`).
+     * [users.py](file:///d:/Playground/Web-Dash/backend/app/api/users.py): مدیریت حساب‌ها، پرمیشن‌ها و لاگ ادمین (`/admin/users`, `/admin/permissions`, `/admin/audit-log`).
+     * [jobs.py](file:///d:/Playground/Web-Dash/backend/app/api/jobs.py): موتور مرکزی جاب‌ها، استریم SSE، لغو و خروجی قطعی CSV.
+     * [alarm_clear.py](file:///d:/Playground/Web-Dash/backend/app/api/alarm_clear.py): رفع آلارم‌های دستی و گروهی، پردازش CSV نودها، استریم و گزارش (`/run-manual`, `/run-bulk`, `/parse-csv`, `/stream/<sid>`, `/download/<sid>`, `/session/<sid>`).
+     * [reports.py](file:///d:/Playground/Web-Dash/backend/app/api/reports.py): گزارش لینک‌های دان و ترانک‌های شبکه (`/run-report`, `/run-full-report`, `/parse-csv-nodes`, `/stream-report/<sid>`, `/download-report/<sid>`, `/download-trunk-report/<sid>`, `/report-session/<sid>`, `/report-analytics/<sid>`).
+     * [license.py](file:///d:/Playground/Web-Dash/backend/app/api/license.py): بررسی و پایش لایسنس‌ها، تطبیق خودکار فایل‌ها، فرآیند تمدید تعاملی با تأیید اپراتور و آرشیو فایل‌های قدیمی (`/run-license-check`, `/stream-license/<sid>`, `/license-session/<sid>`, `/download-license-summary/<sid>`, `/license-report/<sid>`, `/license-warnings/<sid>`, `/cancel-license-session/<sid>`, `/download-license-items/<sid>`, `/match-licenses`, `/start-renewal`, `/download-renewal-report/<path:sid>`, `/confirm-renewal/<sid>`, `/stream-lic-renewal/<sid>`, `/admin/renewal-reports`, `/admin/license-archive-files`, `/download-archived-license/<filename>`).
+     * [routing.py](file:///d:/Playground/Web-Dash/backend/app/api/routing.py): بررسی روتینگ VRF و BGP هواوی و تحلیل اینترفیس مبدا (`/vrf-router-info`, `/parse-interface-config`, `/check-vrf-routing`, `/check-bgp-route`, `/show-originator-interfaces`).
+     * [telemetry.py](file:///d:/Playground/Web-Dash/backend/app/api/telemetry.py): همگام‌سازی و جستجوی پایگاه داده زبیکس و اینترفیس‌ها (`/admin/zabbix-groups`, `/admin/refresh-zabbix-db`, `/admin/delete-zabbix-db`, `/refresh-zabbix-progress`, `/search-zabbix-interfaces`, `/search-zabbix-ip`).
+     * [arp.py](file:///d:/Playground/Web-Dash/backend/app/api/arp.py): جستجوی بلادرنگ ARP/MAC، مدیریت کالکتور دسته‌جمعی و اندپوینت‌های آرشیو و تاریخچه اسکن‌ها درخواستی کاربر (`/search-site-arp-mac`, `/search-ip-arp-mac`, `/admin/parse-ne-csv`, `/admin/run-arp-mac-collector`, `/admin/arp-mac-collector-status`, `/admin/arp-mac-collector-stop`, `/admin/arp-mac/snapshots`, `/admin/arp-mac/snapshots/<id>/download`, `/admin/arp-mac/current/download`).
+     * [sessions_export.py](file:///d:/Playground/Web-Dash/backend/app/api/sessions_export.py): استخراج سشن‌های SecureCRT/SSH و تولید پکیج ZIP دسته‌بندی‌شده بر اساس ساب‌نت‌ها (`/session-extractor/parse`, `/session-extractor/download`).
+     * [ptp.py](file:///d:/Playground/Web-Dash/backend/app/api/ptp.py): عیب‌یابی هاپ‌به‌هاپ زنده PTP، ردگیری مسیر و استریم لاگ‌های تشخیصی (`/ptp/search-targets`, `/ptp/start-troubleshoot`, `/ptp/stream/<sid>`, `/ptp/session/<sid>`).
+     * [schedules.py](file:///d:/Playground/Web-Dash/backend/app/api/schedules.py): مدیریت و اتوماسیون زمان‌بندی کرون در منوی ادمین مطابق درخواست کاربر با قابلیت اجرای آنی On-Demand (`GET/POST /api/v1/schedules`, `DELETE /<id>`, `POST /<id>/toggle`, `POST /<id>/run`).
+  2. تجمیع توابع کمکی مشترک و لایه امنیتی در [backend/app/api/common.py](file:///d:/Playground/Web-Dash/backend/app/api/common.py):
+     * متدهای `get_client_ip()`, `get_json_payload()`, `read_only_blocked()`, `parse_csv_to_routers()`.
+  3. بازنویسی [app.py](file:///d:/Playground/Web-Dash/app.py) به صورت یک بارگذار تمیز (Shim) در ریشه پروژه:
+     * حجم فایل از ۲۷۱۱ خط کد پیچیده به ۲۵ خط کد خوانا تقلیل یافت.
+     * اتصال خودکار به `create_app()` و در دسترس بودن متغیر `app` جهت سازگاری با کلیه سرورهای وب و ابزارهای تست.
+  4. نگارش آزمون‌های اختصاصی در [tests/test_step_2_5_blueprints_and_shim.py](file:///d:/Playground/Web-Dash/tests/test_step_2_5_blueprints_and_shim.py):
+     * صحت ثبت تمامی ۱۳ بلوپرینت در هسته برنامه.
+     * آزمون روت‌های اصلی و روتینگ VRF.
+     * آزمون اندپوینت‌های اسنپ‌شات و دانلود آرشیو ARP/MAC.
+     * آزمون کامل CRUD و اجرای دستی تسک‌های زمان‌بندی‌شده کرون در اندپوینت `/api/v1/schedules`.
+     * آزمون سلامت ماژول‌های جستجوی PTP و استخراج سشن.
+* **تأییدیه (Verify):**
+  * اجرای Pytest روی کلیه ۸۸ تست سیستم: **۸۸ تست با موفقیت ۱۰۰٪ پاس شدند (`88 passed in 27.69s`).**
+  * تأیید کارکرد بدون وقفه و صفر رگرسیون بر روی تمامی قابلیت‌های سیستم.
