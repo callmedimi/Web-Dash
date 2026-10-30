@@ -62,6 +62,7 @@ def create_app(config_override: dict = None) -> Flask:
 
     # Register API Blueprints
     from backend.app.api.jobs import jobs_bp
-    app.register_blueprint(jobs_bp)
+    app.register_blueprint(jobs_bp, url_prefix="/api/v1/jobs")
+    app.register_blueprint(jobs_bp, url_prefix="/jobs", name="jobs_alias")
 
     return app

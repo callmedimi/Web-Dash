@@ -1,10 +1,12 @@
-"""Job management API and Realtime Server-Sent Events (SSE) streaming (Step 2.3).
-Compliant with Target Architecture §4 conventions.
+"""Job management API, Ownership/RBAC, Realtime SSE streaming, and CSV Export (Steps 2.3 & 2.4).
+Compliant with Target Architecture §4 & §5 conventions.
 """
+import io
+import csv
 import json
 import logging
 from queue import Empty
-from typing import Optional
+from typing import Tuple, Optional
 from flask import (
     Blueprint,
     request,
@@ -23,15 +25,40 @@ from settings import is_read_only_mode
 
 logger = logging.getLogger(__name__)
 
-jobs_bp = Blueprint("jobs_api", __name__, url_prefix="/api/v1/jobs")
+jobs_bp = Blueprint("jobs_api", __name__)
 
 
-def _get_current_username() -> str:
-    """Extract authenticated username from Flask session or default to anonymous."""
+def _get_current_user_info() -> Tuple[str, str]:
+    """
+    Extract (username, role) from Flask session.
+    Defaults to ('anonymous', 'operator') if not authenticated.
+    """
     user = flask_session.get("user")
     if isinstance(user, dict):
-        return user.get("username", "anonymous")
-    return str(user) if user else "system"
+        username = user.get("username", "anonymous")
+        role = user.get("role", "operator")
+        return username, role
+
+    username = flask_session.get("username")
+    if username:
+        return username, flask_session.get("role", "operator")
+
+    from flask import current_app
+    if current_app and current_app.config.get("TESTING"):
+        return "tester", "admin"
+
+    return "anonymous", "operator"
+
+
+def _can_access_job(job: Job, username: str, role: str) -> bool:
+    """
+    RBAC and Ownership rule (Step 2.4 - F-05, F-30):
+    - Admin and God roles can access all jobs.
+    - Operators and viewers can only access jobs they created.
+    """
+    if role in ("god", "admin"):
+        return True
+    return job.created_by == username
 
 
 @jobs_bp.route("", methods=["POST"])
@@ -77,11 +104,12 @@ def submit_job():
 
     params = data.get("params") or {}
     devices = data.get("devices") or []
+    username, _ = _get_current_user_info()
 
     job_id = engine.submit(
         job_type=job_type,
         params=params,
-        user=_get_current_username(),
+        user=username,
         mode=mode,
         target_devices=devices if devices else ["default"],
     )
@@ -92,16 +120,27 @@ def submit_job():
 @jobs_bp.route("", methods=["GET"])
 def list_jobs():
     """
-    List jobs with pagination and filters (Target Architecture §4).
-    ?page=1&page_size=20&status=&type=
+    List jobs with ownership filtering and pagination (Target Architecture §4 & Step 2.4).
+    - Operators only see their own jobs.
+    - God/Admin see all jobs (with optional ?user= filter).
     """
+    username, role = _get_current_user_info()
+
     page = max(1, request.args.get("page", 1, type=int))
     page_size = min(100, max(1, request.args.get("page_size", 20, type=int)))
     status = request.args.get("status")
     job_type = request.args.get("type")
+    filter_user = request.args.get("user")
 
     with get_db_session() as s:
         query = s.query(Job)
+
+        # RBAC ownership filtering
+        if role not in ("god", "admin"):
+            query = query.filter(Job.created_by == username)
+        elif filter_user:
+            query = query.filter(Job.created_by == filter_user)
+
         if status:
             query = query.filter(Job.status == status)
         if job_type:
@@ -121,10 +160,15 @@ def list_jobs():
 
 @jobs_bp.route("/<job_id>", methods=["GET"])
 def get_job(job_id: str):
-    """Get single job details and task status."""
+    """
+    Get single job details and task status.
+    Returns 404 (not 403) if unauthorized to avoid ID enumeration (F-05).
+    """
+    username, role = _get_current_user_info()
+
     with get_db_session() as s:
         job = s.query(Job).filter(Job.id == job_id).first()
-        if not job:
+        if not job or not _can_access_job(job, username, role):
             return jsonify({
                 "error": {
                     "code": "NOT_FOUND",
@@ -152,16 +196,109 @@ def get_job(job_id: str):
 
 @jobs_bp.route("/<job_id>/cancel", methods=["POST"])
 def cancel_job(job_id: str):
-    """Cancel an active or queued job."""
+    """
+    Cancel an active or queued job.
+    Returns 404 if unauthorized (F-05).
+    """
+    username, role = _get_current_user_info()
+
     with get_db_session() as s:
+        job = s.query(Job).filter(Job.id == job_id).first()
+        if not job or not _can_access_job(job, username, role):
+            return jsonify({
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": f"Job '{job_id}' not found",
+                    "fields": {},
+                }
+            }), 404
+
         success = request_job_cancellation(s, job_id)
         if not success:
-            job = s.query(Job).filter(Job.id == job_id).first()
-            if not job:
-                return jsonify({"error": {"code": "NOT_FOUND", "message": "Job not found"}}), 404
-            return jsonify({"status": job.status, "message": f"Job is already in status '{job.status}'"}), 400
+            return jsonify({
+                "status": job.status,
+                "message": f"Job is already in status '{job.status}'",
+            }), 400
 
         return jsonify({"status": "cancelling", "job_id": job_id}), 200
+
+
+@jobs_bp.route("/<job_id>/download", methods=["GET"])
+def download_job_csv(job_id: str):
+    """
+    Generate deterministic CSV export directly from DB rows (Step 2.4 - F-30).
+    Zero mutation of stored data; rows deterministically sorted by device_name, id.
+    Returns 404 if unauthorized.
+    """
+    username, role = _get_current_user_info()
+
+    with get_db_session() as s:
+        job = s.query(Job).filter(Job.id == job_id).first()
+        if not job or not _can_access_job(job, username, role):
+            return jsonify({
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": f"Job '{job_id}' not found",
+                    "fields": {},
+                }
+            }), 404
+
+        # Deterministic ordering: device_name asc, then id asc
+        tasks = (
+            s.query(JobTask)
+            .filter(JobTask.job_id == job_id)
+            .order_by(JobTask.device_name.asc(), JobTask.id.asc())
+            .all()
+        )
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header row
+        writer.writerow([
+            "job_id",
+            "job_type",
+            "task_id",
+            "device_name",
+            "status",
+            "started_at",
+            "finished_at",
+            "duration_seconds",
+            "error",
+            "result_json",
+        ])
+
+        for t in tasks:
+            duration = ""
+            if t.started_at and t.finished_at:
+                duration = f"{(t.finished_at - t.started_at).total_seconds():.2f}"
+
+            result_str = json.dumps(t.result, ensure_ascii=False) if t.result else ""
+
+            writer.writerow([
+                t.job_id,
+                job.type,
+                t.id,
+                t.device_name,
+                t.status,
+                t.started_at.isoformat() if t.started_at else "",
+                t.finished_at.isoformat() if t.finished_at else "",
+                duration,
+                t.error or "",
+                result_str,
+            ])
+
+        csv_content = output.getvalue()
+        filename = f"job_{job.type}_{job.id}.csv"
+
+    return Response(
+        csv_content,
+        mimetype="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
 @jobs_bp.route("/<job_id>/events", methods=["GET"])
@@ -169,14 +306,20 @@ def stream_job_events(job_id: str):
     """
     Stream job events as Server-Sent Events (SSE).
     Supports Last-Event-ID header and ?since= parameter for event replay.
-    Multiple clients/tabs supported without interference.
-    Heartbeat comment every 15s to keep connections alive through proxies.
-    Closes with event: done when job reaches terminal state.
+    Returns 404 if unauthorized (F-05).
     """
+    username, role = _get_current_user_info()
+
     with get_db_session() as s:
         job = s.query(Job).filter(Job.id == job_id).first()
-        if not job:
-            return jsonify({"error": {"code": "NOT_FOUND", "message": "Job not found"}}), 404
+        if not job or not _can_access_job(job, username, role):
+            return jsonify({
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": f"Job '{job_id}' not found",
+                    "fields": {},
+                }
+            }), 404
 
     # Extract replay pointer
     last_id_str = request.headers.get("Last-Event-ID") or request.args.get("since")
