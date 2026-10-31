@@ -18,6 +18,10 @@ from backend.app.features.scheduler_notifications.feature import (
     SchedulerNotificationsFeature,
     scheduler_notifications_feature,
 )
+from backend.app.features.reporting_digest.feature import (
+    ReportingDigestFeature,
+    reporting_digest_feature,
+)
 
 __all__ = [
     "BaseFeature",
@@ -46,6 +50,9 @@ __all__ = [
     "command_runner_feature",
     "SchedulerNotificationsFeature",
     "scheduler_notifications_feature",
+    "ReportingDigestFeature",
+    "reporting_digest_feature",
 ]
+
 
 

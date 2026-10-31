@@ -480,3 +480,85 @@ def export_down_links_report(report_id: int):
                 download_name=f"down_links_report_{report_id}.csv",
             )
 
+
+@reports_bp.route("/api/v1/reports/digest", methods=["GET"])
+@login_required
+def get_daily_noc_digest():
+    """Generate daily NOC operations digest across alarms, down links, licenses, jobs, and compliance."""
+    from backend.app.services.noc_digest import NocDigestService
+    hours = request.args.get("hours", default=24, type=int)
+    digest = NocDigestService.generate_digest(hours=hours)
+    return jsonify(digest), 200
+
+
+@reports_bp.route("/api/v1/reports/digest/export", methods=["GET"])
+@login_required
+def export_daily_noc_digest():
+    """Export daily NOC digest to multi-tab XLSX, UTF-8-SIG CSV, or JSON."""
+    from backend.app.services.noc_digest import NocDigestService
+    hours = request.args.get("hours", default=24, type=int)
+    fmt = request.args.get("format", default="xlsx").lower()
+
+    digest = NocDigestService.generate_digest(hours=hours)
+    content_bytes, mimetype, filename = NocDigestService.export_digest(digest, format_type=fmt)
+
+    return send_file(
+        io.BytesIO(content_bytes),
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@reports_bp.route("/api/v1/reports/export", methods=["POST"])
+@login_required
+def unified_data_export():
+    """Generic multi-format data export endpoint."""
+    from backend.app.services.export_service import UnifiedExportService
+    payload = get_json_payload()
+    data = payload.get("data") or []
+    fieldnames = payload.get("fieldnames")
+    fmt = str(payload.get("format", "csv")).lower()
+    filename = payload.get("filename") or f"export.{fmt}"
+
+    if fmt == "csv":
+        raw_bytes = UnifiedExportService.export_csv(data, fieldnames=fieldnames)
+        mimetype = "text/csv; charset=utf-8-sig"
+    elif fmt == "xlsx":
+        raw_bytes = UnifiedExportService.export_xlsx(data, default_title=payload.get("sheet_name", "Export"))
+        mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    elif fmt == "json":
+        raw_bytes = UnifiedExportService.export_json(data)
+        mimetype = "application/json"
+    else:
+        return jsonify({"error": "UNSUPPORTED_FORMAT", "message": f"Unsupported format '{fmt}'"}), 400
+
+    return send_file(
+        io.BytesIO(raw_bytes),
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@reports_bp.route("/api/v1/reports/export/stream", methods=["POST"])
+@login_required
+def unified_data_export_stream():
+    """Stream large CSV datasets chunk-by-chunk with UTF-8-SIG preamble."""
+    from backend.app.services.export_service import UnifiedExportService
+    payload = get_json_payload()
+    data = payload.get("data") or []
+    fieldnames = payload.get("fieldnames")
+    filename = payload.get("filename") or "streamed_export.csv"
+
+    def generate():
+        for chunk in UnifiedExportService.stream_csv(data, fieldnames=fieldnames):
+            yield chunk
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
