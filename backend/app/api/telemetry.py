@@ -10,6 +10,8 @@ from auth import login_required, permission_required
 from audit import record_audit
 from validators import validate_host_or_ip
 from backend.app.api.common import get_client_ip, get_json_payload
+from backend.app.extensions import get_db_session
+from backend.app.services.monitoring import MonitoringHubService
 
 telemetry_bp = Blueprint("telemetry_api", __name__)
 logger = logging.getLogger(__name__)
@@ -195,3 +197,88 @@ def search_zabbix_ip():
     except Exception as e:
         logger.exception("Zabbix search failed")
         return jsonify({"error": f"Search failed: {e}"}), 500
+
+
+# ---------------------------------------------------------------------------
+# Modern Phase 5 REST Endpoints (/api/v1/telemetry/*)
+# ---------------------------------------------------------------------------
+
+@telemetry_bp.route("/api/v1/telemetry/fleet-health", methods=["GET"])
+@login_required
+def api_v1_fleet_health():
+    """Fleet-wide health overview aggregated from Zabbix telemetry."""
+    province = request.args.get("province")
+    role = request.args.get("role")
+    with get_db_session() as s:
+        health = MonitoringHubService.get_fleet_health(
+            db_session=s,
+            filter_province=province,
+            filter_role=role,
+        )
+        return jsonify(health), 200
+
+
+@telemetry_bp.route("/api/v1/telemetry/device/<device_identifier>", methods=["GET"])
+@login_required
+def api_v1_device_monitoring(device_identifier):
+    """Device monitoring tab data: interfaces, metrics, CPU/mem series, Grafana URLs."""
+    t_from = request.args.get("from", "now-6h")
+    t_to = request.args.get("to", "now")
+    with get_db_session() as s:
+        mon = MonitoringHubService.get_device_monitoring(
+            db_session=s,
+            device_identifier=device_identifier,
+            t_from=t_from,
+            t_to=t_to,
+        )
+        return jsonify(mon), 200
+
+
+@telemetry_bp.route("/api/v1/telemetry/search-interfaces", methods=["POST"])
+@login_required
+def api_v1_search_interfaces():
+    """Modern interface search endpoint using TelemetryProvider with legacy fallback."""
+    data = get_json_payload()
+    keyword = (data.get("keyword") or "").strip()
+    if not keyword:
+        return jsonify({"error": "Keyword is required", "results": []}), 400
+
+    with get_db_session() as s:
+        res = MonitoringHubService.search_interfaces(
+            db_session=s,
+            keyword=keyword,
+        )
+        return jsonify(res), 200
+
+
+@telemetry_bp.route("/api/v1/telemetry/merge-alarms", methods=["POST"])
+@login_required
+def api_v1_merge_alarms():
+    """Merge SSH alarms with Zabbix problems and return device selection shortcuts."""
+    data = get_json_payload()
+    ssh_alarms = data.get("ssh_alarms", [])
+    with get_db_session() as s:
+        merged = MonitoringHubService.merge_alarms(
+            db_session=s,
+            ssh_alarms=ssh_alarms,
+        )
+        return jsonify(merged), 200
+
+
+@telemetry_bp.route("/api/v1/telemetry/doctor", methods=["GET"])
+@login_required
+def api_v1_telemetry_doctor():
+    """Diagnostic doctor suite testing Zabbix API, Grafana health, and mapping coverage."""
+    with get_db_session() as s:
+        diag = MonitoringHubService.test_integrations(db_session=s)
+        return jsonify(diag), 200
+
+
+@telemetry_bp.route("/api/v1/telemetry/webhook", methods=["POST"])
+def api_v1_telemetry_webhook():
+    """Intake endpoint for external alert webhooks from Zabbix, Grafana, or alerting bots."""
+    data = get_json_payload(silent=True) or {}
+    with get_db_session() as s:
+        res = MonitoringHubService.process_webhook(data, db_session=s)
+        return jsonify(res), 200
+

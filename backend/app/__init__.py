@@ -138,22 +138,46 @@ def create_app(config_override: dict = None) -> Flask:
     from backend.app.api.arp import arp_bp
     from backend.app.api.sessions_export import sessions_export_bp
     from backend.app.api.ptp import ptp_bp
-    from backend.app.api.schedules import schedules_bp
+    from backend.app.api.schedules import schedules_bp, notifications_bp
     from backend.app.api.credentials import credentials_bp
     from backend.app.api.changes import changes_bp
-    from backend.app.api.configs import configs_bp
+    from backend.app.api.configs import configs_bp, compliance_bp
+    from backend.app.api.devices import devices_bp
+    from backend.app.api.features import features_bp
+    from backend.app.api.alarms import alarms_bp
+    from backend.app.api.licenses import licenses_bp
+
+    from backend.app.api.tokens import tokens_bp
+    from backend.app.api.command_runner import command_runner_bp
+
+    # Trigger features and job handlers registration
+    import backend.app.features  # noqa: F401
+    import backend.app.jobs.handlers  # noqa: F401
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
+    app.register_blueprint(tokens_bp)
     app.register_blueprint(jobs_bp, url_prefix="/api/v1/jobs")
     app.register_blueprint(jobs_bp, url_prefix="/jobs", name="jobs_alias")
     app.register_blueprint(credentials_bp, url_prefix="/api/v1/credentials")
     app.register_blueprint(credentials_bp, url_prefix="/credentials", name="credentials_alias")
     app.register_blueprint(changes_bp, url_prefix="/api/v1/changes")
     app.register_blueprint(changes_bp, url_prefix="/changes", name="changes_alias")
+    app.register_blueprint(devices_bp, url_prefix="/api/v1/devices")
+    app.register_blueprint(devices_bp, url_prefix="/devices", name="devices_alias")
     app.register_blueprint(configs_bp, url_prefix="/api/v1/devices")
     app.register_blueprint(configs_bp, url_prefix="/devices", name="configs_alias")
+    app.register_blueprint(compliance_bp, url_prefix="/api/v1/compliance")
+    app.register_blueprint(compliance_bp, url_prefix="/compliance", name="compliance_alias")
+    app.register_blueprint(command_runner_bp, url_prefix="/api/v1/commands")
+    app.register_blueprint(command_runner_bp, url_prefix="/commands", name="commands_alias")
+    app.register_blueprint(features_bp, url_prefix="/api/v1/features")
+    app.register_blueprint(features_bp, url_prefix="/features", name="features_alias")
+    app.register_blueprint(alarms_bp, url_prefix="/api/v1/alarms")
+    app.register_blueprint(alarms_bp, url_prefix="/alarms", name="alarms_alias")
+    app.register_blueprint(licenses_bp, url_prefix="/api/v1/licenses")
+    app.register_blueprint(licenses_bp, url_prefix="/licenses", name="licenses_alias")
     app.register_blueprint(alarm_clear_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(license_bp)
@@ -163,5 +187,8 @@ def create_app(config_override: dict = None) -> Flask:
     app.register_blueprint(sessions_export_bp)
     app.register_blueprint(ptp_bp)
     app.register_blueprint(schedules_bp, url_prefix="/api/v1/schedules")
+    app.register_blueprint(schedules_bp, url_prefix="/schedules", name="schedules_alias")
+    app.register_blueprint(notifications_bp, url_prefix="/api/v1/notifications")
+    app.register_blueprint(notifications_bp, url_prefix="/notifications", name="notifications_alias")
 
     return app

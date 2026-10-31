@@ -75,12 +75,30 @@ def get_engine(db_url: str = None) -> Engine:
             # Lightweight schema sync for development SQLite
             with _engine.connect() as conn:
                 try:
+                    # config_snapshots columns
                     res = conn.execute(text("PRAGMA table_info(config_snapshots)")).fetchall()
                     cols = {r[1] for r in res}
                     if cols and "last_checked_at" not in cols:
                         conn.execute(text("ALTER TABLE config_snapshots ADD COLUMN last_checked_at DATETIME"))
                     if cols and "size_bytes" not in cols:
                         conn.execute(text("ALTER TABLE config_snapshots ADD COLUMN size_bytes INTEGER"))
+
+                    # devices columns
+                    dev_res = conn.execute(text("PRAGMA table_info(devices)")).fetchall()
+                    dev_cols = {r[1] for r in dev_res}
+                    if dev_cols:
+                        if "software_version" not in dev_cols:
+                            conn.execute(text("ALTER TABLE devices ADD COLUMN software_version VARCHAR(100)"))
+                        if "lsr_id" not in dev_cols:
+                            conn.execute(text("ALTER TABLE devices ADD COLUMN lsr_id VARCHAR(100)"))
+                        if "role" not in dev_cols:
+                            conn.execute(text("ALTER TABLE devices ADD COLUMN role VARCHAR(50)"))
+                        if "health_status" not in dev_cols:
+                            conn.execute(text("ALTER TABLE devices ADD COLUMN health_status VARCHAR(50) DEFAULT 'unknown'"))
+                        if "last_health_check" not in dev_cols:
+                            conn.execute(text("ALTER TABLE devices ADD COLUMN last_health_check DATETIME"))
+                        if "updated_at" not in dev_cols:
+                            conn.execute(text("ALTER TABLE devices ADD COLUMN updated_at DATETIME"))
                     conn.commit()
                 except Exception:
                     pass

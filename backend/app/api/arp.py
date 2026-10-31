@@ -24,6 +24,7 @@ from backend.app.api.common import (
 )
 from backend.app.extensions import get_db_session
 from backend.app.models.arp_mac import ArpMacRecord, ArpMacSnapshot, ArpMacHistory
+from backend.app.services.arp import SiteArpService, arp_collector_manager
 
 arp_bp = Blueprint("arp_api", __name__)
 logger = logging.getLogger(__name__)
@@ -252,3 +253,124 @@ def download_current_arp_mac():
             as_attachment=True,
             download_name="arp_mac_current.csv",
         )
+
+
+# ---------------------------------------------------------------------------
+# Modern Phase 5 REST Endpoints (/api/v1/arp/*)
+# ---------------------------------------------------------------------------
+
+@arp_bp.route("/api/v1/arp/lookup", methods=["POST"])
+@login_required
+def api_v1_arp_lookup():
+    """Modern endpoint for Site / IP ARP & MAC address lookup."""
+    data = get_json_payload()
+    query = (data.get("query") or data.get("site_code") or data.get("ip") or "").strip()
+    ttl_seconds = int(data.get("ttl_seconds", 300))
+    force_refresh = bool(data.get("force_refresh", False))
+
+    if not query:
+        return jsonify({"error": "Query (Site code or IP address) is required", "success": False}), 400
+
+    with get_db_session() as s:
+        result = SiteArpService.lookup(
+            db_session=s,
+            query=query,
+            ttl_seconds=ttl_seconds,
+            force_refresh=force_refresh,
+        )
+        status_code = 200 if result.get("success") else 404
+        return jsonify(result), status_code
+
+
+@arp_bp.route("/api/v1/arp/collector/start", methods=["POST"])
+@login_required
+def api_v1_arp_collector_start():
+    """Start background ARP/MAC collection job with concurrency and cancellation support."""
+    threads = 10
+    routers = []
+
+    if request.content_type and "multipart/form-data" in request.content_type:
+        username, password = resolve_request_credentials(request.form)
+        try:
+            threads = int(request.form.get("threads", 10))
+        except Exception:
+            threads = 10
+
+        if "file" in request.files and request.files["file"].filename:
+            content = request.files["file"].read()
+            matched, _, _ = parse_ne_csv_content(content)
+            routers = matched
+    else:
+        data = get_json_payload()
+        username, password = resolve_request_credentials(data)
+        try:
+            threads = int(data.get("threads", 10))
+        except Exception:
+            threads = 10
+        routers = data.get("routers", [])
+
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
+
+    if not routers:
+        return jsonify({"error": f"No target routers found starting with {', '.join(TARGET_NE_PREFIXES)}"}), 400
+
+    started = arp_collector_manager.start_job(
+        routers=routers,
+        username=username,
+        password=password,
+        max_workers=threads,
+        db_session_factory=get_db_session,
+    )
+    if not started:
+        return jsonify({"error": "Collector job is already running"}), 409
+
+    return jsonify({
+        "status": "started",
+        "message": f"Collector started for {len(routers)} routers",
+        "router_count": len(routers),
+    })
+
+
+@arp_bp.route("/api/v1/arp/collector/status", methods=["GET"])
+@login_required
+def api_v1_arp_collector_status():
+    """Query current status, progress percentage, and logs of the collector job."""
+    return jsonify(arp_collector_manager.get_status())
+
+
+@arp_bp.route("/api/v1/arp/collector/stop", methods=["POST"])
+@login_required
+def api_v1_arp_collector_stop():
+    """Signal real cancellation to the running collector job."""
+    stopped = arp_collector_manager.stop()
+    return jsonify({"status": "stopping" if stopped else "idle"})
+
+
+@arp_bp.route("/api/v1/arp/export", methods=["GET", "POST"])
+@login_required
+def api_v1_arp_export():
+    """Export ARP/MAC lookup results or full table as UTF-8 BOM CSV."""
+    query = request.args.get("query")
+    if not query and request.method == "POST":
+        data = get_json_payload()
+        query = data.get("query")
+
+    with get_db_session() as s:
+        if query:
+            res = SiteArpService.lookup(db_session=s, query=query.strip())
+            rows = res.get("results", [])
+        else:
+            records = s.query(ArpMacRecord).order_by(ArpMacRecord.ne_name.asc()).all()
+            rows = [r.to_dict() for r in records]
+
+        csv_content = SiteArpService.export_csv(rows)
+        mem = io.BytesIO(csv_content.encode("utf-8-sig"))
+        mem.seek(0)
+        return send_file(
+            mem,
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name=f"arp_mac_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        )
+

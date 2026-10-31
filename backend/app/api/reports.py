@@ -339,3 +339,226 @@ def report_analytics(sid):
     if analytics is None:
         return jsonify({"error": "Analytics not yet available"}), 425
     return jsonify(analytics)
+
+
+# --- Step 5.3 Modern Automation Catalog Down-Links Endpoints ---
+
+@reports_bp.route("/api/v1/reports/down-links/run", methods=["POST"])
+@login_required
+def run_down_links_report():
+    """Run a down-links scan across target devices or province."""
+    from backend.app.features.registry import feature_registry
+    from backend.app.features.base import FeatureContext
+    from backend.app.db.session import get_db_session
+
+    feature = feature_registry.get("down_links")
+    if not feature:
+        return jsonify({"error": "FEATURE_UNAVAILABLE", "message": "Down-links feature not registered"}), 500
+
+    payload = request.get_json(silent=True) or {}
+    user_id = session.get("user", {}).get("id")
+
+    with get_db_session() as db_sess:
+        ctx = FeatureContext(
+            db_session=db_sess,
+            user_id=user_id,
+            params=payload,
+        )
+        res = feature.run(ctx)
+        return jsonify(res), 200
+
+
+@reports_bp.route("/api/v1/reports/down-links/latest", methods=["GET"])
+@login_required
+def get_latest_down_links_report():
+    """Retrieve the most recent down-links report (optionally filtered by province)."""
+    from backend.app.db.session import get_db_session
+    from backend.app.models.down_link import DownLinkReport
+
+    province = request.args.get("province")
+    with get_db_session() as db_sess:
+        query = db_sess.query(DownLinkReport)
+        if province:
+            query = query.filter(DownLinkReport.province == province.upper())
+        report = query.order_by(DownLinkReport.created_at.desc()).first()
+        if not report:
+            return jsonify({"error": "NOT_FOUND", "message": "No down-links report found"}), 404
+        return jsonify(report.to_dict(include_details=True)), 200
+
+
+@reports_bp.route("/api/v1/reports/down-links/<int:report_id>", methods=["GET"])
+@login_required
+def get_down_links_report_by_id(report_id: int):
+    """Retrieve a specific down-links report by ID."""
+    from backend.app.db.session import get_db_session
+    from backend.app.models.down_link import DownLinkReport
+
+    with get_db_session() as db_sess:
+        report = db_sess.query(DownLinkReport).filter(DownLinkReport.id == report_id).first()
+        if not report:
+            return jsonify({"error": "NOT_FOUND", "message": f"Report {report_id} not found"}), 404
+        return jsonify(report.to_dict(include_details=True)), 200
+
+
+@reports_bp.route("/api/v1/reports/down-links/<int:report_id>/compare", methods=["GET"])
+@login_required
+def compare_down_links_report(report_id: int):
+    """Compare a down-links report with another report or previous day's report."""
+    from backend.app.db.session import get_db_session
+    from backend.app.models.down_link import DownLinkReport
+    from backend.app.services.reporting import DownLinksService
+
+    with get_db_session() as db_sess:
+        current = db_sess.query(DownLinkReport).filter(DownLinkReport.id == report_id).first()
+        if not current:
+            return jsonify({"error": "NOT_FOUND", "message": f"Report {report_id} not found"}), 404
+
+        other_id = request.args.get("compare_with_id", type=int)
+        if other_id:
+            previous = db_sess.query(DownLinkReport).filter(DownLinkReport.id == other_id).first()
+        else:
+            # Query the latest report created before current report
+            query = db_sess.query(DownLinkReport).filter(DownLinkReport.id < report_id)
+            if current.province:
+                query = query.filter(DownLinkReport.province == current.province)
+            previous = query.order_by(DownLinkReport.created_at.desc()).first()
+
+        if not previous:
+            return jsonify({
+                "message": "No previous report found for comparison",
+                "current_report_id": current.id,
+                "comparison": None,
+            }), 200
+
+        diff = DownLinksService.compare_reports(
+            current_report={"report_data": current.report_data, "noconf_data": current.noconf_data},
+            previous_report={"report_data": previous.report_data, "noconf_data": previous.noconf_data},
+        )
+        diff["current_report_id"] = current.id
+        diff["previous_report_id"] = previous.id
+        diff["previous_created_at"] = previous.created_at.isoformat()
+        return jsonify(diff), 200
+
+
+@reports_bp.route("/api/v1/reports/down-links/<int:report_id>/export", methods=["GET"])
+@login_required
+def export_down_links_report(report_id: int):
+    """Export down-links report to CSV or multi-tab XLSX."""
+    from backend.app.db.session import get_db_session
+    from backend.app.models.down_link import DownLinkReport
+    from backend.app.services.reporting import DownLinksService
+
+    fmt = request.args.get("format", "csv").lower()
+    with get_db_session() as db_sess:
+        report = db_sess.query(DownLinkReport).filter(DownLinkReport.id == report_id).first()
+        if not report:
+            return jsonify({"error": "NOT_FOUND", "message": f"Report {report_id} not found"}), 404
+
+        if fmt == "xlsx":
+            xlsx_bytes = DownLinksService.export_xlsx(
+                report_data=report.report_data,
+                noconf_data=report.noconf_data,
+                trunk_data=report.trunk_data,
+                analytics=report.analytics,
+            )
+            return send_file(
+                io.BytesIO(xlsx_bytes),
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                as_attachment=True,
+                download_name=f"down_links_report_{report_id}.xlsx",
+            )
+        else:
+            csv_bytes = DownLinksService.export_csv(
+                report_data=report.report_data,
+                noconf_data=report.noconf_data,
+                trunk_data=report.trunk_data,
+            )
+            return send_file(
+                io.BytesIO(csv_bytes),
+                mimetype="text/csv",
+                as_attachment=True,
+                download_name=f"down_links_report_{report_id}.csv",
+            )
+
+
+@reports_bp.route("/api/v1/reports/digest", methods=["GET"])
+@login_required
+def get_daily_noc_digest():
+    """Generate daily NOC operations digest across alarms, down links, licenses, jobs, and compliance."""
+    from backend.app.services.noc_digest import NocDigestService
+    hours = request.args.get("hours", default=24, type=int)
+    digest = NocDigestService.generate_digest(hours=hours)
+    return jsonify(digest), 200
+
+
+@reports_bp.route("/api/v1/reports/digest/export", methods=["GET"])
+@login_required
+def export_daily_noc_digest():
+    """Export daily NOC digest to multi-tab XLSX, UTF-8-SIG CSV, or JSON."""
+    from backend.app.services.noc_digest import NocDigestService
+    hours = request.args.get("hours", default=24, type=int)
+    fmt = request.args.get("format", default="xlsx").lower()
+
+    digest = NocDigestService.generate_digest(hours=hours)
+    content_bytes, mimetype, filename = NocDigestService.export_digest(digest, format_type=fmt)
+
+    return send_file(
+        io.BytesIO(content_bytes),
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@reports_bp.route("/api/v1/reports/export", methods=["POST"])
+@login_required
+def unified_data_export():
+    """Generic multi-format data export endpoint."""
+    from backend.app.services.export_service import UnifiedExportService
+    payload = get_json_payload()
+    data = payload.get("data") or []
+    fieldnames = payload.get("fieldnames")
+    fmt = str(payload.get("format", "csv")).lower()
+    filename = payload.get("filename") or f"export.{fmt}"
+
+    if fmt == "csv":
+        raw_bytes = UnifiedExportService.export_csv(data, fieldnames=fieldnames)
+        mimetype = "text/csv; charset=utf-8-sig"
+    elif fmt == "xlsx":
+        raw_bytes = UnifiedExportService.export_xlsx(data, default_title=payload.get("sheet_name", "Export"))
+        mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    elif fmt == "json":
+        raw_bytes = UnifiedExportService.export_json(data)
+        mimetype = "application/json"
+    else:
+        return jsonify({"error": "UNSUPPORTED_FORMAT", "message": f"Unsupported format '{fmt}'"}), 400
+
+    return send_file(
+        io.BytesIO(raw_bytes),
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
+@reports_bp.route("/api/v1/reports/export/stream", methods=["POST"])
+@login_required
+def unified_data_export_stream():
+    """Stream large CSV datasets chunk-by-chunk with UTF-8-SIG preamble."""
+    from backend.app.services.export_service import UnifiedExportService
+    payload = get_json_payload()
+    data = payload.get("data") or []
+    fieldnames = payload.get("fieldnames")
+    filename = payload.get("filename") or "streamed_export.csv"
+
+    def generate():
+        for chunk in UnifiedExportService.stream_csv(data, fieldnames=fieldnames):
+            yield chunk
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+

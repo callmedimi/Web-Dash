@@ -18,6 +18,17 @@ from backend.app.telemetry.zabbix import ZabbixProvider, ZabbixCircuitBreaker
 from backend.app.telemetry.grafana import GrafanaClient
 from backend.app.telemetry.mapping import sync_devices_with_telemetry
 
+
+def get_telemetry_provider() -> TelemetryProvider:
+    """Instantiate active TelemetryProvider based on environment configuration."""
+    import os
+    zabbix_url = os.environ.get("ZABBIX_URL")
+    zabbix_token = os.environ.get("ZABBIX_TOKEN")
+    if zabbix_url and zabbix_token:
+        return ZabbixProvider(url=zabbix_url, token=zabbix_token)
+    return DisabledProvider("Zabbix telemetry not configured")
+
+
 __all__ = [
     "TelemetryHost",
     "TelemetryProblem",
@@ -35,4 +46,6 @@ __all__ = [
     "ZabbixCircuitBreaker",
     "GrafanaClient",
     "sync_devices_with_telemetry",
+    "get_telemetry_provider",
 ]
+

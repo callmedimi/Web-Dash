@@ -76,6 +76,9 @@ class TelemetryProvider(ABC):
 class DisabledProvider(TelemetryProvider):
     """Provider used when telemetry integration is disabled or unconfigured."""
 
+    def __init__(self, reason: str = "Telemetry provider is disabled or unconfigured"):
+        self.reason = reason
+
     def list_hosts(self, filters: Optional[Dict[str, Any]] = None) -> List[TelemetryHost]:
         return []
 

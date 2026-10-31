@@ -12,18 +12,20 @@ import difflib
 import hashlib
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from cryptography.fernet import Fernet
 
-from backend.app.models.config_change import ConfigSnapshot
+from backend.app.models.config_change import ConfigSnapshot, ChangeRequest
+from backend.app.models.job import Job
 from backend.app.models.device import Device
 from backend.app.security.vault import get_vault_key
 
 # Volatile headers and comments that vary without functional configuration changes
 VOLATILE_HEADER_PATTERNS = [
-    re.compile(r"^#\s*last\s+physical\s+(?:up|down)\s+time:.*$", re.IGNORECASE),
-    re.compile(r"^#\s*(?:current\s+configuration|configuration\s+generated\s+on):.*$", re.IGNORECASE),
-    re.compile(r"^#\s*info:\s*current\s+terminal\s+time:.*$", re.IGNORECASE),
+    re.compile(r"^#\s*last\s+physical\s+(?:up|down)\s+time:?.*$", re.IGNORECASE),
+    re.compile(r"^#\s*(?:current\s+configuration(?:\s+generated\s+on)?|configuration\s+generated\s+on):?.*$", re.IGNORECASE),
+    re.compile(r"^#\s*info:\s*current\s+terminal\s+time:?.*$", re.IGNORECASE),
     re.compile(r"^#\s*time:\s*\d{4}-\d{2}-\d{2}.*$", re.IGNORECASE),
     re.compile(r"^#\s*uptime\s+is\s+.*$", re.IGNORECASE),
 ]
@@ -318,3 +320,143 @@ class ConfigBackupService:
         diff_res["from_snapshot"] = snap_from.to_dict()
         diff_res["to_snapshot"] = snap_to.to_dict()
         return diff_res
+
+    @classmethod
+    def get_device_timeline(
+        cls,
+        db_session: Session,
+        device_id: int,
+        kind: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """
+        Build an enriched timeline of configuration snapshots for a device.
+        Correlates each snapshot with Job and ChangeRequest records to answer 'who/what changed'.
+        """
+        dev = db_session.query(Device).filter(Device.id == device_id).first()
+        if not dev:
+            return []
+
+        query = db_session.query(ConfigSnapshot).filter(ConfigSnapshot.device_id == device_id)
+        if kind:
+            query = query.filter(ConfigSnapshot.kind == kind)
+
+        snapshots = (
+            query.order_by(ConfigSnapshot.taken_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        if not snapshots:
+            return []
+
+        timeline: List[Dict[str, Any]] = []
+
+        for i, s in enumerate(snapshots):
+            older_snap = snapshots[i + 1] if i + 1 < len(snapshots) else None
+
+            # 1. Job and ChangeRequest correlation
+            job = None
+            if s.job_id:
+                job = db_session.query(Job).filter(Job.id == s.job_id).first()
+
+            cr = (
+                db_session.query(ChangeRequest)
+                .filter(
+                    or_(
+                        ChangeRequest.snapshot_id == s.id,
+                        (ChangeRequest.job_id == s.job_id) if s.job_id else False,
+                    )
+                )
+                .first()
+            )
+
+            # Determine who changed
+            if cr and cr.approver_id:
+                who_changed = f"{cr.creator_id or 'unknown'} (approved by {cr.approver_id})"
+            elif cr and cr.creator_id:
+                who_changed = cr.creator_id
+            elif job and job.created_by:
+                who_changed = job.created_by
+            else:
+                who_changed = "system/scheduled"
+
+            # Determine what changed
+            if older_snap is None:
+                what_changed = "Initial configuration baseline"
+                diff_summary = {"additions": 0, "deletions": 0, "changed": False}
+            elif older_snap.sha256 == s.sha256:
+                what_changed = "Unchanged configuration checkpoint"
+                diff_summary = {"additions": 0, "deletions": 0, "changed": False}
+            else:
+                s_text = cls.get_snapshot_decrypted(db_session, s.id) or ""
+                older_text = cls.get_snapshot_decrypted(db_session, older_snap.id) or ""
+                diff_res = generate_config_diff(older_text, s_text)
+                adds = diff_res["additions"]
+                dels = diff_res["deletions"]
+                what_changed = f"+{adds} / -{dels} lines changed"
+                diff_summary = {"additions": adds, "deletions": dels, "changed": True}
+
+            timeline.append({
+                "snapshot_id": s.id,
+                "device_id": s.device_id,
+                "device_name": dev.name,
+                "taken_at": s.taken_at.isoformat() if s.taken_at else None,
+                "last_checked_at": s.last_checked_at.isoformat() if s.last_checked_at else None,
+                "kind": s.kind,
+                "sha256": s.sha256,
+                "size_bytes": s.size_bytes,
+                "job_id": s.job_id,
+                "job": {
+                    "id": job.id,
+                    "type": job.type,
+                    "created_by": job.created_by,
+                    "status": job.status,
+                    "mode": job.mode,
+                } if job else None,
+                "change_request": {
+                    "id": cr.id,
+                    "risk_level": cr.risk_level,
+                    "creator_id": cr.creator_id,
+                    "approver_id": cr.approver_id,
+                    "status": cr.status,
+                } if cr else None,
+                "who_changed": who_changed,
+                "what_changed": what_changed,
+                "diff_summary": diff_summary,
+            })
+
+        return timeline
+
+    @classmethod
+    def get_download_data(
+        cls,
+        db_session: Session,
+        device_id: int,
+        snapshot_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Retrieve decrypted snapshot content and metadata formatted for file download."""
+        dev = db_session.query(Device).filter(Device.id == device_id).first()
+        snap = (
+            db_session.query(ConfigSnapshot)
+            .filter(
+                ConfigSnapshot.id == snapshot_id,
+                ConfigSnapshot.device_id == device_id,
+            )
+            .first()
+        )
+        if not dev or not snap:
+            return None
+
+        content = cls.get_snapshot_decrypted(db_session, snapshot_id) or ""
+        ts_str = snap.taken_at.strftime("%Y%m%d_%H%M%S") if snap.taken_at else "snapshot"
+        filename = f"{dev.name}_{snap.kind}_{ts_str}.cfg"
+        return {
+            "filename": filename,
+            "content": content,
+            "mimetype": "text/plain; charset=utf-8",
+            "device_name": dev.name,
+            "kind": snap.kind,
+            "sha256": snap.sha256,
+            "size_bytes": len(content.encode("utf-8")),
+        }

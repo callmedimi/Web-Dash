@@ -63,10 +63,11 @@ class DeviceSession:
 
     def __init__(
         self,
-        device_name: str,
-        host: str,
-        username: str,
-        password: str,
+        device_name: str = "router",
+        host: Optional[str] = None,
+        username: str = "",
+        password: str = "",
+        ip: Optional[str] = None,
         os_family: str = "vrp8",
         port: int = 22,
         ssh_key: Optional[str] = None,
@@ -84,7 +85,7 @@ class DeviceSession:
         connect_factory: Optional[Callable[..., Any]] = None,
     ):
         self.device_name = device_name
-        self.host = host
+        self.host = host or ip or "127.0.0.1"
         self.username = username
         self.password = password
         self.os_family = os_family.lower()

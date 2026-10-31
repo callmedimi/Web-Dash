@@ -59,9 +59,14 @@ class Device(Base):
     os_family: Mapped[str] = mapped_column(String(20), default="vrp8", nullable=False)  # vrp5, vrp8
     model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     esn: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    software_version: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    lsr_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     site: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     province: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     tags: Mapped[List[str]] = mapped_column(JSON_TYPE, default=list, nullable=False)
+    health_status: Mapped[str] = mapped_column(String(50), default="unknown", nullable=False)
+    last_health_check: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     zabbix_hostid: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     grafana_vars: Mapped[Dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
     credential_id: Mapped[Optional[int]] = mapped_column(
@@ -69,8 +74,105 @@ class Device(Base):
     )
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
     credential: Mapped[Optional["Credential"]] = relationship("Credential", back_populates="devices")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "mgmt_ip": self.mgmt_ip,
+            "vendor": self.vendor,
+            "os_family": self.os_family,
+            "model": self.model,
+            "esn": self.esn,
+            "software_version": self.software_version,
+            "lsr_id": self.lsr_id,
+            "role": self.role,
+            "site": self.site,
+            "province": self.province,
+            "tags": self.tags if isinstance(self.tags, list) else [],
+            "health_status": self.health_status or "unknown",
+            "last_health_check": self.last_health_check.isoformat() if self.last_health_check else None,
+            "zabbix_hostid": self.zabbix_hostid,
+            "grafana_vars": self.grafana_vars if isinstance(self.grafana_vars, dict) else {},
+            "credential_id": self.credential_id,
+            "enabled": self.enabled,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class TargetSet(Base):
+    """Saved set of target devices based on filter criteria or explicit selection."""
+    __tablename__ = "target_sets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    filter_criteria: Mapped[Dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
+    device_ids: Mapped[List[int]] = mapped_column(JSON_TYPE, default=list, nullable=False)
+    created_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "filter_criteria": self.filter_criteria if isinstance(self.filter_criteria, dict) else {},
+            "device_ids": self.device_ids if isinstance(self.device_ids, list) else [],
+            "created_by_id": self.created_by_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+    def resolve_devices(self, session) -> List[Device]:
+        """Resolve criteria against current active devices."""
+        query = session.query(Device).filter(Device.enabled == True)
+        crit = self.filter_criteria or {}
+
+        if crit.get("provinces"):
+            query = query.filter(Device.province.in_(crit["provinces"]))
+        if crit.get("sites"):
+            query = query.filter(Device.site.in_(crit["sites"]))
+        if crit.get("roles"):
+            query = query.filter(Device.role.in_(crit["roles"]))
+        if crit.get("os_families"):
+            query = query.filter(Device.os_family.in_(crit["os_families"]))
+        if crit.get("models"):
+            query = query.filter(Device.model.in_(crit["models"]))
+        if crit.get("health_statuses"):
+            query = query.filter(Device.health_status.in_(crit["health_statuses"]))
+
+        results = query.all()
+
+        # Tag filtering
+        req_tags = set(crit.get("tags") or [])
+        if req_tags:
+            results = [d for d in results if req_tags.issubset(set(d.tags or []))]
+
+        # Explicitly pinned IDs
+        if self.device_ids:
+            pinned = (
+                session.query(Device)
+                .filter(Device.id.in_(self.device_ids), Device.enabled == True)
+                .all()
+            )
+            seen_ids = {d.id for d in results}
+            for p in pinned:
+                if p.id not in seen_ids:
+                    results.append(p)
+
+        return sorted(results, key=lambda d: d.name)
 
 
 class DeviceLock(Base):
@@ -81,3 +183,4 @@ class DeviceLock(Base):
     owner_task_id: Mapped[str] = mapped_column(String(100), nullable=False)
     acquired_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     heartbeat_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+

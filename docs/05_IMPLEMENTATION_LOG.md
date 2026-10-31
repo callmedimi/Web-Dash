@@ -800,3 +800,174 @@
   * اجرای ۹ آزمون تخصصی شامل ممانعت از تایید کاربران ادمین عادی، صحت‌سنجی توکن، ارزیابی سقف پورت‌ها و روترها با موفقیت ۱۰۰٪.
   * **اجرای رگرسیون سراسری کل پروژه:** اجرای تمامی ۱۹۵ آزمون خودکار در فازهای ۱ تا ۴: **۱۹۵ تست با موفقیت ۱۰۰٪ و بدون رگرسیون پاس شدند (`195 passed in 85.59s`).**
 
+---
+
+## فاز ۵ — کاتالوگ اتوماسیون و موتور گردش‌کار (Phase 5: Automation Catalog & Workflow Engine)
+
+### گام ۵.۱ — کشف و شناسایی موجودی شبکه، مجموعه‌های هدف و بج‌های سلامت (Step 5.1 Inventory & Discovery)
+* **هدف:** تبدیل Web-Dash به هاب اتوماسیون تخصصی تجهیزات هواوی VRP، مدیریت موجودی، گروه‌بندی و بج‌های سلامت.
+* **اقدامات انجام‌شده:**
+  1. توسعه متدهای درون‌ریزی CSV نام‌گذاری روترها بر پایه مشخصات `parse_csv_to_routers` با تفکیک تغییرات (Diff) در [backend/app/services/inventory.py](file:///d:/Playground/Web-Dash/backend/app/services/inventory.py).
+  2. استخراج خودکار استان (`province`) و سایت (`site`) بر اساس الگوهای نام‌گذاری تجهیزات VRP هواوی (`_XXX`).
+  3. پیاده‌سازی مدیریت گروه‌ها، برچسب‌ها و مجموعه‌های هدف ذخیره‌شده (`TargetSet`).
+  4. محاسبه وضعیت سلامت روترها (`DeviceHealthBadge`) در حالت‌های `monitored_ok`, `ssh_ok`, `unreachable`, `auth_failed`, `not_in_zabbix`.
+  5. ثبت قابلیت در کاتالوگ فیچرها (`InventoryDiscoveryFeature`) در [backend/app/features/inventory/](file:///d:/Playground/Web-Dash/backend/app/features/inventory/).
+  6. نگارش آزمون‌های جامع در [tests/test_step_5_1_inventory_and_discovery.py](file:///d:/Playground/Web-Dash/tests/test_step_5_1_inventory_and_discovery.py).
+* **تأییدیه (Verify):** پاس شدن ۹ تست از ۹ تست (`9 passed`).
+
+---
+
+### گام ۵.۲ — مرکز هشدارهای یکپارچه و آمار نویز (Step 5.2 Alarm Center)
+* **هدف:** گردآوری هشدارهای فعال روترها، فیلترهای پیشرفته و آماده‌سازی درخواست‌های تغییر.
+* **اقدامات انجام‌شده:**
+  1. پارس هشدارهای فعال VRP از خروجی `display alarm active` و فیلتر بر اساس استان، سطح هشدار، اینترفیس و مدت زمان در [backend/app/services/alarm_center.py](file:///d:/Playground/Web-Dash/backend/app/services/alarm_center.py).
+  2. ثبت فیلترهای ذخیره‌شده کاربر در جدول `alarm_filters`.
+  3. تحلیل آماری نویز: محاسبه پرنویزترین روترها، هیستوگرام سنی هشدارها و توزیع سطوح خطر.
+  4. برنامه‌ریزی درخواست‌های تغییر جهت پاکسازی یا خاموش‌سازی لینک‌های بدون کانفیگ از طریق پایپ‌لاین امن.
+  5. نگارش آزمون‌ها در [tests/test_step_5_2_alarm_center.py](file:///d:/Playground/Web-Dash/tests/test_step_5_2_alarm_center.py).
+* **تأییدیه (Verify):** پاس شدن ۷ تست از ۷ تست (`7 passed`).
+
+---
+
+### گام ۵.۳ — گزارش خطوط قطع، کشف تلاطم و مقایسه روزبه‌روز (Step 5.3 Down-Links Report & Analytics)
+* **هدف:** پایش جامع لینک‌های قطع‌شده، تفکیک سرویس و بدون‌کانفیگ، کشف انفجار قطعی‌ها و خروجی چندزبانه Excel/CSV.
+* **اقدامات انجام‌شده:**
+  1. پیاده‌سازی مدل پایش در [backend/app/services/reporting.py](file:///d:/Playground/Web-Dash/backend/app/services/reporting.py) با حفظ فیلدهای استاندارد `FIELD_NAMES` و `TRUNK_FIELD_NAMES`.
+  2. کشف پنجره‌های زمانی ۵ دقیقه‌ای تلاطم پورت‌ها (Burst Detection).
+  3. مقایسه گزارش‌های روز جاری با روز قبل (Day-over-Day Diff) جهت کشف لینک‌های تازه قطع‌شده یا بهبودیافته.
+  4. تولید فایل چندتب اکسل با استایل کامل (`openpyxl`) و فایل‌های CSV با انکودینگ UTF-8-SIG.
+  5. نگارش آزمون‌ها در [tests/test_step_5_3_down_links_report.py](file:///d:/Playground/Web-Dash/tests/test_step_5_3_down_links_report.py).
+* **تأییدیه (Verify):** پاس شدن ۸ تست از ۸ تست (`8 passed`).
+
+---
+
+### گام ۵.۴ — مدیریت لایسنس و مانیتورینگ روزهای باقی‌مانده (Step 5.4 License Management)
+* **هدف:** ثبت وضعیت ناوگان لایسنس‌های هواوی، روزهای باقی‌مانده تا انقضا و هشدارهای چندسطحی.
+* **اقدامات انجام‌شده:**
+  1. ذخیره‌سازی داده‌های لایسنس در مدل `LicenseRecord` در [backend/app/models/license.py](file:///d:/Playground/Web-Dash/backend/app/models/license.py).
+  2. دسته‌بندی هشدارهای انقضا بر اساس بازه‌های ۹۰، ۶۰، ۳۰ و ۷ روز مانده تا انقضا و لایسنس‌های منقضی‌شده.
+  3. ارائه آمار استفاده از آیتم‌ها و فیچرهای هر تجهیز.
+  4. نگارش آزمون‌ها در [tests/test_step_5_4_license_management.py](file:///d:/Playground/Web-Dash/tests/test_step_5_4_license_management.py).
+* **تأییدیه (Verify):** پاس شدن ۹ تست از ۹ تست (`9 passed`).
+
+---
+
+### گام ۵.۵ — بررسی مسیریابی VRF و ترسیم گراف مسیر (Step 5.5 VRF / Routing Check)
+* **هدف:** ردگیری مسیر هوپ‌به‌هوپ ترافیک درون VRF از مبدأ تا مقصد به همراه ساختار توپولوژی گراف مسیر.
+* **اقدامات انجام‌شده:**
+  1. پیاده‌سازی سرویس در [backend/app/services/routing.py](file:///d:/Playground/Web-Dash/backend/app/services/routing.py) بر پایه اعتبارسنجی دقیق نام VRF و آدرس IP.
+  2. اجرای متد `transform_originator_ip` جهت اصلاح آدرس‌های Loopback و انطباق با جدول مسیریابی BGP.
+  3. تولید ساختار گره‌ها (Nodes) و یال‌ها (Edges) برای نمایش بصری گراف مسیر در فرانت‌اند.
+  4. نگارش آزمون‌ها در [tests/test_step_5_5_vrf_routing.py](file:///d:/Playground/Web-Dash/tests/test_step_5_5_vrf_routing.py).
+* **تأییدیه (Verify):** پاس شدن ۸ تست از ۸ تست (`8 passed`).
+
+---
+
+### گام ۵.۶ — عیب‌یابی همگام‌سازی PTP و گراف توپولوژی ساعت (Step 5.6 PTP / Sync Troubleshoot)
+* **هدف:** ردگیری گام‌به‌گام زنجیره ساعت پروتکل Precision Time Protocol (IEEE 1588v2) و تشخیص افت ساعت مرجع.
+* **اقدامات انجام‌شده:**
+  1. پارس خروجی‌های `display ptp all` و `display ptp trace` در [backend/app/services/ptp.py](file:///d:/Playground/Web-Dash/backend/app/services/ptp.py).
+  2. تحلیل وضعیت Master/Slave/Passive پورت‌های PTP و تولید حکم تشخیصی (Verdict) درباره نقطه قطع شدن ساعت.
+  3. نگارش آزمون‌ها در [tests/test_step_5_6_ptp_troubleshoot.py](file:///d:/Playground/Web-Dash/tests/test_step_5_6_ptp_troubleshoot.py).
+* **تأییدیه (Verify):** پاس شدن ۶ تست از ۶ تست (`6 passed`).
+
+---
+
+### گام ۵.۷ — جستجوی ARP و MAC و جاب‌های پس‌زمینه (Step 5.7 ARP / MAC Lookup)
+* **هدف:** جستجوی فوق‌سریع آدرس‌های فیزیکی و مک‌ادرس بر مبنای کد سایت، جاب‌های جمع‌آوری پس‌زمینه و کش TTL.
+* **اقدامات انجام‌شده:**
+  1. پارس و نرمال‌سازی فرمت مک‌ادرس‌ها به استاندارد استاندارد چهاربخشی هواوی (`xxxx-xxxx-xxxx`).
+  2. ایجاد جاب‌های پس‌زمینه جمع‌آوری اطلاعات با امکان لغو آنی بدون قفل شدن سشن‌های شبکه.
+  3. کش هوشمند نتایج با برچسب تازگی داده‌ها (Data Freshness).
+  4. نگارش آزمون‌ها در [tests/test_step_5_7_arp_mac_lookup.py](file:///d:/Playground/Web-Dash/tests/test_step_5_7_arp_mac_lookup.py).
+* **تأییدیه (Verify):** پاس شدن ۸ تست از ۸ تست (`8 passed`).
+
+---
+
+### گام ۵.۸ — استخراج نشست‌های SecureCRT بدون ذخیره سکرت‌ها (Step 5.8 Session Extractor)
+* **هدف:** تولید پکیج فایل‌های کانفیگ SecureCRT با رعایت الزامات امنیتی سفت‌وسخت عدم افشای کلمات عبور.
+* **اقدامات انجام‌شده:**
+  1. پیاده‌سازی متدهای ساختار پوشه‌بندی و پاکسازی نام فایل‌ها در [backend/app/services/session_extractor.py](file:///d:/Playground/Web-Dash/backend/app/services/session_extractor.py).
+  2. ممیزی امنیتی خروجی‌ها و حذف کامل فیلد پسورد از فایل‌های `.ini` (به‌کارگیری شیوه Prompt on Connect یا SSH Key).
+  3. ایجاد فشرده‌سازی ZIP با انکودینگ UTF-8 استاندارد.
+  4. نگارش آزمون‌ها در [tests/test_step_5_8_session_extractor.py](file:///d:/Playground/Web-Dash/tests/test_step_5_8_session_extractor.py).
+* **تأییدیه (Verify):** پاس شدن ۸ تست از ۸ تست (`8 passed`).
+
+---
+
+### گام ۵.۹ — هاب مانیتورینگ: زبیکس، سلامت ناوگان و گرافانا (Step 5.9 Monitoring Hub)
+* **هدف:** یکپارچگی شفاف با Zabbix و Grafana، داشبورد سلامت ناوگان و ادغام رویدادهای زبیکس با هشدارهای SSH.
+* **اقدامات انجام‌شده:**
+  1. اتصال به ارائه‌دهنده تله‌متری زبیکس بدون نیاز به نشست‌های سنگین SSH در [backend/app/services/monitoring.py](file:///d:/Playground/Web-Dash/backend/app/services/monitoring.py).
+  2. تولید لینک‌های عمیق (Deep Links) داشبوردهای گرافانا به ازای هر اینترفیس.
+  3. دریافت وبهوک‌های سامانه مانیتورینگ و تجمیع هشدارهای زبیکس با آلارم‌های فعال روترها.
+  4. نگارش آزمون‌ها در [tests/test_step_5_9_monitoring_hub.py](file:///d:/Playground/Web-Dash/tests/test_step_5_9_monitoring_hub.py).
+* **تأییدیه (Verify):** پاس شدن ۸ تست از ۸ تست (`8 passed`).
+
+---
+
+### گام ۵.۱۰ — پشتیبان‌گیری، دیف و داشبورد انطباق ناوگان (Step 5.10 Config Backup, Diff & Compliance)
+* **هدف:** مشاهده تایم‌لاین تغییرات کانفیگ روترها، همبستگی با جاب‌های انجام‌شده و محاسبه درصد انطباق ناوگان.
+* **اقدامات انجام‌شده:**
+  1. یکپارچه‌سازی متدهای مقایسه تفاوت‌های کانفیگ با سابقه جاب‌ها و درخواست‌های تغییر در [backend/app/api/configs.py](file:///d:/Playground/Web-Dash/backend/app/api/configs.py).
+  2. داشبورد انطباق ناوگان بر اساس قوانین تعریف‌شده در [backend/app/services/compliance.py](file:///d:/Playground/Web-Dash/backend/app/services/compliance.py).
+  3. ارائه آمار انطباق به تفکیک استان و قوانین فعال.
+  4. نگارش آزمون‌ها در [tests/test_step_5_10_config_compliance.py](file:///d:/Playground/Web-Dash/tests/test_step_5_10_config_compliance.py).
+* **تأییدیه (Verify):** پاس شدن ۱۱ تست از ۱۱ تست (`11 passed`).
+
+---
+
+### گام ۵.۱۱ — اجرای دسته‌ای دستورات با اعتبارسنجی Read-Only (Step 5.11 Command Runner)
+* **هدف:** اجرای همزمان دستورات نمایشی مجاز بر روی چند روتر، فیلتر خروجی با Regex و تولید گزارش خروجی.
+* **اقدامات انجام‌شده:**
+  1. تعریف لیست سفید دستورات مجاز (`read_only: True`) و انسداد هرگونه دستور تغییردهنده در [backend/app/services/command_runner.py](file:///d:/Playground/Web-Dash/backend/app/services/command_runner.py).
+  2. پشتیبانی از قالب‌های Jinja2 جهت پارامتریک‌سازی ایمن دستورات.
+  3. جستجوی پیشرفته متن و عبارات باقاعده در خروجی تجهیزات و ذخیره سابقه در جدول جاب‌ها.
+  4. نگارش آزمون‌ها در [tests/test_step_5_11_command_runner.py](file:///d:/Playground/Web-Dash/tests/test_step_5_11_command_runner.py).
+* **تأییدیه (Verify):** پاس شدن ۸ تست از ۸ تست (`8 passed`).
+
+---
+
+### گام ۵.۱۲ — زمان‌بندی با لیدری لیس دیتابیس و اعلان‌های چندکاناله (Step 5.12 Scheduler & Notifications)
+* **هدف:** زمان‌بندی دقیق جاب‌های دوره‌ای با کرون استاندارد، انتخاب یک رهبر واحد (Single-Leader Lease) در دیتابیس و ارسال اعلان‌ها.
+* **اقدامات انجام‌شده:**
+  1. پیاده‌سازی مدل `SchedulerLease` و مکانیزم انتخاب رهبر با انقضای لیس زمانی در [backend/app/jobs/scheduler.py](file:///d:/Playground/Web-Dash/backend/app/jobs/scheduler.py).
+  2. اعتبارسنجی دقیق بازه‌های ۵ فیلد کرون در متد `validate_cron_expression`.
+  3. جلوگیری از اجرای تکراری در یک دقیقه و تضمین اجرای وظایف فقط توسط نود لیدر.
+  4. توسعه سرویس اعلان‌های چندکاناله [backend/app/services/notifications.py](file:///d:/Playground/Web-Dash/backend/app/services/notifications.py) با پشتیبانی از Webhook، ایمیل SMTP و Syslog برای رخدادهای شکست جاب، تاییدیه تغییر، انقضای لایسنس، تلاطم پورت و افت انطباق.
+  5. نگارش آزمون‌ها در [tests/test_step_5_12_scheduler_notifications.py](file:///d:/Playground/Web-Dash/tests/test_step_5_12_scheduler_notifications.py).
+* **تأییدیه (Verify):** پاس شدن ۸ تست از ۸ تست (`8 passed`).
+
+---
+
+### گام ۵.۱۳ — سیستم گزارش‌دهی یکپارچه، استریمینگ و دایجست روزانه NOC (Step 5.13 Reporting & Exports)
+* **هدف:** توسعه سرویس صادرات داده‌ها با استریمینگ داده‌های بزرگ، قالب‌بندی چندزبانه و گزارش دایجست روزانه عملیات شبکه.
+* **اقدامات انجام‌شده:**
+  1. توسعه سرویس صادرات داده [backend/app/services/export_service.py](file:///d:/Playground/Web-Dash/backend/app/services/export_service.py):
+     * پشتیبانی از فرمت‌های CSV (همراه با انکودینگ UTF-8-SIG و کاراکتر BOM جهت خوانایی فارسی در اکسل).
+     * استریمینگ خط‌به‌خط بدون مصرف بی‌رویه حافظه رم برای فایل‌های بزرگ (`stream_csv`).
+     * ایجاد کتاب‌های چندبرگی اکسل با استایل حرفه‌ای هدرها و تنظیم خودکار عرض ستون‌ها (`export_xlsx`).
+     * سریال‌سازی پیشرفته JSON برای انواع داده‌های تاریخ، زمان، UUID و Decimal.
+  2. توسعه سرویس دایجست روزانه [backend/app/services/noc_digest.py](file:///d:/Playground/Web-Dash/backend/app/services/noc_digest.py):
+     * تجمیع سلامت شبکه از رویدادها، خطوط قطع، لایسنس‌ها، جاب‌های ناموفق و درصد انطباق ناوگان.
+     * صدور وضعیت نهایی سلامت ناوگان (`HEALTHY`, `ATTENTION_NEEDED`, `CRITICAL`).
+  3. ایجاد فیچر کاتالوگ `reporting_digest` و کنترلرهای REST در [backend/app/api/reports.py](file:///d:/Playground/Web-Dash/backend/app/api/reports.py).
+  4. نگارش آزمون‌ها در [tests/test_step_5_13_reporting_exports.py](file:///d:/Playground/Web-Dash/tests/test_step_5_13_reporting_exports.py).
+* **تأییدیه (Verify):** پاس شدن ۸ تست از ۸ تست (`8 passed`).
+
+---
+
+### گام ۵.۱۴ — توکن‌های امن API، سند OpenAPI 3.0 و کلاینت CLI (Step 5.14 Public API & CLI)
+* **هدف:** ارائه API عمومی سازمانی، مدیریت توکن‌های هش‌شده و تاریخ‌دار، مستندسازی تعاملی و ابزار خط فرمان `webdash-cli`.
+* **اقدامات انجام‌شده:**
+  1. ایجاد مدل `ApiToken` در [backend/app/models/api_token.py](file:///d:/Playground/Web-Dash/backend/app/models/api_token.py) با ذخیره هش SHA-256 و نگهداری پیشوند ایمن.
+  2. توسعه سرویس [backend/app/services/tokens.py](file:///d:/Playground/Web-Dash/backend/app/services/tokens.py) شامل تولید توکن‌های `wbd_...`، اعتبارسنجی اسکوپ، ردیابی `last_used_at` و باطل‌سازی.
+  3. ارتقای میدلور امنیتی در [backend/app/security/middleware.py](file:///d:/Playground/Web-Dash/backend/app/security/middleware.py) جهت پشتیبانی از هدر `Authorization: Bearer wbd_...` بدون نیاز به کوکی مرورگر یا توکن CSRF.
+  4. تدوین استاندارد OpenAPI 3.0.3 در [backend/app/api/openapi_spec.py](file:///d:/Playground/Web-Dash/backend/app/api/openapi_spec.py) و ارائه اندپوینت‌های `/api/v1/openapi.json` و رابط گرافیکی Swagger UI در `/api/v1/docs`.
+  5. توسعه ابزار خط فرمان مستقل و فاقد وابستگی خارجی در [scripts/webdash_cli.py](file:///d:/Playground/Web-Dash/scripts/webdash_cli.py) برای لیست روترها، اجرای جاب‌ها، انتظار تا اتمام و دریافت دایجست.
+  6. نگارش آزمون‌ها در [tests/test_step_5_14_public_api_cli.py](file:///d:/Playground/Web-Dash/tests/test_step_5_14_public_api_cli.py).
+* **تأییدیه (Verify):**
+  * اجرای ۸ تست تخصصی با موفقیت ۱۰۰٪ (`8 passed`).
+  * **اجرای رگرسیون کامل فاز ۵ (گام‌های ۵.۱ تا ۵.۱۴):** **۱۱۴ تست با موفقیت ۱۰۰٪ و بدون رگرسیون پاس شدند (`114 passed in 89.25s`).**
+
+

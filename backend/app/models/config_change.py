@@ -119,3 +119,21 @@ class Schedule(Base):
     cron: Mapped[str] = mapped_column(String(100), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+class SchedulerLease(Base):
+    __tablename__ = "scheduler_leases"
+
+    name: Mapped[str] = mapped_column(String(50), primary_key=True, default="scheduler_leader")
+    holder_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "holder_id": self.holder_id,
+            "acquired_at": self.acquired_at.isoformat() if self.acquired_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+        }
+

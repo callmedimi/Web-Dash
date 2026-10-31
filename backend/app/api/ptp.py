@@ -211,3 +211,33 @@ def ptp_session_details(sid):
         "logs": sess.get("logs", []),
         "result": sess.get("result"),
     })
+
+
+# --- Step 5.6 Modern Automation Catalog PTP Troubleshooting Endpoints ---
+
+@ptp_bp.route("/api/v1/ptp/trace", methods=["POST"])
+@ptp_bp.route("/ptp/trace", methods=["POST"])
+@login_required
+def ptp_trace_endpoint():
+    """Execute live hop-by-hop PTP traceback and return topology graph and verdict."""
+    from backend.app.features.registry import feature_registry
+    from backend.app.features.base import FeatureContext
+    from backend.app.db.session import get_db_session
+
+    feature = feature_registry.get("ptp_troubleshoot")
+    if not feature:
+        return jsonify({"error": "FEATURE_UNAVAILABLE", "message": "PTP feature not registered"}), 500
+
+    payload = request.get_json(silent=True) or {}
+    user_id = session.get("user", {}).get("id")
+
+    with get_db_session() as db_sess:
+        ctx = FeatureContext(
+            db_session=db_sess,
+            user_id=user_id,
+            params=payload,
+        )
+        res = feature.run(ctx)
+        status_code = 200 if res.get("status") != "failed" else 400
+        return jsonify(res), status_code
+

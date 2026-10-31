@@ -115,3 +115,51 @@ def trigger_schedule_now(schedule_id: int):
         detail={"schedule_id": schedule_id, "triggered_job_id": job_id},
     )
     return jsonify({"status": "triggered", "schedule_id": schedule_id, "job_id": job_id})
+
+
+@schedules_bp.route("/leader", methods=["GET"])
+@login_required
+def get_scheduler_leader():
+    """Inspect scheduler single leader lease status."""
+    status = scheduler.get_leader_status()
+    return jsonify({"status": "success", "leader": status}), 200
+
+
+# Notifications Blueprint
+notifications_bp = Blueprint("notifications", __name__)
+
+
+@notifications_bp.route("/send", methods=["POST"])
+@login_required
+def send_notification_endpoint():
+    """Dispatch an alert across configured channels."""
+    from backend.app.services.notifications import NotificationService
+    data = get_json_payload()
+    res = NotificationService.dispatch_notification(
+        event_type=data.get("event_type", "manual_alert"),
+        title=data.get("title", "Web-Dash Notification"),
+        message=data.get("message", ""),
+        severity=data.get("severity", "info"),
+        data=data.get("data"),
+        channels=data.get("channels"),
+    )
+    return jsonify({"status": "success", "result": res}), 200
+
+
+@notifications_bp.route("/history", methods=["GET"])
+@login_required
+def get_notification_history():
+    """Retrieve recent notification dispatch history."""
+    from backend.app.services.notifications import NotificationService
+    limit = request.args.get("limit", default=50, type=int)
+    history = NotificationService.get_recent_history(limit)
+    return jsonify({"status": "success", "count": len(history), "history": history}), 200
+
+
+@notifications_bp.route("/triggers", methods=["GET"])
+@login_required
+def get_notification_triggers():
+    """List supported notification trigger types."""
+    from backend.app.services.notifications import SUPPORTED_TRIGGERS
+    return jsonify({"status": "success", "triggers": SUPPORTED_TRIGGERS}), 200
+
