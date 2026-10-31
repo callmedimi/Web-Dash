@@ -89,6 +89,8 @@ pnpm-debug.log*
 node_modules/
 frontend/node_modules/
 # Note: frontend/dist/ is intentionally tracked for air-gapped production mounts
+!frontend/dist/
+!frontend/dist/**
 .eslintcache
 .vite/
 .turbo/

@@ -156,6 +156,7 @@ def create_app(config_override: dict = None) -> Flask:
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(auth_bp, url_prefix="/api/v1", name="auth_api_v1")
     app.register_blueprint(users_bp)
     app.register_blueprint(tokens_bp)
     app.register_blueprint(jobs_bp, url_prefix="/api/v1/jobs")

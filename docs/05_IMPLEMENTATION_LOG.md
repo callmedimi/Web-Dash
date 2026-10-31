@@ -989,5 +989,43 @@
   * اجرای `npm run build` و تولید باندل با حجم اولیه ۴۸ کیلوبایت (بسیار کمتر از سقف بودجه ۲۵۰ کیلوبایت).
   * اجرای آزمون‌های پایتون: ۵ تست از ۵ تست پاس شدند (`5 passed in 0.14s`).
 
+---
+
+### گام ۶.۲ — کلاینت API، نگاشت خطاها، پوسته احراز هویت و گاردهای دسترسی (Step 6.2 API Client & Auth Shell)
+* **هدف:** پیاده‌سازی کلاینت HTTP استاندارد و تایپ‌شده برای ارتباط فرانت‌اند با APIهای سامانه، تزریق خودکار هدر امنیتی `X-CSRF-Token`، نگاشت دقیق خطاهای بک‌اند بر اساس مشخصات معماری به کلاس خطای `ApiError`، مدیریت انقضای سشن (401) و تغییر اجباری رمز (403 PASSWORD_CHANGE_REQUIRED)، پیکربندی تنظیمات بهینه TanStack Query برای اتاق مانیتورینگ NOC، ایجاد مخزن وضعیت احراز هویت با Zustand، ساخت صفحات ورود و تغییر رمز با استایل صنعتی، و پیاده‌سازی گاردهای مسیر و پوسته اصلی نرم‌افزار.
+* **اقدامات انجام‌شده:**
+  1. پیاده‌سازی کلاینت HTTP در [frontend/src/api/client.ts](file:///d:/Playground/Web-Dash/frontend/src/api/client.ts) و تعاریف تایپ در [frontend/src/api/types.ts](file:///d:/Playground/Web-Dash/frontend/src/api/types.ts):
+     - تابع `request<T>` و متدهای کمکی `apiClient.get/post/put/patch/delete` با الزام بر ارتباط JSON و ارسال کوکی سشن (`credentials: 'same-origin'`).
+     - تزریق خودکار هدر امنیتی `X-CSRF-Token` در کلیه متدهای تغییردهنده داده (`POST`, `PUT`, `DELETE`, `PATCH`).
+     - تبدیل انواع خطاهای سرور (RFC 7807، خطاهای اعتبارسنجی فیلد، و پیام‌های استاتیک) به نمونه کلاس `ApiError` شامل کد خطا، پیام، و لیست فیلدهای نامعتبر.
+     - مدیریت خطای 401 و ارسال رویداد `webdash:auth:unauthorized` جهت هدایت به صفحه ورود با حفظ مسیر بازگشت (`returnUrl`).
+     - مدیریت خطای 403 با کد `PASSWORD_CHANGE_REQUIRED` و ارسال رویداد `webdash:auth:password-change-required`.
+     - پیکربندی کلاینت سراسری TanStack Query: زمان کش اولیه ۱۵ ثانیه (`staleTime: 15_000`)، ممانعت قطعی از تلاش مجدد روی کدهای خطای کلاینت 4xx، و تلاش مجدد ۱ باره فقط برای خطاهای 5xx یا شبکه.
+  2. ایجاد مخزن وضعیت نشست و کاربران با Zustand در [frontend/src/store/auth.ts](file:///d:/Playground/Web-Dash/frontend/src/store/auth.ts):
+     - متدهای `checkAuth` (استعلام وضعیت از `/api/v1/me`)، `login`، `logout`، و `changePassword`.
+     - گوش دادن خودکار به رویدادهای سراسری کلاینت برای پاکسازی نشست و نمایش بنر انقضای نشست پس از ۳۰ دقیقه عدم فعالیت (`idleTimeoutNotice`).
+  3. ساخت کامپوننت‌های امنیتی و پوسته کنسول:
+     - گارد محافظت از مسیرها [frontend/src/components/auth/ProtectedRoute.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/auth/ProtectedRoute.tsx): بررسی احراز هویت و هدایت به `/login` یا الزام تغییر رمز موقت به `/change-password`.
+     - گارد دسترسی [frontend/src/components/auth/PermissionGate.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/auth/PermissionGate.tsx): کنترل دسترسی بر اساس سطح نقش کاربر (`god`, `admin`, `operator`, `viewer`) و پرچم فیچرهای فعال.
+     - مودال اطلاع‌رسانی انقضای نشست [frontend/src/components/auth/IdleTimeoutNotice.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/auth/IdleTimeoutNotice.tsx) مبتنی بر Radix Dialog.
+     - پوسته کنسول NOC در [frontend/src/components/layout/Shell.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/layout/Shell.tsx): نوار بالایی با نشانگر سلامت سیستم، تگ فقط‌خواندنی، مشخصات کاربر، دکمه خروج و پنل محتوایی بدون اسکرول سراسری بدنه.
+  4. پیاده‌سازی صفحات کاربری:
+     - صفحه ورود [frontend/src/pages/Login.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Login.tsx): طراحی دقیق ابزارگونه مطابق توکن‌های طراحی، فرم لاگین با پشتیبانی از نمایش قفل شدن حساب در اثر ارسال زیاد رمز اشتباه (HTTP 429).
+     - صفحه تغییر رمز [frontend/src/pages/ChangePassword.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/ChangePassword.tsx): فرم به‌روزرسانی رمز با چک‌لیست شرایط سیاست رمز عبور.
+     - داشبورد عملیات [frontend/src/pages/Dashboard.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Dashboard.tsx): نمایش کارت‌های خلاصه وضعیت و تست عملکرد PermissionGate.
+  5. هماهنگی اندپوینت‌های احراز هویت بک‌اند:
+     - ثبت الیاس پیشوند `/api/v1` برای `auth_bp` در [backend/app/__init__.py](file:///d:/Playground/Web-Dash/backend/app/__init__.py).
+     - معافیت اندپوینت لاگین از بررسی CSRF و درج مسیرهای `/api/v1/...` در لیست معافیت‌های تغییر رمز در [backend/app/security/middleware.py](file:///d:/Playground/Web-Dash/backend/app/security/middleware.py).
+  6. کامپایل نهایی و آزمون‌های خودکار:
+     - نگارش تست‌های Vitest در [frontend/src/api/client.test.ts](file:///d:/Playground/Web-Dash/frontend/src/api/client.test.ts) و [frontend/src/store/auth.test.ts](file:///d:/Playground/Web-Dash/frontend/src/store/auth.test.ts) (مجموعاً ۱۸ تست).
+     - نگارش تست‌های یکپارچگی در [tests/test_step_6_2_api_client_auth.py](file:///d:/Playground/Web-Dash/tests/test_step_6_2_api_client_auth.py).
+     - بازسازی خروجی پروداکشن `frontend/dist/` و ترک آن در گیت برای سرورهای ایزوله (Air-Gapped).
+* **تأییدیه (Verify):**
+  * اجرای `npm run typecheck` و `npm run lint` با ۰ خطا و ۰ اخطار.
+  * پاس شدن ۱۰۰٪ آزمون‌های Vitest با ۱۸ تست پاس‌شده (`18 passed in 3.56s`).
+  * اجرای آزمون‌های پایتون: ۵ تست از ۵ تست پاس شدند (`5 passed in 16.01s`).
+  * حجم باندل اولیه: ~۸۱ کیلوبایت Gzip (کمتر از یک‌سوم بودجه مجاز ۲۵۰ کیلوبایت).
+
+
 
 

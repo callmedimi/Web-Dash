@@ -54,8 +54,8 @@ def init_security_middleware(app: Flask) -> None:
 
         # 1. CSRF Protection for mutating HTTP methods
         if request.method in ("POST", "PUT", "DELETE", "PATCH"):
-            # Exempt only /login
-            if request.path != "/login":
+            # Exempt only login endpoints
+            if request.path not in ("/login", "/api/v1/login"):
                 expected_csrf = session.get("csrf_token")
                 if expected_csrf:
                     provided_csrf = request.headers.get("X-CSRF-Token")
@@ -145,7 +145,15 @@ def init_security_middleware(app: Flask) -> None:
         # 3. Enforce must_change_password restriction
         user = session.get("user")
         if user and user.get("must_change_password"):
-            exempt_paths = {"/", "/me", "/logout", "/change-password"}
+            exempt_paths = {
+                "/",
+                "/me",
+                "/logout",
+                "/change-password",
+                "/api/v1/me",
+                "/api/v1/logout",
+                "/api/v1/change-password",
+            }
             if request.path not in exempt_paths:
                 return (
                     jsonify({

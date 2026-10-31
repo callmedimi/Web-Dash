@@ -1,29 +1,58 @@
-import React from "react";
+/**
+ * Web-Dash Frontend Root Component.
+ * Configures QueryClientProvider, React Router, Route Guards, and Session Bootstrap.
+ */
+import React, { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/api/client";
+import { useAuthStore } from "@/store/auth";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { Shell } from "@/components/layout/Shell";
+import { Login } from "@/pages/Login";
+import { ChangePassword } from "@/pages/ChangePassword";
+import { Dashboard } from "@/pages/Dashboard";
+
+export const AppContent: React.FC = () => {
+  const { checkAuth } = useAuthStore();
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePassword />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Shell />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Dashboard />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
 
 export const App: React.FC = () => {
   return (
-    <div className="flex h-full w-full flex-col bg-bg text-ink">
-      <header className="flex h-12 items-center justify-between border-b border-line bg-surface px-4">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-signal">Web-Dash</span>
-          <span className="text-xs text-ink-2">NOC Console</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 text-xs text-ok">
-            <span className="h-2 w-2 rounded-full bg-ok" />
-            System Ready
-          </span>
-        </div>
-      </header>
-      <main className="flex flex-1 items-center justify-center p-6">
-        <div className="w-full max-w-lg rounded-dialog border border-line bg-surface p-6 shadow-floating">
-          <h1 className="text-lg font-medium text-ink">Huawei VRP Network Operations Console</h1>
-          <p className="mt-2 text-sm text-ink-2">
-            Air-gapped enterprise automation platform initialized successfully.
-          </p>
-        </div>
-      </main>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 };
 
