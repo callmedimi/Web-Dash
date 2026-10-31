@@ -20,6 +20,7 @@ import { SafeChanges } from "@/pages/SafeChanges";
 import { Jobs } from "@/pages/Jobs";
 import { Reports } from "@/pages/Reports";
 import { Monitoring } from "@/pages/Monitoring";
+import { Configs } from "@/pages/Configs";
 import { KitchenSink } from "@/pages/KitchenSink";
 import { PlaceholderScreen } from "@/pages/PlaceholderScreen";
 
@@ -65,22 +66,10 @@ export const AppContent: React.FC = () => {
         <Route path="reports/*" element={<Reports />} />
         <Route path="monitoring" element={<Monitoring />} />
         <Route path="monitoring/*" element={<Monitoring />} />
-        <Route
-          path="configs/*"
-          element={
-            <PlaceholderScreen
-              title="Configs & Compliance"
-              subtitle="Automated backup snapshots, git-style diffs, and compliance checks"
-              step="9.10"
-              features={[
-                "Device config snapshot timeline and versioning",
-                "Side-by-side DiffViewer across any two snapshots",
-                "Province-level compliance rules and violation remediation",
-                "Automated nightly configuration backup pipeline",
-              ]}
-            />
-          }
-        />
+        <Route path="configs" element={<Configs />} />
+        <Route path="configs/*" element={<Configs />} />
+        <Route path="compliance" element={<Configs />} />
+        <Route path="compliance/*" element={<Configs />} />
         <Route
           path="tools/*"
           element={

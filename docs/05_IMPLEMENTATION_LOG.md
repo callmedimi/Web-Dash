@@ -1439,3 +1439,36 @@
   - پاس شدن ۱۰۰٪ آزمون‌های Pytest (`tests/test_step_7_9_monitoring_screen.py`).
   - گذر کامل و بدون خطای تایپ‌اسکریپت (`tsc --noEmit`).
   - تأیید بصری تعاملی با `browser_subagent` و ثبت اسکرین‌شات‌های هر سه تب و وب‌پی دمو.
+
+---
+## گام ۹.۱۰: پیاده‌سازی صفحه پیکربندی‌ها، تفاضل گیت و ماتریس انطباق سیاست‌ها (Configs & Compliance Screen)
+* **تاریخ:** ۱۴۰۵/۰۸/۰۹ (2026-10-31)
+* **شاخه گیت:** `phase7`
+* **هدف:** پیاده‌سازی کنسول جامع مدیریت و نسخه‌بندی پیکربندی‌ها و انطباق شبکه (`/configs`, `/compliance`, `/configs/*`) منطبق بر سند [plan/09_PHASE7_UI_SCREENS.md](file:///d:/Playground/Web-Dash/plan/09_PHASE7_UI_SCREENS.md) شامل انتخابگر روترهای شبکه، خط زمانی اسنپ‌شات‌ها (Snapshot Timeline)، مشاهده متن رمزگشایی‌شده با کپی سریع و دانلود فایل `.cfg`، قابلیت مقایسه تفاضلی دو نسخه دلخواه با کامپوننت پیشرفته `DiffViewer` (حالت یکپارچه و کنار هم)، کارت‌های KPI انطباق سراسری ناوگان، ماتریس تعاملی درصد قبولی استان‌ها در برابر قوانین پایه‌ای (Policy Matrix)، و جدول تجهیزات دارای مغایرت به همراه راهنمای خط فرمان اصلاحی (Remediation CLI) و اتصال مستقیم به پلنر تغییرات ایمن (`/changes`).
+* **اقدامات انجام‌شده:**
+  1. **تعریف اینترفیس‌ها و ساختار داده:**
+     - اضافه شدن مدل‌های `ConfigSnapshotItem`، `ConfigDiffResponse`، `ComplianceRule`، `ProvinceComplianceStat`، `DeviceComplianceItem` و `ComplianceDashboardResponse` در [frontend/src/api/types.ts](file:///d:/Playground/Web-Dash/frontend/src/api/types.ts).
+     - تعریف کلیدهای دوزبانه بخش‌های `configs` و `compliance` در [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json).
+  2. **طراحی و پیاده‌سازی کامپوننت صفحه پیکربندی و انطباق:**
+     - ایجاد [frontend/src/pages/Configs.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Configs.tsx) با معماری دو زبانه:
+       - **تب ۱ (Configuration Snapshots & Diff)**:
+         - ستون انتخابگر روترها با جستجوی بلادرنگ نام، IP و استان.
+         - نوار عملیاتی روتر فعال با دکمه ثبت بکاپ زنده (`Backup Running Config`) که جاب اتوماسیون مربوطه را ارسال می‌کند.
+         - خط زمانی اسنپ‌شات‌ها به همراه جزئیات حجم، زمان ثبت، ثبت‌کننده و چک‌سام رمزنگاری SHA-256.
+         - حالت مقایسه دو اسنپ‌شات دلخواه (`Compare Mode`) با اتصال به اندپوینت `/api/v1/devices/:id/configs/diff` و رندر `DiffViewer` با نمایش تفاضل‌های `+additions` و `-deletions`.
+         - پنل مشاهده متن پیکربندی رمزگشایی‌شده با دکمه‌های کپی مستقیم در حافظه کلیپ‌بورد و دانلود اتچمنت `.cfg`.
+       - **تب ۲ (Fleet Compliance Matrix)**:
+         - کارت‌های KPI تجمیعی سلامت سیاستی ناوگان (امتیاز سراسری انطباق، تعداد روترهای منطبق، تعداد روترهای متخلف، مجموع روترهای ارزیابی‌شده).
+         - ماتریس انطباق استان‌ها در برابر قوانین (SEC-001 استلنت/تلنت، OPS-001 همگام‌سازی NTP، SEC-002 حذف SNMPv2c و الزام SNMPv3، OPS-002 توضیحات اینترفیس‌های فعال) با برچسب‌های رنگی درصد قبولی.
+         - قابلیت فیلتر بلادرنگ با کلیک روی هر سطر استان یا منوی انتخاب استان.
+         - جدول روترهای دارای مغایرت به همراه باکس CLI راهنمای اصلاح دستورات هواوی/سیسکو و دکمه ارجاع مستقیم به برنامه تغییر (`Plan Remediation`).
+  3. **اتصال مسیر در روتینگ فرانت‌اند:**
+     - جایگزینی `PlaceholderScreen` با کامپوننت `Configs` در مسیرهای `/configs`، `/configs/*`، `/compliance` و `/compliance/*` در [frontend/src/App.tsx](file:///d:/Playground/Web-Dash/frontend/src/App.tsx).
+  4. **آزمون‌های خودکار و تضمین عملکرد:**
+     - نگارش تست‌های یکپارچه در [tests/test_step_7_10_configs_screen.py](file:///d:/Playground/Web-Dash/tests/test_step_7_10_configs_screen.py) (پوشش کامل دریافت اسنپ‌شات‌ها، تفاضل دیف، دانلود فایل، و داشبورد و قوانین انطباق).
+     - کامپایل باندل نهایی پروداکشن در `frontend/dist/` و پاس شدن ۱۰۰٪ بودجه‌های عملکردی (۱۲۸.۱ کیلوبایت جاوااسکریپت اولیه).
+* **تأییدیه (Verification):**
+  - پاس شدن ۱۰۰٪ آزمون‌های Pytest (`tests/test_step_7_10_configs_screen.py`).
+  - گذر کامل و بدون خطای تایپ‌اسکریپت (`tsc --noEmit`).
+  - تأیید بصری تعاملی با `browser_subagent` و ثبت اسکرین‌شات‌های هر دو تب و ویدئوی وب‌پی دمو.
+

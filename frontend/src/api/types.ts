@@ -476,4 +476,94 @@ export interface DeviceMonitoringResponse {
   };
 }
 
+export interface ConfigSnapshotItem {
+  id: string;
+  device_id: number;
+  kind: "running" | "startup" | "candidate" | string;
+  sha256: string;
+  size_bytes: number;
+  taken_at: string;
+  author?: string;
+  change_id?: number | null;
+  metadata?: Record<string, unknown>;
+  content?: string;
+}
+
+export interface ConfigDiffResponse {
+  device_id?: number;
+  from_snapshot_id?: string;
+  to_snapshot_id?: string;
+  unified_diff: string;
+  hunks?: Array<{
+    old_start?: number;
+    old_lines?: number;
+    new_start?: number;
+    new_lines?: number;
+    lines?: string[];
+  }>;
+  stats?: {
+    additions: number;
+    deletions: number;
+    modifications: number;
+  };
+  additions?: number;
+  deletions?: number;
+  changed?: boolean;
+}
+
+export interface ComplianceRule {
+  id?: string;
+  rule_id?: string;
+  name: string;
+  severity: "high" | "medium" | "low" | string;
+  description: string;
+  remediation_hint: string;
+  passed_devices?: number;
+  failed_devices?: number;
+  compliance_pct?: number;
+}
+
+export interface ProvinceComplianceStat {
+  province: string;
+  total_devices: number;
+  evaluated_devices: number;
+  compliant_devices: number;
+  non_compliant_devices: number;
+  compliance_pct: number;
+  failed_rules_summary?: Record<string, number>;
+  rules_passed?: Record<string, number>;
+  rules_failed?: Record<string, number>;
+  rule_breakdown?: Record<string, number>;
+}
+
+export interface DeviceComplianceItem {
+  device_id: number;
+  name: string;
+  province: string;
+  role: string;
+  status: "COMPLIANT" | "NON_COMPLIANT" | "NO_SNAPSHOT" | string;
+  compliance_score: number;
+  passed_count: number;
+  failed_count: number;
+  failed_rules: string[];
+  snapshot_id?: string | null;
+  snapshot_taken_at?: string | null;
+}
+
+export interface ComplianceDashboardResponse {
+  summary: {
+    total_devices: number;
+    evaluated_devices: number;
+    compliant_devices: number;
+    non_compliant_devices: number;
+    compliance_pct?: number;
+    overall_compliance_pct?: number;
+  };
+  rules?: ComplianceRule[];
+  rules_breakdown?: ComplianceRule[];
+  province_stats?: ProvinceComplianceStat[];
+  province_breakdown?: ProvinceComplianceStat[];
+  devices: DeviceComplianceItem[];
+}
+
 
