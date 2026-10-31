@@ -22,8 +22,8 @@ import { Reports } from "@/pages/Reports";
 import { Monitoring } from "@/pages/Monitoring";
 import { Configs } from "@/pages/Configs";
 import { Tools } from "@/pages/Tools";
+import { Admin } from "@/pages/Admin";
 import { KitchenSink } from "@/pages/KitchenSink";
-import { PlaceholderScreen } from "@/pages/PlaceholderScreen";
 
 export const AppContent: React.FC = () => {
   const { checkAuth } = useAuthStore();
@@ -73,22 +73,8 @@ export const AppContent: React.FC = () => {
         <Route path="compliance/*" element={<Configs />} />
         <Route path="tools" element={<Tools />} />
         <Route path="tools/*" element={<Tools />} />
-        <Route
-          path="admin/*"
-          element={
-            <PlaceholderScreen
-              title="System Administration"
-              subtitle="User roles, credential vault, integrations, schedules, and audit log"
-              step="9.12"
-              features={[
-                "Role-based access control (god, admin, operator, viewer)",
-                "Hardware-grade Fernet encrypted credential vault",
-                "Zabbix & Grafana integration doctor tests",
-                "Immutable append-only audit trail export",
-              ]}
-            />
-          }
-        />
+        <Route path="admin" element={<Admin />} />
+        <Route path="admin/*" element={<Admin />} />
         <Route path="_ui" element={<KitchenSink />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

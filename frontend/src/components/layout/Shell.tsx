@@ -71,7 +71,9 @@ export const Shell: React.FC = () => {
     { to: "/monitoring", label: t("nav.monitoring"), icon: Activity },
     { to: "/configs", label: t("nav.configs"), icon: FileCode },
     { to: "/tools", label: t("nav.tools"), icon: Wrench },
-    { to: "/admin", label: t("nav.admin"), icon: Settings },
+    ...(user?.role === "god" || user?.role === "admin"
+      ? [{ to: "/admin", label: t("nav.admin"), icon: Settings }]
+      : []),
   ];
 
   return (

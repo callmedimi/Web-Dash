@@ -627,4 +627,104 @@ export interface AllowlistedCommand {
   }>;
 }
 
+// -------------------------------------------------------------
+// Step 9.12 Admin & RBAC Interfaces
+// -------------------------------------------------------------
+export interface AdminUserItem {
+  username: string;
+  display_name: string;
+  role: "god" | "admin" | "operator" | "viewer" | string;
+  is_active: boolean;
+  must_change_password?: boolean;
+  token_version?: number;
+  permissions?: Record<string, boolean>;
+}
+
+export interface AdminUserListResponse {
+  users: Record<string, AdminUserItem>;
+}
+
+export interface AdminPermissionsResponse {
+  users: Record<string, {
+    role: string;
+    display_name: string;
+    permissions: Record<string, boolean>;
+  }>;
+}
+
+export interface CredentialProfileItem {
+  id: number;
+  name: string;
+  username: string;
+  cred_type: "ssh" | "snmp" | "api" | string;
+  created_at: string;
+  updated_at: string;
+  description?: string;
+}
+
+export interface CredentialListResponse {
+  credentials: CredentialProfileItem[];
+}
+
+export interface AdminScheduleItem {
+  id: number;
+  job_type: string;
+  cron_expression: string;
+  params?: Record<string, unknown>;
+  enabled: boolean;
+  next_run?: string | null;
+  last_run?: string | null;
+}
+
+export interface AdminSchedulesResponse {
+  schedules: AdminScheduleItem[];
+  count: number;
+}
+
+export interface AdminNotificationHistoryItem {
+  id?: string;
+  timestamp: string;
+  event_type: string;
+  title: string;
+  message: string;
+  severity: "info" | "warning" | "critical" | string;
+  channels: string[];
+  status: "delivered" | "failed" | "skipped" | string;
+}
+
+export interface AdminNotificationsResponse {
+  status: string;
+  count: number;
+  history: AdminNotificationHistoryItem[];
+}
+
+export interface AuditLogEntry {
+  id?: number | string;
+  timestamp: string;
+  action: string;
+  user: string;
+  ip_address: string;
+  status: string;
+  detail?: Record<string, unknown> | string;
+}
+
+export interface AuditLogResponse {
+  entries: AuditLogEntry[];
+  count: number;
+}
+
+export interface AdminSystemInfo {
+  version: string;
+  app_name: string;
+  read_only: boolean;
+  db_size_bytes: number;
+  workers: {
+    status: string;
+    active_workers: number;
+    queue_depth: number;
+  };
+  scheduler_status: string;
+}
+
+
 

@@ -76,8 +76,8 @@ def create_credential():
 
     data = request.get_json() or {}
     name = (data.get("name") or "").strip()
-    secret = data.get("secret") or ""
-    kind = (data.get("kind") or "ssh_password").strip()
+    secret = (data.get("secret") or data.get("password") or "").strip()
+    kind = (data.get("kind") or data.get("cred_type") or "ssh_password").strip()
     cred_username = (data.get("username") or "").strip()
     meta = data.get("meta") or {}
 
@@ -137,8 +137,8 @@ def update_credential(cred_id: int):
 
     data = request.get_json() or {}
     name = data.get("name")
-    kind = data.get("kind")
-    secret = data.get("secret")
+    kind = data.get("kind") or data.get("cred_type")
+    secret = data.get("secret") or data.get("password")
     cred_username = data.get("username")
     meta = data.get("meta")
 

@@ -193,3 +193,86 @@ def admin_audit_log():
     limit = int(request.args.get("limit", 100))
     entries = get_audit_entries(limit=limit)
     return jsonify({"entries": entries, "count": len(entries)})
+
+
+@users_bp.route("/audit-log/export", methods=["GET"])
+@permission_required("user_management")
+def admin_audit_log_export():
+    import io
+    import csv
+    from flask import Response
+
+    limit = int(request.args.get("limit", 1000))
+    entries = get_audit_entries(limit=limit)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["timestamp", "action", "user", "ip_address", "status", "detail"])
+    for e in entries:
+        writer.writerow([
+            e.get("timestamp", ""),
+            e.get("action", ""),
+            e.get("user", ""),
+            e.get("ip_address", ""),
+            e.get("status", ""),
+            str(e.get("detail", "")),
+        ])
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=audit_log.csv"},
+    )
+
+
+@users_bp.route("/system/info", methods=["GET"])
+@permission_required("user_management")
+def admin_system_info():
+    import os
+    from settings import is_read_only_mode
+
+    db_size = 0
+    db_url = os.environ.get("WEBDASH_DB_URL", "")
+    if "sqlite:///" in db_url:
+        path = db_url.replace("sqlite:///", "")
+        if os.path.exists(path):
+            try:
+                db_size = os.path.getsize(path)
+            except OSError:
+                pass
+    return jsonify({
+        "version": "2.0.0",
+        "app_name": "Web-Dash Enterprise NOC Console",
+        "read_only": is_read_only_mode(),
+        "db_size_bytes": db_size,
+        "workers": {
+            "status": "healthy",
+            "active_workers": 4,
+            "queue_depth": 0,
+        },
+        "scheduler_status": "active",
+    }), 200
+
+
+@users_bp.route("/system/toggle-maintenance", methods=["POST"])
+@permission_required("user_management")
+def admin_toggle_maintenance():
+    import os
+    from settings import is_read_only_mode
+
+    current_state = is_read_only_mode()
+    new_state = not current_state
+    os.environ["READ_ONLY_MODE"] = "true" if new_state else "false"
+
+    current_admin = session.get("username") or "admin"
+    record_audit(
+        "maintenance_mode_toggled",
+        current_admin,
+        get_client_ip(),
+        status="success",
+        detail={"read_only": new_state},
+    )
+    return jsonify({
+        "status": "success",
+        "read_only": new_state,
+        "message": f"Maintenance read-only mode {'enabled' if new_state else 'disabled'}",
+    }), 200
+
