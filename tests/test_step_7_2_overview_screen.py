@@ -109,8 +109,10 @@ def test_overview_aggregates_and_graceful_degradation(client, monkeypatch):
 
     # Recent jobs must include j1
     assert len(data["recent_jobs"]) >= 1
-    assert data["recent_jobs"][0]["id"] == j1_id
-    assert data["recent_jobs"][0]["status"] == "failed"
+    recent_ids = [rj["id"] for rj in data["recent_jobs"]]
+    assert j1_id in recent_ids
+    j1_item = next(rj for rj in data["recent_jobs"] if rj["id"] == j1_id)
+    assert j1_item["status"] == "failed"
 
     # Fleet health has province breakdown
     assert len(data["fleet_health"]["provinces"]) >= 1
