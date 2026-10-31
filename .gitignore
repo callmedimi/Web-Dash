@@ -1,44 +1,107 @@
-# Python cache and compiled files
+# ==============================================================================
+# Web-Dash Git Ignore Policy
+# Enterprise-hardened rules for Python, Flask, Node/React, IDEs, and Secrets
+# ==============================================================================
+
+# --- Python Cache & Bytecode ---
 __pycache__/
-services/__pycache__/
 *.py[cod]
 *$py.class
-zabbix_router_db.json
-# Virtual environments (NEVER push your venv)
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Virtual Environments ---
 venv/
 env/
 ENV/
-.venv
-.kilo/
-.continue/
-.claude/
+.venv/
+env.bak/
+venv.bak/
 
-# Data directory and secrets (Step 1.1)
+# --- Testing, Coverage & Linters ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+
+# --- Security, State & Secrets (F-08 / Step 1.1) ---
 data/
 users.json
 .secret_key
 *.env
+*.env.*
 !config.example.env
-alarm-clearing.tar
+*.pem
+*.key
+*.cert
+*.crt
 zabbix_config.ini
+zabbix_router_db.json
+alarm-clearing.tar
 
+# --- Databases & Dynamic State ---
+*.db
+*.sqlite
+*.sqlite3
+instance/
+uploads/
+exports/
+scratch/
+arp_mac.csv
 
-# IDE files
+# --- Logs ---
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Frontend & Node (Phase 6 / Phase 7) ---
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.eslintcache
+.vite/
+.turbo/
+
+# --- IDEs, Editors & OS Files ---
 .vscode/
 .idea/
 *.swp
-
-# OS files
+*.swo
+*~
 .DS_Store
 Thumbs.db
+ehthumbs.db
 
-# SECURITY: Your logs showed a 'users.json' file. 
-# If this contains passwords, API keys, or sensitive user data, ignore it!
-users.json 
+# --- AI Assistants & Local Metadata ---
+.gemini/
+.claude/
+.continue/
+.kilo/
+.kilocode/
+.cursor/
 
-# Logs
-*.log
+# --- Scratch & Ad-hoc Local Scripts ---
 renew_lic_V3.py
 ui-design-system/
-arp_mac.csv
-*.db
