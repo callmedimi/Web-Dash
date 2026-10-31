@@ -970,4 +970,24 @@
   * اجرای ۸ تست تخصصی با موفقیت ۱۰۰٪ (`8 passed`).
   * **اجرای رگرسیون کامل فاز ۵ (گام‌های ۵.۱ تا ۵.۱۴):** **۱۱۴ تست با موفقیت ۱۰۰٪ و بدون رگرسیون پاس شدند (`114 passed in 89.25s`).**
 
+---
+
+## فاز ۶ — سیستم طراحی و زیرساخت فرانت‌اند (Phase 6: Frontend Foundation & Design System)
+
+### گام ۶.۱ — ساختار اولیه و اسکلت فرانت‌اند مدرن (Step 6.1 Scaffold)
+* **هدف:** راه‌اندازی پروژه فرانت‌اند مدرن با React 18، TypeScript Strict، Vite، Tailwind CSS و قراردادهای سیستم طراحی NOC مناسب برای استقرار در محیط‌های ایزوله و آفلاین (Air-Gapped).
+* **اقدامات انجام‌شده:**
+  1. راه‌اندازی پروژه مستقل در پوشه [frontend/package.json](file:///d:/Playground/Web-Dash/frontend/package.json) شامل اسکریپت‌های استاندارد `dev`, `build`, `typecheck`, `lint`, `test`.
+  2. اعمال پیکربندی تایپ‌اسکریپت سخت‌گیرانه (`strict: true`) و الیاس مسیر (`@/*`) در [frontend/tsconfig.json](file:///d:/Playground/Web-Dash/frontend/tsconfig.json).
+  3. پیکربندی پروکسی توسعه Vite برای هدایت درخواست‌های `/api` به سرور محلی فلسک (`http://localhost:5000`) و تفکیک چانک‌های خروجی در [frontend/vite.config.ts](file:///d:/Playground/Web-Dash/frontend/vite.config.ts).
+  4. پیاده‌سازی سیستم توکن‌های طراحی (تم‌های Paper / Night) و متغیرهای چگالی (Compact / Comfortable) در [frontend/src/styles/tokens.css](file:///d:/Playground/Web-Dash/frontend/src/styles/tokens.css) و اتصال آن به [frontend/tailwind.config.js](file:///d:/Playground/Web-Dash/frontend/tailwind.config.js).
+  5. فراهم‌سازی قابلیت استقرار در سرورهای ایزوله (Air-Gapped): پوشه کامپایل‌شده `frontend/dist/` به صورت یک بسته مستقل از اینترنت آماده شده و در گیت ترک می‌شود تا در سرور نیازی به نصب Node.js یا اجرای npm نباشد.
+  6. نگارش آزمون‌های خودکار در [tests/test_step_6_1_scaffold.py](file:///d:/Playground/Web-Dash/tests/test_step_6_1_scaffold.py).
+* **تأییدیه (Verify):**
+  * اجرای موفق `npm run typecheck` و `npm run lint` با صفر خطا و هشدار.
+  * اجرای آزمون واحد کامپوننت با Vitest با ۱ پاس (`1 passed`).
+  * اجرای `npm run build` و تولید باندل با حجم اولیه ۴۸ کیلوبایت (بسیار کمتر از سقف بودجه ۲۵۰ کیلوبایت).
+  * اجرای آزمون‌های پایتون: ۵ تست از ۵ تست پاس شدند (`5 passed in 0.14s`).
+
+
 

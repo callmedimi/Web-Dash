@@ -1,0 +1,56 @@
+@import "./tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles following layout contract (fill height, no page scroll) */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Logical property utilities for RTL/LTR support */
+[dir="rtl"] {
+  text-align: start;
+}
+
+/* Monospace chips, IPs, CLI commands and code snippets always stay LTR */
+.dir-ltr,
+code,
+pre,
+.font-mono {
+  direction: ltr !important;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-2);
+}
