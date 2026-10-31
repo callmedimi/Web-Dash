@@ -30,7 +30,7 @@ export interface ManagerialChartsProps {
 
 export const ManagerialCharts: React.FC<ManagerialChartsProps> = ({
   provinces = [],
-  problemsBySeverity = { disaster: 2, high: 5, warning: 12, average: 8, information: 15 },
+  problemsBySeverity = { disaster: 0, high: 0, warning: 0, average: 0, information: 0 },
   totalAlarms,
   onSelectProvince,
   className,
