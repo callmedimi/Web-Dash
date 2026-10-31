@@ -38,7 +38,8 @@ import { Mono } from "@/components/ui/Mono";
 import { CsvOperationsHub } from "@/components/operations/CsvOperationsHub";
 
 export const AlarmCenter: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isFa = i18n.language === "fa";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
@@ -333,7 +334,7 @@ export const AlarmCenter: React.FC = () => {
               }`}
             >
               <ShieldAlert className="h-3.5 w-3.5" />
-              <span>آلارم‌های زابیکس (Live Alarms)</span>
+              <span>{isFa ? "آلارم‌های زنده زبیکس" : "Live Zabbix Alarms"}</span>
             </button>
             <button
               type="button"
@@ -345,7 +346,7 @@ export const AlarmCenter: React.FC = () => {
               }`}
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              <span>پاکسازی با فایل CSV</span>
+              <span>{isFa ? "پاکسازی با فایل CSV" : "CSV Bulk Clearance"}</span>
               <span className="rounded-full bg-signal/20 px-1 py-0.2 text-[9px] font-bold text-signal">Legacy</span>
             </button>
           </div>

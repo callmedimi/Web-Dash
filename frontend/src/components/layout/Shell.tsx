@@ -39,13 +39,14 @@ export const Shell: React.FC = () => {
   const {
     resolvedTheme,
     lang,
+    setLanguage,
     railCollapsed,
     toggleRail,
     toggleTheme,
-    toggleLanguage,
   } = usePrefsStore();
   const navigate = useNavigate();
 
+  const isFa = lang === "fa";
   const [globalCsvOpen, setGlobalCsvOpen] = React.useState(false);
 
   // User Permission Helper (Enforces Granular RBAC configured in Admin Panel)
@@ -66,32 +67,32 @@ export const Shell: React.FC = () => {
   const navSections = [
     {
       id: "core",
-      title: t("nav.secOps", "عملیات شبکه"),
+      title: isFa ? "عملیات شبکه" : "Network Operations",
       items: [
         {
           to: "/",
-          label: t("nav.overview", "داشبورد عملیاتی"),
+          label: isFa ? "داشبورد عملیاتی" : "Operational Dashboard",
           icon: LayoutDashboard,
           activeColor: "text-signal",
           visible: true,
         },
         {
           to: "/alarms",
-          label: t("nav.alarms", "پاکسازی آلارم"),
+          label: isFa ? "پاکسازی آلارم" : "Alarm Clear",
           icon: AlertTriangle,
           activeColor: "text-warn",
           visible: hasFeatureAccess(["alarm_clear_manual", "alarm_clear_bulk"]),
         },
         {
           to: "/reports",
-          label: t("nav.reports", "گزارش‌ها و ترانک‌ها"),
+          label: isFa ? "گزارش‌ها و ترانک‌ها" : "Network & Trunk Reports",
           icon: FileText,
           activeColor: "text-signal",
           visible: hasFeatureAccess("reporting"),
         },
         {
           to: "/monitoring",
-          label: t("nav.monitoring", "پایش و تلمتری زبیکس"),
+          label: isFa ? "پایش و تلمتری زبیکس" : "Zabbix Telemetry",
           icon: Activity,
           activeColor: "text-ok",
           badge: "Live",
@@ -104,39 +105,39 @@ export const Shell: React.FC = () => {
     },
     {
       id: "tools",
-      title: t("nav.secTools", "ابزارهای تشخیصی"),
+      title: isFa ? "ابزارهای تشخیصی" : "Diagnostic Tools",
       items: [
         {
           to: "/tools/vrf-routing",
-          label: t("nav.routing", "بررسی روتینگ BGP و VRF"),
+          label: isFa ? "بررسی روتینگ BGP و VRF" : "BGP & VRF Routing",
           icon: Network,
           activeColor: "text-sky-400",
           visible: hasFeatureAccess("vrf_routing"),
         },
         {
           to: "/tools/license",
-          label: t("nav.license", "مدیریت و تمدید لایسنس"),
+          label: isFa ? "مدیریت و تمدید لایسنس" : "License Management",
           icon: ShieldCheck,
           activeColor: "text-emerald-400",
           visible: hasFeatureAccess(["license_check", "license_renewal_admin"]),
         },
         {
           to: "/tools/sessions",
-          label: t("nav.sessions", "سشن‌های SecureCRT"),
+          label: isFa ? "سشن‌های SecureCRT" : "SecureCRT Sessions",
           icon: FileArchive,
           activeColor: "text-purple-400",
           visible: hasFeatureAccess("session_extractor"),
         },
         {
           to: "/tools/arp",
-          label: t("nav.arpMac", "استعلام ARP و MAC"),
+          label: isFa ? "استعلام ARP و MAC" : "ARP & MAC Search",
           icon: Search,
           activeColor: "text-indigo-400",
           visible: hasFeatureAccess(["zabbix_search", "code_site_search"]),
         },
         {
           to: "/tools/ptp",
-          label: t("nav.ptp", "عیب‌یابی ساعت PTP"),
+          label: isFa ? "عیب‌یابی ساعت PTP" : "PTP Diagnostics",
           icon: Clock,
           activeColor: "text-rose-400",
           visible: hasFeatureAccess("ptp_troubleshoot"),
@@ -145,11 +146,11 @@ export const Shell: React.FC = () => {
     },
     {
       id: "admin",
-      title: t("nav.secAdmin", "مدیریت"),
+      title: isFa ? "مدیریت سامانه" : "Administration",
       items: [
         {
           to: "/admin",
-          label: t("nav.admin", "تنظیمات و دسترسی‌ها"),
+          label: isFa ? "تنظیمات و دسترسی‌ها" : "Settings & Permissions",
           icon: Settings,
           activeColor: "text-slate-300",
           visible:
@@ -199,8 +200,8 @@ export const Shell: React.FC = () => {
           <button
             type="button"
             onClick={toggleRail}
-            aria-label={railCollapsed ? t("nav.expand") : t("nav.collapse")}
-            title={railCollapsed ? t("nav.expand") : t("nav.collapse")}
+            aria-label={railCollapsed ? (isFa ? "باز کردن منو" : "Expand menu") : (isFa ? "بستن منو" : "Collapse menu")}
+            title={railCollapsed ? (isFa ? "باز کردن منو" : "Expand menu") : (isFa ? "بستن منو" : "Collapse menu")}
             className="inline-flex h-7 w-7 items-center justify-center rounded-control border border-line/80 bg-surface-2/60 text-ink-2 hover:bg-surface-2 hover:text-ink focus:outline-none transition-colors"
           >
             <Menu className="h-4 w-4" />
@@ -231,7 +232,7 @@ export const Shell: React.FC = () => {
             <span className="flex items-center gap-1.5 truncate">
               <Search className="h-3.5 w-3.5 text-signal" />
               <span className="text-[11px] truncate text-ink-2">
-                {t("nav.search", "جستجو... (Ctrl+K)")}
+                {isFa ? "جستجو یا رفتن به صفحه... (Ctrl+K)" : "Search or jump to... (Ctrl+K)"}
               </span>
             </span>
             <kbd className="rounded border border-line bg-surface px-1.5 py-0.2 text-[10px] font-mono text-ink-2 shadow-xs">
@@ -249,11 +250,13 @@ export const Shell: React.FC = () => {
           <button
             type="button"
             onClick={() => setGlobalCsvOpen(true)}
-            title={t("nav.csvOps", "عملیات فایل CSV")}
+            title={isFa ? "عملیات مستقیم با فایل CSV" : "Direct CSV Operations"}
             className="inline-flex h-8 items-center gap-1.5 rounded-control border border-signal/40 bg-signal/10 px-2.5 text-xs font-semibold text-signal hover:bg-signal/20 transition-all shadow-xs"
           >
             <FileSpreadsheet className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t("nav.csvOps", "عملیات فایل CSV")}</span>
+            <span className="hidden sm:inline">
+              {isFa ? "عملیات فایل CSV" : "CSV Operations"}
+            </span>
           </button>
 
           {/* Mobile Search Icon */}
@@ -271,7 +274,7 @@ export const Shell: React.FC = () => {
             type="button"
             onClick={toggleTheme}
             aria-label={t("prefs.theme")}
-            title={resolvedTheme === "dark" ? t("prefs.themeLight") : t("prefs.themeDark")}
+            title={resolvedTheme === "dark" ? (isFa ? "حالت روشن" : "Light Mode") : (isFa ? "حالت تیره" : "Dark Mode")}
             className="inline-flex h-8 w-8 items-center justify-center rounded-control border border-line/80 bg-surface text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
           >
             {resolvedTheme === "dark" ? (
@@ -281,16 +284,29 @@ export const Shell: React.FC = () => {
             )}
           </button>
 
-          {/* Language Switcher Button (FA / EN) */}
-          <button
-            type="button"
-            onClick={toggleLanguage}
-            aria-label={t("prefs.language")}
-            title={lang === "en" ? "تغییر به فارسی" : "Switch to English"}
-            className="inline-flex h-8 items-center px-2 rounded-control border border-line/80 bg-surface text-xs font-bold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
-          >
-            {lang === "en" ? "FA" : "EN"}
-          </button>
+          {/* Unambiguous Language Selector: [ EN | فا ] */}
+          <div className="flex items-center rounded-control border border-line/80 bg-surface p-0.5 text-[11px] font-bold">
+            <button
+              type="button"
+              onClick={() => setLanguage("en")}
+              className={`px-2 py-0.5 rounded transition-colors ${
+                !isFa ? "bg-signal text-white shadow-xs" : "text-ink-2 hover:text-ink hover:bg-surface-2"
+              }`}
+              title="Switch to English"
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              onClick={() => setLanguage("fa")}
+              className={`px-2 py-0.5 rounded transition-colors ${
+                isFa ? "bg-signal text-white shadow-xs" : "text-ink-2 hover:text-ink hover:bg-surface-2"
+              }`}
+              title="تغییر به زبان فارسی"
+            >
+              فا
+            </button>
+          </div>
 
           <div className="h-4 w-px bg-line/80 mx-1 hidden sm:block" />
 
@@ -315,7 +331,7 @@ export const Shell: React.FC = () => {
           <button
             type="button"
             onClick={handleLogout}
-            title={t("common.logout", "خروج")}
+            title={isFa ? "خروج از سیستم" : "Logout"}
             className="inline-flex h-8 w-8 items-center justify-center rounded-control border border-line/80 bg-surface text-ink-2 transition-colors hover:bg-fault/15 hover:text-fault hover:border-fault/30"
           >
             <LogOut className="h-3.5 w-3.5" />
@@ -386,14 +402,18 @@ export const Shell: React.FC = () => {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ok opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-ok" />
                   </span>
-                  <span>{readOnly ? t("common.readOnly", "فقط‌خواندنی") : "سیستم آنلاین"}</span>
+                  <span>
+                    {readOnly
+                      ? isFa ? "فقط‌خواندنی" : "READ-ONLY"
+                      : isFa ? "سیستم آنلاین" : "System Online"}
+                  </span>
                 </div>
               )}
 
               <button
                 type="button"
                 onClick={toggleRail}
-                title={railCollapsed ? t("nav.expand") : t("nav.collapse")}
+                title={railCollapsed ? (isFa ? "باز کردن منو" : "Expand menu") : (isFa ? "بستن منو" : "Collapse menu")}
                 className="flex items-center justify-center rounded-control p-1.5 text-ink-2 hover:bg-surface-2 hover:text-ink transition-colors"
               >
                 {railCollapsed ? (

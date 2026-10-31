@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { getNetworkCredentials } from "@/utils/networkCreds";
+import { usePrefsStore } from "@/store/prefs";
 
 interface LicenseRouterResult {
   name: string;
@@ -47,6 +48,8 @@ interface RenewalReportItem {
 }
 
 export const LicenseTools: React.FC = () => {
+  const { lang } = usePrefsStore();
+  const isFa = lang === "fa";
   const [activeTab, setActiveTab] = useState<"check" | "renewal" | "database">("check");
 
   // Tab 1: License Check State
@@ -238,7 +241,7 @@ export const LicenseTools: React.FC = () => {
           }`}
         >
           <Search className="h-3.5 w-3.5" />
-          <span>بررسی آنلاین لایسنس‌ها (CSV)</span>
+          <span>{isFa ? "بررسی آنلاین لایسنس‌ها (CSV)" : "Online License Check (CSV)"}</span>
         </button>
 
         <button
@@ -249,7 +252,7 @@ export const LicenseTools: React.FC = () => {
           }`}
         >
           <Upload className="h-3.5 w-3.5" />
-          <span>تمدید لایسنس با فایل (XML/ZIP)</span>
+          <span>{isFa ? "تمدید لایسنس با فایل (XML/ZIP)" : "File-based Renewal (XML/ZIP)"}</span>
         </button>
 
         <button
@@ -260,7 +263,7 @@ export const LicenseTools: React.FC = () => {
           }`}
         >
           <Archive className="h-3.5 w-3.5" />
-          <span>دیتابیس سوابق تمدید (Renewal Database)</span>
+          <span>{isFa ? "دیتابیس سوابق تمدید" : "Renewal Database History"}</span>
         </button>
       </div>
 

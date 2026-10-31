@@ -42,7 +42,8 @@ import { BgpRouteCheck } from "@/components/operations/BgpRouteCheck";
 import { LicenseTools } from "@/components/operations/LicenseTools";
 
 export const Tools: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isFa = i18n.language === "fa";
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -447,8 +448,8 @@ export const Tools: React.FC = () => {
               activeTool === "vrf-routing" ? "bg-surface text-ink shadow-sm font-semibold" : "text-ink-2 hover:text-ink"
             )}
           >
-            <Network className="h-3.5 w-3.5" />
-            <span>بررسی روتینگ (BGP & VRF)</span>
+            <Network className="h-3.5 w-3.5 text-signal" />
+            <span>{isFa ? "بررسی روتینگ BGP و VRF" : "BGP & VRF Routing"}</span>
           </button>
 
           <button
@@ -459,8 +460,8 @@ export const Tools: React.FC = () => {
               activeTool === "license" ? "bg-surface text-ink shadow-sm font-semibold" : "text-ink-2 hover:text-ink"
             )}
           >
-            <ShieldCheck className="h-3.5 w-3.5" />
-            <span>ابزارهای لایسنس (License)</span>
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+            <span>{isFa ? "مدیریت و تمدید لایسنس" : "License Tools"}</span>
           </button>
 
           <button
@@ -471,8 +472,8 @@ export const Tools: React.FC = () => {
               activeTool === "sessions" ? "bg-surface text-ink shadow-sm font-semibold" : "text-ink-2 hover:text-ink"
             )}
           >
-            <FileArchive className="h-3.5 w-3.5" />
-            <span>استخراج سشن (SecureCRT)</span>
+            <FileArchive className="h-3.5 w-3.5 text-purple-400" />
+            <span>{isFa ? "سشن‌های SecureCRT" : "SecureCRT Sessions"}</span>
           </button>
 
           <button
@@ -483,8 +484,8 @@ export const Tools: React.FC = () => {
               activeTool === "arp" ? "bg-surface text-ink shadow-sm font-semibold" : "text-ink-2 hover:text-ink"
             )}
           >
-            <Search className="h-3.5 w-3.5" />
-            <span>جستجو و سایت (ARP/MAC)</span>
+            <Search className="h-3.5 w-3.5 text-indigo-400" />
+            <span>{isFa ? "استعلام ARP و MAC" : "ARP & MAC Search"}</span>
           </button>
 
           <button
@@ -495,8 +496,8 @@ export const Tools: React.FC = () => {
               activeTool === "ptp" ? "bg-surface text-ink shadow-sm font-semibold" : "text-ink-2 hover:text-ink"
             )}
           >
-            <Clock className="h-3.5 w-3.5" />
-            <span>خطایابی ساعت (PTP)</span>
+            <Clock className="h-3.5 w-3.5 text-rose-400" />
+            <span>{isFa ? "عیب‌یابی ساعت PTP" : "PTP Diagnostics"}</span>
           </button>
 
           <button
@@ -508,7 +509,7 @@ export const Tools: React.FC = () => {
             )}
           >
             <Terminal className="h-3.5 w-3.5" />
-            <span>اجرای دستورات (Runner)</span>
+            <span>{isFa ? "اجرای دستورات" : "Command Runner"}</span>
           </button>
         </div>
       </div>
@@ -531,7 +532,11 @@ export const Tools: React.FC = () => {
                 )}
               >
                 <Network className="h-3.5 w-3.5" />
-                <span>بررسی هوشمند روت BGP (تشخیص خودکار VRF و اینترفیس مقصد)</span>
+                <span>
+                  {isFa
+                    ? "بررسی هوشمند روت BGP (تشخیص خودکار VRF و اینترفیس مقصد)"
+                    : "Smart BGP Route Check (Auto-detect VRF & Destination Interface)"}
+                </span>
               </button>
 
               <button
@@ -543,7 +548,9 @@ export const Tools: React.FC = () => {
                 )}
               >
                 <Server className="h-3.5 w-3.5" />
-                <span>استعلام روتینگ اینترفیس‌ها (VRF Trace)</span>
+                <span>
+                  {isFa ? "استعلام روتینگ اینترفیس‌ها (VRF Trace)" : "VRF Interface Routing (VRF Trace)"}
+                </span>
               </button>
             </div>
 

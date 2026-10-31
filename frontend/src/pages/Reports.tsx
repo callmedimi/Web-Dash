@@ -31,7 +31,8 @@ import { cn } from "@/utils/cn";
 import { CsvOperationsHub } from "@/components/operations/CsvOperationsHub";
 
 export const Reports: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isFa = i18n.language === "fa";
 
   // Active Main Tab
   const [activeTab, setActiveTab] = useState<"down_links" | "csv_downlinks" | "licenses" | "digest">("down_links");
@@ -282,7 +283,7 @@ export const Reports: React.FC = () => {
             )}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>گزارش با فایل CSV</span>
+            <span>{isFa ? "گزارش با فایل CSV" : "CSV Nodes Report"}</span>
             <span className="rounded-full bg-signal/20 px-1 py-0.2 text-[9px] font-bold text-signal">Legacy</span>
           </button>
 

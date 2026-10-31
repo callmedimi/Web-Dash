@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { getNetworkCredentials } from "@/utils/networkCreds";
+import { usePrefsStore } from "@/store/prefs";
 
 interface BgpEntry {
   prefix: string;
@@ -23,18 +24,20 @@ interface BgpEntry {
 }
 
 interface BgpCheckResponse {
-  status: string;
-  router: { name: string; ip: string };
   target_ip: string;
-  entries: BgpEntry[];
+  router?: {
+    name: string;
+    ip: string;
+  };
   entry_count: number;
+  entries: BgpEntry[];
 }
 
 interface OriginatorInterfaceResult {
-  interface_name: string;
-  config: string;
-  status: string;
-  ip?: string;
+  interface: string;
+  ip_address?: string;
+  config?: string;
+  status?: string;
 }
 
 interface OriginatorResponse {
@@ -52,23 +55,25 @@ interface OriginatorResponse {
 }
 
 export const BgpRouteCheck: React.FC = () => {
+  const { lang } = usePrefsStore();
+  const isFa = lang === "fa";
+
   const [targetIp, setTargetIp] = useState("10.200.1.5");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bgpResult, setBgpResult] = useState<BgpCheckResponse | null>(null);
 
   // Originator resolution state
-  const [loadingOriginator, setLoadingOriginator] = useState<string | null>(null);
   const [originatorResults, setOriginatorResults] = useState<Record<string, OriginatorResponse>>({});
+  const [loadingOriginator, setLoadingOriginator] = useState<string | null>(null);
   const [copiedConfig, setCopiedConfig] = useState<string | null>(null);
 
-  const handleCheckBgp = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const cleanIp = targetIp.trim();
-    if (!cleanIp) return;
+  const handleCheckBgp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetIp.trim()) return;
 
-    setError(null);
     setLoading(true);
+    setError(null);
     setBgpResult(null);
     setOriginatorResults({});
 
@@ -76,13 +81,18 @@ export const BgpRouteCheck: React.FC = () => {
 
     try {
       const res = await apiClient.post<BgpCheckResponse>("/check-bgp-route", {
-        target_ip: cleanIp,
+        target_ip: targetIp.trim(),
         username: netCreds.username || undefined,
         password: netCreds.password || undefined,
       });
       setBgpResult(res);
     } catch (err: any) {
-      setError(err?.message || "خطا در اتصال به Route Reflector و بررسی روت BGP");
+      setError(
+        err?.message ||
+          (isFa
+            ? "خطا در اتصال به Route Reflector و بررسی روت BGP"
+            : "Failed to connect to Route Reflector and inspect BGP routes")
+      );
     } finally {
       setLoading(false);
     }
@@ -109,7 +119,11 @@ export const BgpRouteCheck: React.FC = () => {
         [origKey]: res,
       }));
     } catch (err: any) {
-      alert(`خطا در استعلام از روتر مبدا (${entry.originator}): ${err?.message || err}`);
+      alert(
+        isFa
+          ? `خطا در استعلام از روتر مبدا (${entry.originator}): ${err?.message || err}`
+          : `Failed to query Originator PE (${entry.originator}): ${err?.message || err}`
+      );
     } finally {
       setLoadingOriginator(null);
     }
@@ -128,19 +142,26 @@ export const BgpRouteCheck: React.FC = () => {
         <div className="flex items-center gap-2 mb-2">
           <Network className="h-4 w-4 text-signal" />
           <h2 className="text-sm font-semibold text-ink">
-            بررسی هوشمند روت BGP و رهگیری اینترفیس مقصد (BGP Route Check)
+            {isFa
+              ? "بررسی هوشمند روت BGP و رهگیری اینترفیس مقصد"
+              : "Smart BGP Route Check & Destination Interface Tracing"}
           </h2>
         </div>
         <p className="text-xs text-ink-2 mb-4">
-          با وارد کردن IP مقصد، سیستم به صورت خودکار به Route Reflector مرکزی متصل شده، جدول BGP VPNv4 را بررسی می‌کند،
-          از روی Route Targetها نام VRF را تشخیص داده، روتر لبه (Originator PE) را شناسایی و کانفیگ کامل اینترفیس مقصد را استخراج می‌کند.
+          {isFa
+            ? "با وارد کردن IP مقصد، سیستم به صورت خودکار به Route Reflector مرکزی متصل شده، جدول BGP VPNv4 را بررسی می‌کند، از روی Route Targetها نام VRF را تشخیص داده، روتر لبه (Originator PE) را شناسایی و کانفیگ کامل اینترفیس مقصد را استخراج می‌کند."
+            : "Enter a destination IP to query the Core Route Reflector, automatically inspect BGP VPNv4 tables, resolve the VRF from Route Targets, identify the Originator PE, and pull the active destination interface configuration."}
         </p>
 
         <form onSubmit={handleCheckBgp} className="flex flex-wrap items-center gap-2">
           <div className="flex-1 min-w-[240px] max-w-md">
             <input
               type="text"
-              placeholder="آدرس IP مقصد (مثال: 10.200.1.5 یا 172.16.0.1)"
+              placeholder={
+                isFa
+                  ? "آدرس IP مقصد (مثال: 10.200.1.5 یا 172.16.0.1)"
+                  : "Target Destination IP (e.g. 10.200.1.5 or 172.16.0.1)"
+              }
               value={targetIp}
               onChange={(e) => setTargetIp(e.target.value)}
               className="w-full rounded border border-line bg-surface py-2 px-3 text-xs font-mono text-ink focus:border-signal focus:outline-none"
@@ -154,7 +175,11 @@ export const BgpRouteCheck: React.FC = () => {
             className="flex items-center gap-1.5 rounded-control bg-signal px-4 py-2 text-xs font-semibold text-bg hover:opacity-90 disabled:opacity-40 transition-opacity"
           >
             {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
-            <span>{loading ? "در حال استعلام BGP..." : "بررسی روت BGP"}</span>
+            <span>
+              {loading
+                ? isFa ? "در حال استعلام BGP..." : "Querying BGP..."
+                : isFa ? "بررسی روت BGP" : "Check BGP Route"}
+            </span>
           </button>
         </form>
 
@@ -174,19 +199,22 @@ export const BgpRouteCheck: React.FC = () => {
             <div className="flex items-center gap-2">
               <Server className="h-4 w-4 text-signal" />
               <span>
-                مرجع استعلام BGP:{" "}
+                {isFa ? "مرجع استعلام BGP:" : "BGP Query Source:"}{" "}
                 <strong className="text-ink font-mono">{bgpResult.router?.name || "Route Reflector"}</strong>{" "}
                 ({bgpResult.router?.ip})
               </span>
             </div>
             <div className="font-mono text-ink-2">
-              تعداد رکوردهای یافت شده: <strong className="text-signal">{bgpResult.entry_count}</strong>
+              {isFa ? "تعداد رکوردهای یافت شده:" : "Matched Entries Found:"}{" "}
+              <strong className="text-signal">{bgpResult.entry_count}</strong>
             </div>
           </div>
 
           {bgpResult.entry_count === 0 ? (
             <div className="rounded-control border border-line bg-surface p-8 text-center text-xs text-ink-2">
-              هیچ روت BGP متناظری برای این آدرس IP در جداول VPNv4 یافت نشد.
+              {isFa
+                ? "هیچ روت BGP متناظری برای این آدرس IP در جداول VPNv4 یافت نشد."
+                : "No matching BGP VPNv4 route found for this IP address."}
             </div>
           ) : (
             <div className="space-y-4">
@@ -209,7 +237,9 @@ export const BgpRouteCheck: React.FC = () => {
 
                         {entry.matched_vrf_names && entry.matched_vrf_names.length > 0 && (
                           <div className="flex items-center gap-1">
-                            <span className="text-[11px] text-ink-2">VRF تشخیص داده شده:</span>
+                            <span className="text-[11px] text-ink-2">
+                              {isFa ? "VRF تشخیص داده شده:" : "Detected VRF:"}
+                            </span>
                             {entry.matched_vrf_names.map((v) => (
                               <span
                                 key={v}
@@ -224,7 +254,9 @@ export const BgpRouteCheck: React.FC = () => {
 
                       {entry.originator && (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-ink-2">روتر لبه مبدا (Originator):</span>
+                          <span className="text-xs text-ink-2">
+                            {isFa ? "روتر لبه مبدا (Originator):" : "Originator PE:"}
+                          </span>
                           <span className="font-mono font-semibold text-signal">{entry.originator}</span>
                         </div>
                       )}
@@ -266,8 +298,12 @@ export const BgpRouteCheck: React.FC = () => {
                               )}
                               <span>
                                 {isResolving
-                                  ? `در حال اتصال به روتر مبدا (${entry.originator})...`
-                                  : `🔎 استعلام اینترفیس و کانفیگ روتر مبدا (${entry.originator})`}
+                                  ? isFa
+                                    ? `در حال اتصال به روتر مبدا (${entry.originator})...`
+                                    : `Connecting to Originator PE (${entry.originator})...`
+                                  : isFa
+                                    ? `🔎 استعلام اینترفیس و کانفیگ روتر مبدا (${entry.originator})`
+                                    : `🔎 Fetch Originator PE Interface Config (${entry.originator})`}
                               </span>
                             </button>
                           )}
@@ -279,8 +315,9 @@ export const BgpRouteCheck: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                   <Server className="h-4 w-4 text-ok" />
                                   <span>
-                                    روتر لبه: <strong className="text-ink">{origData.sysname || "—"}</strong>{" "}
-                                    (مدیریتی: {origData.management_ip || origData.originator_ip})
+                                    {isFa ? "روتر لبه مبدا:" : "Edge Originator PE:"}{" "}
+                                    <strong className="text-ink">{origData.sysname || "—"}</strong>{" "}
+                                    (mgmt: {origData.management_ip || origData.originator_ip})
                                   </span>
                                 </div>
                                 <span className="rounded bg-ok/10 text-ok px-2 py-0.5 text-[11px] font-mono">
@@ -300,52 +337,55 @@ export const BgpRouteCheck: React.FC = () => {
                                         key={iIdx}
                                         className="rounded border border-line bg-surface overflow-hidden"
                                       >
-                                        <div className="flex items-center justify-between bg-surface-2 px-3 py-1.5 text-xs border-b border-line">
-                                          <div className="flex items-center gap-2 font-mono">
-                                            <span className="font-semibold text-ink">{iface.interface_name}</span>
-                                            <span
-                                              className={`rounded px-1.5 py-0.2 text-[10px] font-mono ${
-                                                iface.status === "up"
-                                                  ? "bg-ok/10 text-ok"
-                                                  : "bg-warn/10 text-warn"
-                                              }`}
-                                            >
-                                              {iface.status?.toUpperCase() || "UP"}
-                                            </span>
+                                        <div className="bg-surface-2/60 px-3 py-2 flex items-center justify-between border-b border-line text-xs font-mono">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-bold text-ink">{iface.interface}</span>
+                                            {iface.ip_address && (
+                                              <span className="text-ink-2">({iface.ip_address})</span>
+                                            )}
                                           </div>
                                           <button
                                             type="button"
-                                            onClick={() => handleCopyText(iface.config, codeId)}
-                                            className="flex items-center gap-1 rounded bg-surface border border-line px-2 py-0.5 text-[11px] text-ink-2 hover:text-ink"
+                                            onClick={() =>
+                                              handleCopyText(iface.config || "", codeId)
+                                            }
+                                            className="flex items-center gap-1 text-[11px] text-ink-2 hover:text-signal transition-colors"
                                           >
                                             {isCopied ? (
-                                              <Check className="h-3 w-3 text-ok" />
+                                              <>
+                                                <Check className="h-3 w-3 text-ok" />
+                                                <span className="text-ok">
+                                                  {isFa ? "کپی شد" : "Copied!"}
+                                                </span>
+                                              </>
                                             ) : (
-                                              <Copy className="h-3 w-3" />
+                                              <>
+                                                <Copy className="h-3 w-3" />
+                                                <span>
+                                                  {isFa ? "کپی کانفیگ" : "Copy Config"}
+                                                </span>
+                                              </>
                                             )}
-                                            <span>{isCopied ? "کپی شد" : "کپی کانفیگ"}</span>
                                           </button>
                                         </div>
 
-                                        <pre className="p-3 text-[11px] font-mono bg-black/90 text-emerald-400 overflow-x-auto leading-relaxed selection:bg-emerald-800">
-                                          {iface.config || "# No configuration block returned"}
+                                        <pre className="p-3 text-[11px] font-mono text-ink bg-surface-2/20 overflow-x-auto max-h-60 dir-ltr text-left">
+                                          <code>{iface.config || "display current-configuration interface ..."}</code>
                                         </pre>
                                       </div>
                                     );
                                   })}
-
-                                  {(!res.interfaces || res.interfaces.length === 0) && (
-                                    <div className="p-3 text-xs text-ink-2 bg-surface rounded border border-line">
-                                      روت در روتر لبه یافت شد اما اینترفیس مشخصی استخراج نشد.
-                                    </div>
-                                  )}
                                 </div>
                               ))}
                             </div>
                           )}
                         </div>
                       ) : (
-                        <div className="text-xs text-ink-2">آدرس Originator در رکورد BGP موجود نیست.</div>
+                        <div className="text-xs text-ink-2">
+                          {isFa
+                            ? "روتر Originator در این رکورد ثبت نشده است."
+                            : "No Originator PE recorded in this BGP entry."}
+                        </div>
                       )}
                     </div>
                   </div>
