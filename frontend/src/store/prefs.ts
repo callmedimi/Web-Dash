@@ -14,6 +14,7 @@ export interface UserPrefs {
   theme: ThemeMode;
   density: DensityMode;
   lang: LanguageMode;
+  railCollapsed: boolean;
 }
 
 export interface PrefsState extends UserPrefs {
@@ -23,6 +24,8 @@ export interface PrefsState extends UserPrefs {
   setTheme: (theme: ThemeMode) => void;
   setDensity: (density: DensityMode) => void;
   setLanguage: (lang: LanguageMode) => void;
+  setRailCollapsed: (collapsed: boolean) => void;
+  toggleRail: () => void;
   toggleTheme: () => void;
   toggleDensity: () => void;
   toggleLanguage: () => void;
@@ -35,6 +38,7 @@ export const DEFAULT_PREFS: UserPrefs = {
   theme: "dark", // NOC default: dark mode ("Night")
   density: "compact", // NOC default: 28px row height
   lang: "en",
+  railCollapsed: false,
 };
 
 export function loadStoredPrefs(): UserPrefs {
@@ -53,6 +57,7 @@ export function loadStoredPrefs(): UserPrefs {
           ? parsed.density
           : DEFAULT_PREFS.density,
         lang: ["en", "fa"].includes(parsed.lang) ? parsed.lang : DEFAULT_PREFS.lang,
+        railCollapsed: Boolean(parsed.railCollapsed),
       };
     }
   } catch {
@@ -173,6 +178,19 @@ export const usePrefsStore = create<PrefsState>((set, get) => {
       const current = get().density;
       const nextDensity: DensityMode = current === "compact" ? "comfortable" : "compact";
       get().setDensity(nextDensity);
+    },
+
+    setRailCollapsed: (collapsed: boolean) => {
+      const next: UserPrefs = { ...get(), railCollapsed: collapsed };
+      savePrefs(next);
+      set({ railCollapsed: collapsed });
+    },
+
+    toggleRail: () => {
+      const current = get().railCollapsed;
+      const next: UserPrefs = { ...get(), railCollapsed: !current };
+      savePrefs(next);
+      set({ railCollapsed: !current });
     },
 
     toggleLanguage: () => {

@@ -18,6 +18,22 @@
     "viewAll": "View all",
     "retry": "Retry"
   },
+  "nav": {
+    "overview": "Overview",
+    "devices": "Devices",
+    "targets": "Target Sets",
+    "alarms": "Alarm Center",
+    "changes": "Safe Changes",
+    "jobs": "Automation Jobs",
+    "reports": "Reports",
+    "monitoring": "Monitoring Hub",
+    "configs": "Configs & Compliance",
+    "tools": "Diagnostics & Tools",
+    "admin": "Administration",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu",
+    "search": "Search or jump to... (Ctrl+K)"
+  },
   "prefs": {
     "title": "Preferences",
     "theme": "Theme",

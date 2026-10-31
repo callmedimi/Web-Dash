@@ -132,4 +132,18 @@ describe("User Preferences Store (wd.prefs)", () => {
 
     window.matchMedia = originalMatchMedia;
   });
+
+  it("toggles and persists railCollapsed state", () => {
+    usePrefsStore.getState().initPrefs();
+    expect(usePrefsStore.getState().railCollapsed).toBe(false);
+
+    usePrefsStore.getState().toggleRail();
+    expect(usePrefsStore.getState().railCollapsed).toBe(true);
+
+    const stored = JSON.parse(localStorage.getItem(PREFS_STORAGE_KEY) || "{}");
+    expect(stored.railCollapsed).toBe(true);
+
+    usePrefsStore.getState().toggleRail();
+    expect(usePrefsStore.getState().railCollapsed).toBe(false);
+  });
 });
