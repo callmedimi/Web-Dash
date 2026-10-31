@@ -1675,3 +1675,27 @@
      - آیکون وضعیت آنلاین سیستم با پالس سبز در انتهای منو.
   4. **راستی‌آزمایی میدانی در مرورگر:**
      - تست موفقیت‌آمیز سوئیچ زبان (فارسی / انگلیسی)، باز و بسته شدن پاپ‌اور اعتبار شبکه و ذخیره در سشن.
+
+
+## گام ۷.۱۶: تضمین انگلیسی خالص در حالت EN و رفع کامل نشتی کلمات فارسی در تب‌ها و منوها
+
+* **تاریخ و زمان:** ۱۴۰۵/۰۸/۰۹ - ۲۳:۲۰
+* **شاخه گیت:** phase7
+* **اقدامات انجام‌شده:**
+  1. **تغییر گزینش‌گر زبان به دکمه دوطرفه بدون ابهام ([ EN | فا ]):**
+     - حذف ابهام در هدر و نمایش دائمی زبان فعال با رنگ آبی متمایز (g-signal text-white).
+  2. **حذف قطعی کلمات فارسی در حالت EN:**
+     - پاکسازی کامل هدر: دکمه CSV Operations، پیش‌فرض Search or jump to... (Ctrl+K)، نشانگر وضعیت System Online / READ-ONLY، و متن‌های پاپ‌اور SSH Auth.
+     - پاکسازی کامل منوی سایدبار: عناوین دسته‌بندی Network Operations, Diagnostic Tools, Administration و تمام ۱۰ آیتم عملیاتی بدون حتی یک کلمه فارسی.
+     - پاکسازی تب‌های ابزارها در [Tools.tsx](frontend/src/pages/Tools.tsx):
+       - BGP & VRF Routing, License Tools, SecureCRT Sessions, ARP & MAC Search, PTP Diagnostics, Command Runner
+       - زیرتب‌های BGP Route Check و VRF Trace به زبان انگلیسی خالص.
+     - پاکسازی تب‌های لایسنس در [LicenseTools.tsx](frontend/src/components/operations/LicenseTools.tsx):
+       - Online License Check (CSV), File-based Renewal (XML/ZIP), Renewal Database History
+     - پاکسازی تب‌های مرکز آلارم در [AlarmCenter.tsx](frontend/src/pages/AlarmCenter.tsx):
+       - Live Zabbix Alarms, CSV Bulk Clearance
+     - پاکسازی تب‌های گزارش‌ها در [Reports.tsx](frontend/src/pages/Reports.tsx):
+       - CSV Nodes Report
+     - ترجمه کامل انگلیسی کارت و دکمه‌های [BgpRouteCheck.tsx](frontend/src/components/operations/BgpRouteCheck.tsx).
+  3. **راستی‌آزمایی در مرورگر:**
+     - تست مرورگر با کلیک روی EN و بررسی تک‌تک صفحات، تب‌ها و کنترل‌ها که تأیید کرد در حالت EN هیچ کلمه فارسی در منوها وجود ندارد.
