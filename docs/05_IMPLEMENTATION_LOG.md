@@ -970,4 +970,195 @@
   * اجرای ۸ تست تخصصی با موفقیت ۱۰۰٪ (`8 passed`).
   * **اجرای رگرسیون کامل فاز ۵ (گام‌های ۵.۱ تا ۵.۱۴):** **۱۱۴ تست با موفقیت ۱۰۰٪ و بدون رگرسیون پاس شدند (`114 passed in 89.25s`).**
 
+---
+
+## فاز ۶ — سیستم طراحی و زیرساخت فرانت‌اند (Phase 6: Frontend Foundation & Design System)
+
+### گام ۶.۱ — ساختار اولیه و اسکلت فرانت‌اند مدرن (Step 6.1 Scaffold)
+* **هدف:** راه‌اندازی پروژه فرانت‌اند مدرن با React 18، TypeScript Strict، Vite، Tailwind CSS و قراردادهای سیستم طراحی NOC مناسب برای استقرار در محیط‌های ایزوله و آفلاین (Air-Gapped).
+* **اقدامات انجام‌شده:**
+  1. راه‌اندازی پروژه مستقل در پوشه [frontend/package.json](file:///d:/Playground/Web-Dash/frontend/package.json) شامل اسکریپت‌های استاندارد `dev`, `build`, `typecheck`, `lint`, `test`.
+  2. اعمال پیکربندی تایپ‌اسکریپت سخت‌گیرانه (`strict: true`) و الیاس مسیر (`@/*`) در [frontend/tsconfig.json](file:///d:/Playground/Web-Dash/frontend/tsconfig.json).
+  3. پیکربندی پروکسی توسعه Vite برای هدایت درخواست‌های `/api` به سرور محلی فلسک (`http://localhost:5000`) و تفکیک چانک‌های خروجی در [frontend/vite.config.ts](file:///d:/Playground/Web-Dash/frontend/vite.config.ts).
+  4. پیاده‌سازی سیستم توکن‌های طراحی (تم‌های Paper / Night) و متغیرهای چگالی (Compact / Comfortable) در [frontend/src/styles/tokens.css](file:///d:/Playground/Web-Dash/frontend/src/styles/tokens.css) و اتصال آن به [frontend/tailwind.config.js](file:///d:/Playground/Web-Dash/frontend/tailwind.config.js).
+  5. فراهم‌سازی قابلیت استقرار در سرورهای ایزوله (Air-Gapped): پوشه کامپایل‌شده `frontend/dist/` به صورت یک بسته مستقل از اینترنت آماده شده و در گیت ترک می‌شود تا در سرور نیازی به نصب Node.js یا اجرای npm نباشد.
+  6. نگارش آزمون‌های خودکار در [tests/test_step_6_1_scaffold.py](file:///d:/Playground/Web-Dash/tests/test_step_6_1_scaffold.py).
+* **تأییدیه (Verify):**
+  * اجرای موفق `npm run typecheck` و `npm run lint` با صفر خطا و هشدار.
+  * اجرای آزمون واحد کامپوننت با Vitest با ۱ پاس (`1 passed`).
+  * اجرای `npm run build` و تولید باندل با حجم اولیه ۴۸ کیلوبایت (بسیار کمتر از سقف بودجه ۲۵۰ کیلوبایت).
+  * اجرای آزمون‌های پایتون: ۵ تست از ۵ تست پاس شدند (`5 passed in 0.14s`).
+
+---
+
+### گام ۶.۲ — کلاینت API، نگاشت خطاها، پوسته احراز هویت و گاردهای دسترسی (Step 6.2 API Client & Auth Shell)
+* **هدف:** پیاده‌سازی کلاینت HTTP استاندارد و تایپ‌شده برای ارتباط فرانت‌اند با APIهای سامانه، تزریق خودکار هدر امنیتی `X-CSRF-Token`، نگاشت دقیق خطاهای بک‌اند بر اساس مشخصات معماری به کلاس خطای `ApiError`، مدیریت انقضای سشن (401) و تغییر اجباری رمز (403 PASSWORD_CHANGE_REQUIRED)، پیکربندی تنظیمات بهینه TanStack Query برای اتاق مانیتورینگ NOC، ایجاد مخزن وضعیت احراز هویت با Zustand، ساخت صفحات ورود و تغییر رمز با استایل صنعتی، و پیاده‌سازی گاردهای مسیر و پوسته اصلی نرم‌افزار.
+* **اقدامات انجام‌شده:**
+  1. پیاده‌سازی کلاینت HTTP در [frontend/src/api/client.ts](file:///d:/Playground/Web-Dash/frontend/src/api/client.ts) و تعاریف تایپ در [frontend/src/api/types.ts](file:///d:/Playground/Web-Dash/frontend/src/api/types.ts):
+     - تابع `request<T>` و متدهای کمکی `apiClient.get/post/put/patch/delete` با الزام بر ارتباط JSON و ارسال کوکی سشن (`credentials: 'same-origin'`).
+     - تزریق خودکار هدر امنیتی `X-CSRF-Token` در کلیه متدهای تغییردهنده داده (`POST`, `PUT`, `DELETE`, `PATCH`).
+     - تبدیل انواع خطاهای سرور (RFC 7807، خطاهای اعتبارسنجی فیلد، و پیام‌های استاتیک) به نمونه کلاس `ApiError` شامل کد خطا، پیام، و لیست فیلدهای نامعتبر.
+     - مدیریت خطای 401 و ارسال رویداد `webdash:auth:unauthorized` جهت هدایت به صفحه ورود با حفظ مسیر بازگشت (`returnUrl`).
+     - مدیریت خطای 403 با کد `PASSWORD_CHANGE_REQUIRED` و ارسال رویداد `webdash:auth:password-change-required`.
+     - پیکربندی کلاینت سراسری TanStack Query: زمان کش اولیه ۱۵ ثانیه (`staleTime: 15_000`)، ممانعت قطعی از تلاش مجدد روی کدهای خطای کلاینت 4xx، و تلاش مجدد ۱ باره فقط برای خطاهای 5xx یا شبکه.
+  2. ایجاد مخزن وضعیت نشست و کاربران با Zustand در [frontend/src/store/auth.ts](file:///d:/Playground/Web-Dash/frontend/src/store/auth.ts):
+     - متدهای `checkAuth` (استعلام وضعیت از `/api/v1/me`)، `login`، `logout`، و `changePassword`.
+     - گوش دادن خودکار به رویدادهای سراسری کلاینت برای پاکسازی نشست و نمایش بنر انقضای نشست پس از ۳۰ دقیقه عدم فعالیت (`idleTimeoutNotice`).
+  3. ساخت کامپوننت‌های امنیتی و پوسته کنسول:
+     - گارد محافظت از مسیرها [frontend/src/components/auth/ProtectedRoute.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/auth/ProtectedRoute.tsx): بررسی احراز هویت و هدایت به `/login` یا الزام تغییر رمز موقت به `/change-password`.
+     - گارد دسترسی [frontend/src/components/auth/PermissionGate.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/auth/PermissionGate.tsx): کنترل دسترسی بر اساس سطح نقش کاربر (`god`, `admin`, `operator`, `viewer`) و پرچم فیچرهای فعال.
+     - مودال اطلاع‌رسانی انقضای نشست [frontend/src/components/auth/IdleTimeoutNotice.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/auth/IdleTimeoutNotice.tsx) مبتنی بر Radix Dialog.
+     - پوسته کنسول NOC در [frontend/src/components/layout/Shell.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/layout/Shell.tsx): نوار بالایی با نشانگر سلامت سیستم، تگ فقط‌خواندنی، مشخصات کاربر، دکمه خروج و پنل محتوایی بدون اسکرول سراسری بدنه.
+  4. پیاده‌سازی صفحات کاربری:
+     - صفحه ورود [frontend/src/pages/Login.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Login.tsx): طراحی دقیق ابزارگونه مطابق توکن‌های طراحی، فرم لاگین با پشتیبانی از نمایش قفل شدن حساب در اثر ارسال زیاد رمز اشتباه (HTTP 429).
+     - صفحه تغییر رمز [frontend/src/pages/ChangePassword.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/ChangePassword.tsx): فرم به‌روزرسانی رمز با چک‌لیست شرایط سیاست رمز عبور.
+     - داشبورد عملیات [frontend/src/pages/Dashboard.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Dashboard.tsx): نمایش کارت‌های خلاصه وضعیت و تست عملکرد PermissionGate.
+  5. هماهنگی اندپوینت‌های احراز هویت بک‌اند:
+     - ثبت الیاس پیشوند `/api/v1` برای `auth_bp` در [backend/app/__init__.py](file:///d:/Playground/Web-Dash/backend/app/__init__.py).
+     - معافیت اندپوینت لاگین از بررسی CSRF و درج مسیرهای `/api/v1/...` در لیست معافیت‌های تغییر رمز در [backend/app/security/middleware.py](file:///d:/Playground/Web-Dash/backend/app/security/middleware.py).
+  6. کامپایل نهایی و آزمون‌های خودکار:
+     - نگارش تست‌های Vitest در [frontend/src/api/client.test.ts](file:///d:/Playground/Web-Dash/frontend/src/api/client.test.ts) و [frontend/src/store/auth.test.ts](file:///d:/Playground/Web-Dash/frontend/src/store/auth.test.ts) (مجموعاً ۱۸ تست).
+     - نگارش تست‌های یکپارچگی در [tests/test_step_6_2_api_client_auth.py](file:///d:/Playground/Web-Dash/tests/test_step_6_2_api_client_auth.py).
+     - بازسازی خروجی پروداکشن `frontend/dist/` و ترک آن در گیت برای سرورهای ایزوله (Air-Gapped).
+* **تأییدیه (Verify):**
+  * اجرای `npm run typecheck` و `npm run lint` با ۰ خطا و ۰ اخطار.
+  * پاس شدن ۱۰۰٪ آزمون‌های Vitest با ۱۸ تست پاس‌شده (`18 passed in 3.56s`).
+  * اجرای آزمون‌های پایتون: ۵ تست از ۵ تست پاس شدند (`5 passed in 16.01s`).
+  * حجم باندل اولیه: ~۸۱ کیلوبایت Gzip (کمتر از یک‌سوم بودجه مجاز ۲۵۰ کیلوبایت).
+
+---
+
+### گام ۶.۳ — سیستم توکن‌ها، تم‌بندی، چگالی، و دوزبانه بودن با فونت‌های آفلاین (Step 6.3 Tokens, Theming, Density & Bilingual i18n)
+* **هدف:** پیاده‌سازی سیستم کامل تم‌های بصری (Paper / Night / System)، حالت‌های چگالی نمایش (Compact / Comfortable)، دوزبانه بودن جامع فارسی و انگلیسی با چرخش بلادرنگ جهت صفحه (RTL/LTR)، بارگذاری فونت‌های سازمانی آفلاین (Vazirmatn، IBM Plex Sans، JetBrains Mono) با فرمت استاندارد WOFF2 بدون نیاز به اینترنت، و ذخیره‌سازی ترجیحات کاربر در `localStorage` تحت کلید `wd.prefs`.
+* **اقدامات انجام‌شده:**
+  1. تولید و بارگذاری فونت‌های محلی استاندارد:
+     - استقرار فایل‌های فونت معتبر WOFF2 در [frontend/public/fonts/](file:///d:/Playground/Web-Dash/frontend/public/fonts) شامل `vazirmatn.woff2`، `ibm-plex-sans.woff2` و `jetbrains-mono.woff2`.
+     - تعریف قوانین `@font-face` همراه با `font-display: swap` در [frontend/src/styles/tokens.css](file:///d:/Playground/Web-Dash/frontend/src/styles/tokens.css) و تضمین صفر ریکوئست خارجی به اینترنت (کاملاً سازگار با شبکه ایزوله Air-Gapped).
+  2. مدیریت ترجیحات کاربری در [frontend/src/store/prefs.ts](file:///d:/Playground/Web-Dash/frontend/src/store/prefs.ts):
+     - نگهداری کلید `wd.prefs` در `localStorage`.
+     - انتخاب و سوئیچ تم: تیره (Night)، روشن (Paper) یا خودکار (System) با اعمال ویژگی `data-theme` و کلاس `dark` روی المان ریشه `<html>`.
+     - انتخاب و سوئیچ چگالی: فشرده (Compact با ارتفاع سطر ۲۸ پیکسل) و معمولی (Comfortable با ارتفاع ۳۶ پیکسل) با متغیرهای اختصاصی CSS.
+     - انتخاب زبان و جهت نوشتار: انگلیسی (LTR) و فارسی (RTL) با اعمال ویژگی‌های `lang` و `dir` روی المان `<html>`.
+  3. بومی‌سازی و چندزبانه بودن با `react-i18next`:
+     - پیکربندی هسته ترجمه در [frontend/src/i18n/config.ts](file:///d:/Playground/Web-Dash/frontend/src/i18n/config.ts).
+     - فایل‌های دیکشنری جامع [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [frontend/src/i18n/locales/fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json) با تطابق ۱۰۰٪ کلیدها در بخش‌های `common`, `prefs`, `auth`, `dashboard`.
+     - به‌کارگیری تابع `useTranslation()` در تمامی کامپوننت‌ها و صفحات (`Shell`, `Login`, `ChangePassword`, `Dashboard`, `IdleTimeoutNotice`, `ProtectedRoute`).
+     - قرارگیری اعداد، IPها، نام اینترفیس‌ها، دستورات CLI و خروجی لاگ‌ها در حالت ایزوله LTR (`dir-ltr`, `unicode-bidi: isolate`).
+  4. کنترل‌های بالای صفحه (Top Bar Controls) در [frontend/src/components/layout/Shell.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/layout/Shell.tsx):
+     - دکمه تغییر تم (Paper ☀️ / Night 🌙).
+     - دکمه تغییر چگالی (Compact ↕️ / Comfortable).
+     - دکمه تغییر زبان (FA / EN) همراه با چرخش بلادرنگ چیدمان به RTL.
+  5. نگارش آزمون‌های خودکار و کامپایل:
+     - آزمون‌های واحد فرانت‌اند در [frontend/src/store/prefs.test.ts](file:///d:/Playground/Web-Dash/frontend/src/store/prefs.test.ts) و [frontend/src/i18n/config.test.ts](file:///d:/Playground/Web-Dash/frontend/src/i18n/config.test.ts) (مجموعاً ۲۷ تست پاس‌شده).
+     - نگارش آزمون‌های اختصاصی پایتون در [tests/test_step_6_3_tokens_theming_i18n.py](file:///d:/Playground/Web-Dash/tests/test_step_6_3_tokens_theming_i18n.py) (۵ تست).
+     - بیلد نهایی در `frontend/dist/` با کپی خودکار فونت‌ها به `dist/fonts/` و حجم باندل اولیه ۱۰۱ کیلوبایت Gzip.
+---
+
+### گام ۶.۴ — کامپوننت‌های هسته NOC، ابزارهای نمایش داده و روت آزمایشگاهی Kitchen Sink (Step 6.4 Core NOC Components & Kitchen Sink Route)
+* **هدف:** پیاده‌سازی کلیه کامپوننت‌های استاندارد و ابزارگونه کنسول عملیات شبکه (NOC) مطابق قرارداد طراحی `plan/08_PHASE6_UI_DESIGN_SYSTEM.md` §5.4، شامل جدول مجازی‌سازی‌شده داده‌ها، استریم و مشاهده‌گر لاگ‌ها، تایم‌لاین بصری اجرای جاب‌ها (Run Timeline)، مقایسه‌گر کانفیگ (Diff Viewer)، گراف توپولوژی شبکه، نمودار سری‌های زمانی uPlot، پنل گرافانا با کارت فال‌بک، و ساخت روت کارگاهی زنده `/_ui` (Kitchen Sink) جهت بررسی تعاملی و آزمون‌های خودکار.
+* **اقدامات انجام‌شده:**
+  1. **جدول داده‌های پرتراکم مجازی‌سازی‌شده ([frontend/src/components/datatable/DataTable.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/datatable/DataTable.tsx)):**
+     - بهره‌گیری از ترکیب `@tanstack/react-table` و `@tanstack/react-virtual` با ارتفاع سطر مبتنی بر چگالی (۲۸ پیکسل در حالت Compact و ۳۶ پیکسل در Comfortable) و قابلیت رندر بیش از ۱۰,۰۰۰ سطر با نرخ فریم ۶۰ fps.
+     - پشتیبانی از فیلتر سراسری، مرتب‌سازی چندستونه، پاپ‌اور انتخاب و پنهان‌سازی ستون‌ها، انتخاب سطرها و خروجی اکسپورت CSV از نمای فیلترشده جاری.
+  2. **مشاهده‌گر و استریم لاگ‌های عملیاتی ([frontend/src/components/logviewer/LogViewer.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/logviewer/LogViewer.tsx)):**
+     - پشتیبانی از رندر تا ۲۰۰,۰۰۰ خط لاگ با مجازی‌سازی دقیق، نمایش ایزوله LTR، برچسب‌های مونو برای نام تجهیزات و رنگ‌بندی سمانتیک سطوح لاگ (INFO، WARN، ERROR، DEBUG).
+     - کلید فعال‌سازی تعقیب خودکار انتهای لاگ (Follow Tail)، جستجوی بلادرنگ در پیام‌ها و تجهیزات، فیلتر سطحی و دکمه‌های کپی و دانلود فایل لاگ.
+  3. **هوک ارتباطی Server-Sent Events ([frontend/src/components/logviewer/useJobEvents.ts](file:///d:/Playground/Web-Dash/frontend/src/components/logviewer/useJobEvents.ts)):**
+     - ارتباط مقاوم با سرور از طریق هدر `Last-Event-ID` برای بازپخش رویدادهای از دست رفته در زمان قطعی موقت.
+     - الگوریتم اتصال مجدد نمایی (Exponential Backoff) و حذف رویدادهای تکراری (Deduplication) بر اساس شناسه رویداد.
+  4. **شناور اجرای جاب‌ها — عنصر برجسته بصری سامانه ([frontend/src/components/timeline/RunTimeline.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/timeline/RunTimeline.tsx)):**
+     - ردیف‌های نمایانگر هر روتر و ستون‌های نمایانگر مراحل پایپ‌لاین (اتصال → پیش‌بررسی → پلن دیف → اعمال کانفیگ → اعتبارسنجی).
+     - نمادهای بصری پیشرفت (Queued، Running با اسپینر ظریف، Succeeded، Failed و Skipped) همراه با جزئیات خطا و مدت زمان اجرا در تولتیپ.
+     - چیدمان اولویت‌دار "نیاز به توجه فوری" (Attention First: شکست‌خورده‌ها و موارد در حال اجرا بالاتر از موفق‌ها) با قابلیت سوییچ به الفبایی، فیلتر سریع و مجازی‌سازی برای ۱,۰۰۰ روتر.
+  5. **مشاهده‌گر تغییرات کانفیگ روتر ([frontend/src/components/diff/DiffViewer.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/diff/DiffViewer.tsx)):**
+     - محاسبه و تفکیک تغییرات با کتابخانه `diff` و رندرر بومی اختصاصی با پشتیبانی از دو حالت نمایشی یکپارچه (Unified) و ستونی (Split / Side-by-Side).
+     - شماره‌گذاری سطور، هایلایت تفکیکی کلمات تغییریافته، آمار تعداد سطور افزوده و حذف‌شده، و دکمه کپی پچ کانفیگ.
+  6. **اتم‌های رابط کاربری و تعاملات هسته NOC ([frontend/src/components/ui/](file:///d:/Playground/Web-Dash/frontend/src/components/ui/)):**
+     - `StatusBadge` و `HealthDot`: نمایش سمانتیک وضعیت با برچسب و آیکون و شمارنده (عدم تکیه به رنگ تنها).
+     - `Timestamp`: نمایش زمان نسبی خودکار (مانند "2m ago") همراه با ساعت دقیق ۲۴ ساعته UTC در هاور.
+     - `Mono` و `MonoChip` و `CliOutput`: تراشه‌های کپی‌شونده برای IP، پورت و شماره AS در جهت LTR ایزوله.
+     - `ConfirmDialog`: دیالوگ تأیید عملیات‌های حساس با الزام به تایپ دقیق مقدار (مانند تایپ تعداد روترها "12").
+     - `Drawer`، `Tabs`، `TimeRangePicker` (بازه ۱۵ دقیقه تا ۷ روز) و `Toast` (سیستم اعلان با اعلامیه صوتی `aria-live`).
+     - `CommandPalette`: پالت جستجو و اجرای سریع دستورات با کلید میانبر سراسری `Ctrl+K` مبتنی بر `cmdk`.
+  7. **گراف‌ها و تلکتری ([frontend/src/components/charts/](file:///d:/Playground/Web-Dash/frontend/src/components/charts/)):**
+     - `TimeSeriesChart`: بسته‌بندی سبک و پرسرعت کتابخانه `uPlot` با پشتیبانی از چندسری داده، خطوط خطی و پله‌ای، کراس‌هیر متقاطع و ایجاد گپ بصری روی دیتای ناموجود/گمشده.
+     - `TopologyGraph`: نقشه تعاملی شبکه مبتنی بر `@xyflow/react` با چیدمان لایه‌ای خودکار (Core → Aggregation → Edge)، وضعیت سلامت روترها و برچسب اینترفیس‌های لینک.
+     - `GrafanaPanel`: تعبیه فریم تلکتری با قابلیت تشخیص تایم‌اوت و نمایش خودکار کارت فال‌بک NOC همراه با دکمه "Open in Grafana".
+  8. **روت کارگاهی و آزمایشگاهی Kitchen Sink ([frontend/src/pages/KitchenSink.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/KitchenSink.tsx)):**
+     - ثبت مسیر `/_ui` در [frontend/src/App.tsx](file:///d:/Playground/Web-Dash/frontend/src/App.tsx) جهت بررسی زنده و تست بصری تمام کامپوننت‌ها با ۱۰۰۰ روتر نمونه، استریم زنده لاگ و سناریوهای تغییر کانفیگ.
+  9. **تست و صحه‌گذاری خودکار:**
+     - نگارش ۱۳ تست واحد در [frontend/src/components/CoreComponents.test.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/CoreComponents.test.tsx).
+     - نگارش تست‌های اعتبارسنجی پایتون در [tests/test_step_6_4_core_components.py](file:///d:/Playground/Web-Dash/tests/test_step_6_4_core_components.py).
+     - به‌روزرسانی خروجی پروداکشن در `frontend/dist/` بدون نیاز به نصب هیچ ابزاری در مقصد.
+* **تأییدیه (Verify):**
+  - اجرای موفق `npm run typecheck` با ۰ خطا.
+  - اجرای موفق `npm run lint` با ۰ خطا و ۰ اخطار.
+  - پاس شدن ۱۰۰٪ آزمون‌های Vitest (مجموعاً **۴۰ تست از ۴۰ تست** در ۶ فایل تست: `40 passed in 5.71s`).
+  - پاس شدن کلیه آزمون‌های پایتون گام ۶.۴ (**۶ تست از ۶ تست با موفقیت پاس شدند**).
+  - موفقیت کامل بیلد پروداکشن `npm run build` با حجم بهینه و قرارگیری در `dist/`.
+
+---
+
+### گام ۶.۵ — گیت‌های عملکرد، بودجه حجم باندل و کیفیت (Step 6.5 Performance & Quality Gates)
+* **هدف:** اعمال و اجباری‌سازی قراردادهای دقیق عملکردی و کیفیتی فاز ۶ (مطابق `plan/08_PHASE6_UI_DESIGN_SYSTEM.md` §5.5)، شامل سقف حجم باندل اولیه جاوااسکریپت (حداکثر ۲۵۰ کیلوبایت فشرده Gzip)، سقف چانک‌های مجزا (حداکثر ۱۵۰ کیلوبایت Gzip)، عدم وجود لیست غیرمجازی‌سازی‌شده بزرگتر از ۲۰۰ سطر در کامپوننت‌های سنگین، و پیاده‌سازی اسکریپت خودکار اعتبارسنجی حجم خروجی بیلد.
+* **اقدامات انجام‌شده:**
+  1. بهینه‌سازی استراتژی چانک‌بندی در [frontend/vite.config.ts](file:///d:/Playground/Web-Dash/frontend/vite.config.ts):
+     - جداسازی کتابخانه‌های سنگین چارت و گراف (`uplot` و `@xyflow/react`) در چانک مجزای `charts`.
+     - جداسازی کتابخانه مقایسه متنی در چانک مجزای `diff`.
+     - حفظ چانک‌های `vendor` (هسته ری‌اکت)، `query` (تداوم کش سرور) و `table` (مجازی‌سازی و جدول).
+  2. ایجاد اسکریپت خودکار بررسی بودجه عملکردی [frontend/scripts/check_bundle_size.mjs](file:///d:/Playground/Web-Dash/frontend/scripts/check_bundle_size.mjs):
+     - محاسبه اندازه فایل‌های خروجی و فشرده‌سازی بلادرنگ Gzip با ماژول `zlib`.
+     - اعتبارسنجی بودجه‌ها: چانک ورودی اولیه `index-*.js` ≤ ۲۵۰ کیلوبایت، هر چانک جانبی ≤ ۱۵۰ کیلوبایت، و استایل‌های CSS ≤ ۵۰ کیلوبایت.
+     - ثبت دستور `"check:size"` در [frontend/package.json](file:///d:/Playground/Web-Dash/frontend/package.json) و اتصال خودکار آن به فرایند `npm run build`.
+  3. رعایت اصل عدم افت فریم و عدم جهش چیدمان (Zero Layout Shift):
+     - رزرو ارتفاع در المان‌های نگهدارنده جدول و چارت.
+     - مجازی‌سازی ۱۰۰٪ در کامپوننت‌های پرتراکم `DataTable`، `LogViewer` و `RunTimeline` با `@tanstack/react-virtual`.
+  4. نگارش آزمون‌های خودکار در [tests/test_step_6_5_performance_gates.py](file:///d:/Playground/Web-Dash/tests/test_step_6_5_performance_gates.py).
+* **تأییدیه (Verify):**
+  - چانک اولیه ورودی `index-*.js`: ۸۱.۴ کیلوبایت Gzip (بودجه: ≤ ۲۵۰ کیلوبایت — مصرف تنها ۳۲٪ از سقف مجاز).
+  - چانک چارت‌ها و توپولوژی `charts-*.js`: ۸۱.۶ کیلوبایت Gzip (بودجه: ≤ ۱۵۰ کیلوبایت).
+  - چانک جدول و مجازی‌سازی `table-*.js`: ۲۳.۹ کیلوبایت Gzip (بودجه: ≤ ۱۵۰ کیلوبایت).
+  - استایل‌های CSS `index-*.css`: ۸.۰ کیلوبایت Gzip (بودجه: ≤ ۵۰ کیلوبایت).
+  - پاس شدن ۱۰۰٪ آزمون‌های پایتون گام ۶.۵ (**۳ تست از ۳ تست با موفقیت پاس شدند**).
+
+---
+
+### گام ۶.۶ — میزبانی فرانت‌اند از طریق فلسک و مسیریابی SPA (Step 6.6 Serve from Flask & SPA Routing)
+* **هدف:** اتصال کامل باندل خروجی فرانت‌اند به سرور بک‌اند فلسک، سرو استاتیک فایل‌های بیلدشده در محیط ایزوله (Air-Gapped) بدون نیاز به ابزارهای جانبی یا Node.js در سرور، مدیریت مسیرهای کلاینت با مکانیزم SPA Fallback به `index.html`، اعمال هدرهای کش پایدار برای است‌ها و عدم کش برای فایل ریشه، و تزریق هدرهای امنیتی استاندارد سازمانی (CSP، X-Content-Type-Options، Referrer-Policy، X-Frame-Options).
+* **اقدامات انجام‌شده:**
+  1. به‌روزرسانی کنترلر اصلی در [backend/app/api/main.py](file:///d:/Playground/Web-Dash/backend/app/api/main.py):
+     - تعریف مسیرهای سرو استاتیک فایل‌های باندل از دایرکتوری `frontend/dist/`.
+     - سرو فایل‌های هش‌شده در مسیرهای `/assets/<filename>` و فونت‌ها در `/fonts/<filename>` همراه با هدرهای کش طولانی‌مدت و تغییرناپذیر:
+       `Cache-Control: public, max-age=31536000, immutable`.
+     - سرو فایل اصلی `index.html` در مسیر ریشه `/` و تمامی روت‌های فرانت‌اند (`/login`، `/change-password`، `/_ui` و مسیرهای ناهمخوان فرانت‌اند) همراه با هدرهای ضد-کش:
+       `Cache-Control: no-cache, no-store, must-revalidate`، `Pragma: no-cache`، `Expires: 0`.
+     - هدایت ایمن استاتیک فاوآیکون (`/favicon.ico`).
+  2. ترتیب اولویت ثبت بلوپرینت‌ها در [backend/app/__init__.py](file:///d:/Playground/Web-Dash/backend/app/__init__.py):
+     - انتقال ثبت بلوپرینت `main_bp` به انتهای لیست بلوپرینت‌های اپلیکیشن فلسک تا مسیرهای API روتین (`/api/v1/...`، `/healthz`، `/readyz`، `/metrics` و غیره) بدون تداخل و با اولویت بالا پردازش شوند.
+  3. تزریق هدرهای امنیتی و سازگاری سشن در [backend/app/security/middleware.py](file:///d:/Playground/Web-Dash/backend/app/security/middleware.py):
+     - معافیت مسیرهای فرانت‌اند (`/assets/`، `/fonts/`، `/_ui`، `/change-password`) از ریدایرکت‌های زودهنگام تغییر کلمه عبور.
+     - پیاده‌سازی هوک سراسری `@app.after_request` جهت تزریق هدرهای امنیتی به تمام پاسخ‌های سرور:
+       - `Content-Security-Policy`:
+         `default-src 'self'; frame-src 'self' <grafana_origin>; img-src 'self' data:; connect-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'`
+       - `X-Content-Type-Options: nosniff`
+       - `Referrer-Policy: same-origin`
+       - `X-Frame-Options: DENY`
+  4. نگارش آزمون‌های خودکار جامع در [tests/test_step_6_6_flask_serve_spa.py](file:///d:/Playground/Web-Dash/tests/test_step_6_6_flask_serve_spa.py):
+     - آزمون سرو صفحه اصلی `/` و هدرهای ضد-کش `index.html`.
+     - آزمون مکانیزم SPA Fallback برای مسیرهای فرانت‌اند نظیر `/login`، `/_ui`، `/change-password` و مسیرهای نامشخص کلاینت بدون تغییر به ۴۰۴.
+     - آزمون کش طولانی‌مدت دارایی‌های کامپایل‌شده (`/assets/` و `/fonts/`).
+     - آزمون تقدم کامل اندپوینت‌های API (`/healthz`، `/readyz`، `/api/v1/jobs`) نسبت به روت‌های SPA.
+     - آزمون صحت هدرهای امنیتی CSP، nosniff، DENY و تزریق داینامیک اوریجین گرافانا در CSP.
+     - آزمون عدم وجود هرگونه ارجاع به دامنه‌ها یا CDNهای خارجی در محتوای خروجی `dist/index.html` (تضمین ۱۰۰٪ تطابق با شبکه Air-Gapped).
+* **تأییدیه (Verify):**
+  - پاس شدن ۱۰۰٪ آزمون‌های گام ۶.۶ پایتون (**۶ تست از ۶ تست با موفقیت پاس شدند**).
+  - اجرای سوئیت کامل آزمون‌های فاز ۶ (گام‌های ۶.۱ تا ۶.۶): **۳۰ تست از ۳۰ تست با موفقیت پاس شدند (`30 passed in 57.15s`)**.
+  - اجرای آزمون‌های Vitest فرانت‌اند: **۴۰ تست از ۴۰ تست با موفقیت پاس شدند (`40 passed in 5.66s`)**.
+  - موفقیت گیت‌های تایپ‌اسکریپت و لینتر با صفر خطا و صفر اخطار.
+  - اعتبارسنجی ۱۰۰٪ حجم باندل در بودجه‌های عملکردی تعیین‌شده.
+
+
+
+
+
 
