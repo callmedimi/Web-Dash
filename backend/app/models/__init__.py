@@ -20,11 +20,13 @@ from backend.app.models.telemetry_cache import ZabbixInventoryCache
 from backend.app.models.license import LicenseRenewalReport, LicenseRecord
 from backend.app.models.alarm import AlarmFilter
 from backend.app.models.down_link import DownLinkReport
+from backend.app.models.api_token import ApiToken
 
 __all__ = [
     "Base",
     "User",
     "Permission",
+    "ApiToken",
     "Device",
     "Credential",
     "DeviceLock",
@@ -47,5 +49,6 @@ __all__ = [
     "LicenseRenewalReport",
     "LicenseRecord",
 ]
+
 
 

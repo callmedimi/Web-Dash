@@ -12,11 +12,44 @@ def init_security_middleware(app: Flask) -> None:
 
     @app.before_request
     def security_and_session_checks():
-        # 0. Skip static assets, healthz, readyz, and metrics
+        # 0. Skip static assets, healthz, readyz, metrics, openapi spec, and docs
         if (
             request.path.startswith("/static/")
-            or request.path in ("/favicon.ico", "/healthz", "/readyz", "/metrics")
+            or request.path in (
+                "/favicon.ico",
+                "/healthz",
+                "/readyz",
+                "/metrics",
+                "/api/v1/openapi.json",
+                "/api/v1/docs",
+                "/docs",
+            )
         ):
+            return None
+
+        # 0.1 Check for Bearer API token in Authorization header
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.strip().startswith("Bearer "):
+            raw_token = auth_header.strip().split(" ", 1)[1].strip()
+            from backend.app.services.tokens import ApiTokenService
+            token_ctx = ApiTokenService.verify_token(raw_token)
+            if not token_ctx:
+                return (
+                    jsonify({
+                        "error": "Invalid or expired API token",
+                        "code": "INVALID_TOKEN",
+                        "message": "The Bearer API token supplied is invalid, revoked, or expired.",
+                    }),
+                    401,
+                )
+            session["user"] = {
+                "id": token_ctx["user_id"],
+                "username": token_ctx["username"],
+                "role": token_ctx["role"],
+                "token_id": token_ctx["token_id"],
+                "scopes": token_ctx["scopes"],
+            }
+            # Bearer token authenticated API requests bypass browser CSRF checks
             return None
 
         # 1. CSRF Protection for mutating HTTP methods
