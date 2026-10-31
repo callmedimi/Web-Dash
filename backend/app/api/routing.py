@@ -25,6 +25,7 @@ from backend.app.api.common import (
     get_json_payload,
     resolve_request_credentials,
 )
+from backend.app.devices.session import DeviceSession
 
 routing_bp = Blueprint("routing_api", __name__)
 
@@ -193,3 +194,101 @@ def show_originator_interfaces_route():
         "sysname": sysname,
         "result": result,
     })
+
+
+# --- Step 5.5 Modern Automation Catalog VRF Routing Endpoints ---
+
+@routing_bp.route("/api/v1/routing/vrfs", methods=["GET"])
+@routing_bp.route("/routing/vrfs", methods=["GET"])
+@login_required
+def get_known_vrfs():
+    """Retrieve list of recognized VRF names and their associated Route Targets."""
+    from backend.app.services.routing import VRF_RT_MAP, RT_TO_VRF_MAP
+    return jsonify({
+        "vrfs": sorted(VRF_RT_MAP.keys()),
+        "vrf_count": len(VRF_RT_MAP),
+        "vrf_rt_map": VRF_RT_MAP,
+    }), 200
+
+
+@routing_bp.route("/api/v1/routing/trace", methods=["POST"])
+@routing_bp.route("/routing/trace", methods=["POST"])
+@login_required
+def trace_vrf_routing_hop():
+    """Trace a VRF route hop-by-hop and return the per-hop result table and topology path graph."""
+    from backend.app.features.registry import feature_registry
+    from backend.app.features.base import FeatureContext
+    from backend.app.db.session import get_db_session
+
+    feature = feature_registry.get("vrf_routing_check")
+    if not feature:
+        return jsonify({"error": "FEATURE_UNAVAILABLE", "message": "VRF routing feature not registered"}), 500
+
+    payload = request.get_json(silent=True) or {}
+    user_id = session.get("user", {}).get("id")
+
+    with get_db_session() as db_sess:
+        ctx = FeatureContext(
+            db_session=db_sess,
+            user_id=user_id,
+            params=payload,
+        )
+        res = feature.run(ctx)
+        status_code = 200 if res.get("status") != "failed" else 400
+        return jsonify(res), status_code
+
+
+@routing_bp.route("/api/v1/routing/check-prefix", methods=["POST"])
+@routing_bp.route("/routing/check-prefix", methods=["POST"])
+@login_required
+def check_prefix_in_vrf():
+    """Quick lookup of a prefix in a specific VRF on a designated router."""
+    from backend.app.services.routing import VrfRoutingService
+    from backend.app.db.session import get_db_session
+    from backend.app.models.device import Device
+
+    payload = request.get_json(silent=True) or {}
+    vrf = payload.get("vrf", "")
+    target = payload.get("target_ip", "")
+    device_id = payload.get("device_id")
+
+    if not vrf or not target:
+        return jsonify({"error": "MISSING_PARAMS", "message": "Both 'vrf' and 'target_ip' are required"}), 400
+
+    try:
+        clean_vrf, clean_target = VrfRoutingService.validate_vrf_and_target(vrf, target)
+    except ValueError as exc:
+        return jsonify({"error": "VALIDATION_FAILED", "message": str(exc)}), 400
+
+    target_host = clean_target.split("/")[0]
+
+    with get_db_session() as db_sess:
+        device = None
+        if device_id:
+            device = db_sess.query(Device).filter(Device.id == device_id).first()
+        if not device:
+            device = db_sess.query(Device).filter(Device.enabled == True).first()
+
+        if not device:
+            return jsonify({"error": "NO_DEVICE", "message": "No suitable router found to execute route check"}), 404
+
+        vrf_cmd = f"display ip routing-table vpn-instance {clean_vrf} {target_host}"
+        with DeviceSession(ip=device.mgmt_ip, os_family=device.os_family, device_name=device.name) as ds:
+            out = ds.run(vrf_cmd)
+
+        parsed = VrfRoutingService.parse_routing_table(out)
+        matching = [
+            r for r in parsed
+            if VrfRoutingService.ip_matches_route(target_host, r.get("destination", ""), r.get("mask", ""))
+        ]
+
+        return jsonify({
+            "device_name": device.name,
+            "mgmt_ip": device.mgmt_ip,
+            "vrf": clean_vrf,
+            "target": clean_target,
+            "has_route": len(matching) > 0,
+            "routes_count": len(matching),
+            "matching_routes": matching,
+        }), 200
+
