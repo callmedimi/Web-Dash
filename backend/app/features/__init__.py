@@ -13,6 +13,7 @@ from backend.app.features.arp.feature import SiteArpLookupFeature, site_arp_feat
 from backend.app.features.session_extractor.feature import SessionExtractorFeature, session_extractor_feature
 from backend.app.features.monitoring.feature import MonitoringHubFeature, monitoring_hub_feature
 from backend.app.features.config_compliance.feature import ConfigComplianceFeature, config_compliance_feature
+from backend.app.features.command_runner.feature import CommandRunnerFeature, command_runner_feature
 
 __all__ = [
     "BaseFeature",
@@ -37,6 +38,8 @@ __all__ = [
     "monitoring_hub_feature",
     "ConfigComplianceFeature",
     "config_compliance_feature",
+    "CommandRunnerFeature",
+    "command_runner_feature",
 ]
 
 
