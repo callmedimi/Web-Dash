@@ -566,4 +566,65 @@ export interface ComplianceDashboardResponse {
   devices: DeviceComplianceItem[];
 }
 
+export interface VrfRouteHop {
+  hop_number?: number;
+  router_name: string;
+  router_ip: string;
+  vrf: string;
+  route_target?: string;
+  next_hop?: string;
+  outgoing_interface?: string;
+  status: "ok" | "divergent" | "blackhole" | string;
+}
+
+export interface VrfTraceResponse {
+  status: string;
+  target_ip: string;
+  vrf: string;
+  hops: VrfRouteHop[];
+  nodes?: Array<{ id: string; label: string; ip?: string; status?: string }>;
+  edges?: Array<{ source: string; target: string; label?: string }>;
+  matching_routes?: Array<Record<string, unknown>>;
+}
+
+export interface PtpTraceResponse {
+  status: string;
+  target: string;
+  verdict: string;
+  grandmaster_id?: string;
+  clock_accuracy?: string;
+  offset_from_master_ns?: number;
+  hops?: Array<{
+    device_name: string;
+    clock_role: string;
+    ip: string;
+    state: string;
+    offset_ns?: number;
+  }>;
+}
+
+export interface ArpLookupResult {
+  ne_name: string;
+  ip_address: string;
+  mac_address: string;
+  interface_name: string;
+  vlan?: string | number;
+  site_code?: string;
+  last_seen?: string;
+}
+
+export interface AllowlistedCommand {
+  name: string;
+  command_template: string;
+  description: string;
+  platforms: string[];
+  category: string;
+  variables?: Array<{
+    name: string;
+    description: string;
+    default?: string;
+    required?: boolean;
+  }>;
+}
+
 

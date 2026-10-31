@@ -21,6 +21,7 @@ import { Jobs } from "@/pages/Jobs";
 import { Reports } from "@/pages/Reports";
 import { Monitoring } from "@/pages/Monitoring";
 import { Configs } from "@/pages/Configs";
+import { Tools } from "@/pages/Tools";
 import { KitchenSink } from "@/pages/KitchenSink";
 import { PlaceholderScreen } from "@/pages/PlaceholderScreen";
 
@@ -70,23 +71,8 @@ export const AppContent: React.FC = () => {
         <Route path="configs/*" element={<Configs />} />
         <Route path="compliance" element={<Configs />} />
         <Route path="compliance/*" element={<Configs />} />
-        <Route
-          path="tools/*"
-          element={
-            <PlaceholderScreen
-              title="Diagnostics & Tools"
-              subtitle="VRF routing, PTP sync, ARP/MAC lookup, session extractor, and command runner"
-              step="9.11"
-              features={[
-                "VRF routing prefix lookup with interactive path graph",
-                "PTP telecom synchronization tracer and verdict analyzer",
-                "ARP/MAC site database lookup and collection jobs",
-                "SecureCRT session extractor from CSV",
-                "Allow-listed read-only command runner across fleet",
-              ]}
-            />
-          }
-        />
+        <Route path="tools" element={<Tools />} />
+        <Route path="tools/*" element={<Tools />} />
         <Route
           path="admin/*"
           element={

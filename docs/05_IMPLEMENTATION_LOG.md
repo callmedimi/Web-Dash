@@ -1472,3 +1472,35 @@
   - گذر کامل و بدون خطای تایپ‌اسکریپت (`tsc --noEmit`).
   - تأیید بصری تعاملی با `browser_subagent` و ثبت اسکرین‌شات‌های هر دو تب و ویدئوی وب‌پی دمو.
 
+---
+## گام ۹.۱۱: پیاده‌سازی صفحه ابزارهای تشخیصی و مخابراتی (Diagnostics & Telecom Tools Screen)
+* **تاریخ:** ۱۴۰۵/۰۸/۰۹ (2026-10-31)
+* **شاخه گیت:** `phase7`
+* **هدف:** پیاده‌سازی صفحه کنسول جامع ابزارهای تشخیصی و مخابراتی ۵‌گانه شبکه (`/tools` و زیرمسیرهای `/tools/*`) منطبق بر سند [plan/09_PHASE7_UI_SCREENS.md](file:///d:/Playground/Web-Dash/plan/09_PHASE7_UI_SCREENS.md) شامل:
+  1. مسیریابی VRF و ردگیری هاپ‌ها (`/tools/vrf-routing`).
+  2. عیب‌یابی همگام‌سازی ساعت و تریسبک PTP مخابراتی (`/tools/ptp`).
+  3. جستجو و استخراج نگاشت‌های ARP و MAC سایت‌ها (`/tools/arp`).
+  4. استخراج و تولید درخت جلسات SecureCRT از فایل موجودی تجهیزات (`/tools/sessions`).
+  5. کنسول اجرای دستورات مجاز فقط-خواندنی بر روی ناوگان با فیلتر گریپ (`/tools/runner`).
+* **اقدامات انجام‌شده:**
+  1. **تعریف اینترفیس‌ها و ساختار داده:**
+     - اضافه شدن مدل‌های `VrfRouteHop`، `VrfTraceResponse`، `PtpTraceResponse`، `ArpLookupResult` و `AllowlistedCommand` در [frontend/src/api/types.ts](file:///d:/Playground/Web-Dash/frontend/src/api/types.ts).
+     - تعریف کلیدهای دوزبانه بخش ابزارهای تشخیصی در [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json).
+  2. **طراحی و پیاده‌سازی کامپوننت صفحه ابزارها:**
+     - ایجاد [frontend/src/pages/Tools.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Tools.tsx) با ساختار ۵ تب اختصاصی و پشتیبانی کامل از URL Deep Linking:
+       - **تب ۱ (VRF Routing Check)**: انتخابگر VRFهای شناخته‌شده (default، LTE-OAM، IMS، 3G-RNC، 2G-BSS)، فیلد آدرس IP هدف، گراف بصری جریان مسیر و جدول کامل هاپ‌ها با نمایش اینترفیس و Next-Hop.
+       - **تب ۲ (PTP Troubleshoot)**: انتخابگر روتر هدف، دکمه اجرای تریسبک هاپ‌به‌هاپ زنده، نمایش رأی نهایی هماهنگی ساعت (`LOCKED` / `FREE_RUN` / `HOLDOVER`)، میزان انحراف زمانی (offset به نانوثانیه)، و دیاگرام زنجیره ساعت با برچسب‌های وضعیت.
+       - **تب ۳ (Site ARP / MAC Lookup)**: نوار پایش وضعیت کالکتور پس‌زمینه با دکمه لغو و خروجی CSV، جستجوی کد سایت یا آدرس IP، و جدول رکوردهای مک، آی‌پی، اینترفیس و VLAN.
+       - **تب ۴ (Session Extractor)**: ناحیه دراپ‌زون بارگذاری فایل CSV موجودی تجهیزات، پیش‌نمایش درختی ساختار فولدرهای مراکز/استان‌ها، و دکمه دانلود آرشیو زیپ پیکربندی‌شده جلسات SecureCRT.
+       - **تب ۵ (Fleet Command Runner)**: انتخابگر دستورات امن فهرست سفید (مانند `display interface brief`، `display bgp peer`، `display vrrp brief`)، ناحیه انتخاب روترهای هدف، اجرای امن، نوار فیلتر درون‌خطی گریپ (Grep Filter) بر روی خروجی‌های بازگشتی، و دکمه‌های کپی و ذخیره نتایج.
+  3. **اتصال مسیر در روتینگ فرانت‌اند:**
+     - جایگزینی `PlaceholderScreen` با کامپوننت `Tools` در مسیرهای `/tools` و `/tools/*` در [frontend/src/App.tsx](file:///d:/Playground/Web-Dash/frontend/src/App.tsx).
+  4. **آزمون‌های خودکار و تضمین عملکرد:**
+     - نگارش تست‌های خودکار در [tests/test_step_7_11_tools_screen.py](file:///d:/Playground/Web-Dash/tests/test_step_7_11_tools_screen.py) (پوشش کامل دریافت لیست VRFها، تست تریسبک PTP، جستجوی ARP/MAC و دریافت فهرست دستورات مجاز).
+     - کامپایل باندل نهایی پروداکشن در `frontend/dist/` و گذر ۱۰۰٪ محدودیت‌های بودجه عملکردی (۱۳۳.۲ کیلوبایت جاوااسکریپت اولیه در برابر سقف ۲۵۰ کیلوبایت).
+* **تأییدیه (Verification):**
+  - پاس شدن ۱۰۰٪ آزمون‌های Pytest (`tests/test_step_7_11_tools_screen.py`).
+  - گذر کامل و بدون خطای تایپ‌اسکریپت (`tsc --noEmit`).
+  - تأیید بصری تعاملی با `browser_subagent` و ذخیره اسکرین‌شات‌های ابزارهای پنج‌گانه و انیمیشن تعاملی وب‌پی.
+
+

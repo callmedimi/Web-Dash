@@ -405,6 +405,38 @@
     "allProvinces": "All Provinces",
     "noViolations": "Zero violations found! All routers in this scope comply with baseline rules.",
     "planRemediation": "Plan Remediation Change"
+  },
+  "tools": {
+    "title": "Diagnostics & Telecom Tools",
+    "subtitle": "Interactive VRF routing tracer, PTP telecom clock analyzer, ARP/MAC database, SecureCRT extractor, and fleet command runner.",
+    "tabVrf": "VRF Routing Check",
+    "tabPtp": "PTP Troubleshoot",
+    "tabArp": "Site ARP / MAC Lookup",
+    "tabSessions": "Session Extractor",
+    "tabRunner": "Fleet Command Runner",
+    "runCheck": "Trace Route Hop",
+    "running": "Tracing...",
+    "vrfSelect": "Target VRF",
+    "targetIp": "Target IP / Prefix",
+    "routerSelect": "Inspection Router",
+    "pathGraph": "Hop-by-Hop Topology Path",
+    "hopsTable": "Routing Table Results",
+    "ptpTarget": "Target Telecom Device",
+    "startPtpTrace": "Start PTP Traceback",
+    "ptpVerdict": "Clock Synchronization Verdict",
+    "ptpGraph": "PTP Telecom Clock Chain",
+    "searchArp": "Search ARP / MAC",
+    "siteOrIp": "Site Code (e.g. TEH-012) or IP Address",
+    "collectorStatus": "Live Collector Status",
+    "stopCollector": "Stop Collector",
+    "exportCsv": "Export CSV",
+    "uploadCsv": "Upload Routers CSV",
+    "generateZip": "Generate SecureCRT ZIP",
+    "selectCommand": "Allowlisted Command",
+    "targetRouters": "Target Routers",
+    "execute": "Execute Across Fleet",
+    "executing": "Executing...",
+    "grepResults": "Filter / Grep Results..."
   }
 }
 
