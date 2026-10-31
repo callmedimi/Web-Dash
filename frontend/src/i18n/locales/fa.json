@@ -13,7 +13,10 @@
     "error": "خطا",
     "success": "عملیات موفق",
     "warning": "هشدار",
-    "unauthorized": "عدم دسترسی"
+    "unauthorized": "عدم دسترسی",
+    "refresh": "به‌روزرسانی",
+    "viewAll": "مشاهده همه",
+    "retry": "تلاش مجدد"
   },
   "prefs": {
     "title": "تنظیمات کاربری",

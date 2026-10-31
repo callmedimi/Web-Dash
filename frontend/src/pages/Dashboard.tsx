@@ -376,7 +376,7 @@ export const Dashboard: React.FC = () => {
                             {p.total - p.available}
                           </td>
                           <td className="px-2.5 py-1 text-right font-mono font-semibold text-ink dir-ltr">
-                            {p.availability_pct}%
+                            {p.availability_pct ?? 0}%
                           </td>
                         </tr>
                       ))}

@@ -13,7 +13,10 @@
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
-    "unauthorized": "Unauthorized"
+    "unauthorized": "Unauthorized",
+    "refresh": "Refresh",
+    "viewAll": "View all",
+    "retry": "Retry"
   },
   "prefs": {
     "title": "Preferences",
