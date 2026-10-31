@@ -12,33 +12,30 @@
  * └──────────┴───────────────────────────────────────────────────────────────┘
  */
 import React from "react";
-import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
-  Server,
-  Crosshair,
   AlertTriangle,
-  GitCommit,
-  Terminal,
   FileText,
   Activity,
-  FileCode,
-  Wrench,
   Settings,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   Search,
   Menu,
   FileSpreadsheet,
-  Sliders,
+  Network,
+  ShieldCheck,
+  FileArchive,
+  Clock,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { usePrefsStore } from "@/store/prefs";
 import { IdleTimeoutNotice } from "@/components/auth/IdleTimeoutNotice";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { CsvOperationsHub } from "@/components/operations/CsvOperationsHub";
+import { NetworkCredentialsBar } from "@/components/layout/NetworkCredentialsBar";
 
 export const Shell: React.FC = () => {
   const { t } = useTranslation();
@@ -54,21 +51,8 @@ export const Shell: React.FC = () => {
     toggleLanguage,
   } = usePrefsStore();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [globalCsvOpen, setGlobalCsvOpen] = React.useState(false);
-
-  // Auto-expand advanced section if user is on one of the advanced routes
-  const isAdvancedActive = ["/targets", "/changes", "/jobs", "/monitoring", "/configs"].some((p) =>
-    location.pathname.startsWith(p)
-  );
-  const [showAdvanced, setShowAdvanced] = React.useState(isAdvancedActive);
-
-  React.useEffect(() => {
-    if (isAdvancedActive) {
-      setShowAdvanced(true);
-    }
-  }, [isAdvancedActive]);
 
   const handleLogout = async () => {
     await logout();
@@ -79,26 +63,33 @@ export const Shell: React.FC = () => {
     window.dispatchEvent(new CustomEvent("open-command-palette"));
   };
 
-  // Primary Operational Navigation Items (Clean & Uncluttered)
-  const primaryNavItems = [
-    { to: "/", label: t("nav.overview"), icon: LayoutDashboard },
-    { to: "/alarms", label: t("nav.alarms"), icon: AlertTriangle },
-    { to: "/reports", label: t("nav.reports"), icon: FileText },
-    { to: "/devices", label: t("nav.devices"), icon: Server },
-    { to: "/tools", label: t("nav.tools"), icon: Wrench },
-    ...(user?.role === "god" || user?.role === "admin"
-      ? [{ to: "/admin", label: t("nav.admin"), icon: Settings }]
-      : []),
-  ];
+  // User Permission Helper (Enforces Granular RBAC configured in Admin Panel)
+  const hasFeatureAccess = (featKey: string | string[]) => {
+    if (!user) return false;
+    if (user.role === "god" || user.role === "admin") return true;
+    const features = user.features || {};
+    const keys = Array.isArray(featKey) ? featKey : [featKey];
+    return keys.some((k) => {
+      const val = (features as any)[k];
+      if (typeof val === "boolean") return val;
+      if (val && typeof val === "object" && "granted" in val) return Boolean(val.granted);
+      return false;
+    });
+  };
 
-  // Advanced Enterprise Hub Items (Grouped and Collapsible)
-  const advancedNavItems = [
-    { to: "/targets", label: t("nav.targets"), icon: Crosshair },
-    { to: "/changes", label: t("nav.changes"), icon: GitCommit },
-    { to: "/jobs", label: t("nav.jobs"), icon: Terminal },
-    { to: "/monitoring", label: t("nav.monitoring"), icon: Activity },
-    { to: "/configs", label: t("nav.configs"), icon: FileCode },
-  ];
+  // Restored Pure Operational NOC Navigation (Clean, Uncluttered & Permission-Controlled)
+  const operationalNavItems = [
+    { to: "/", label: "پیشخوان اصلی (Overview)", icon: LayoutDashboard, visible: true },
+    { to: "/alarms", label: "پاکسازی آلارم (Alarm Clear)", icon: AlertTriangle, visible: hasFeatureAccess(["alarm_clear_manual", "alarm_clear_bulk"]) },
+    { to: "/reports", label: "گزارش‌گیری آلارم و ترانک (Reporting)", icon: FileText, visible: hasFeatureAccess("reporting") },
+    { to: "/tools/vrf-routing", label: "بررسی روتینگ (Check Routing: BGP)", icon: Network, visible: hasFeatureAccess("vrf_routing") },
+    { to: "/tools/license", label: "ابزارهای لایسنس و تمدید (License)", icon: ShieldCheck, visible: hasFeatureAccess(["license_check", "license_renewal_admin"]) },
+    { to: "/tools/sessions", label: "استخراج سشن (SecureCRT)", icon: FileArchive, visible: hasFeatureAccess("session_extractor") },
+    { to: "/tools/arp", label: "جستجو و سایت (ARP/MAC)", icon: Search, visible: hasFeatureAccess(["zabbix_search", "code_site_search"]) },
+    { to: "/tools/ptp", label: "خطایابی ساعت (PTP Troubleshoot)", icon: Clock, visible: hasFeatureAccess("ptp_troubleshoot") },
+    { to: "/monitoring", label: "پایش و تلمتری زبیکس (Zabbix Monitoring)", icon: Activity, visible: hasFeatureAccess(["zabbix_search", "zabbix_db_refresh"]) || user?.role === "god" || user?.role === "admin" },
+    { to: "/admin", label: "پنل مدیریت (Admin Panel)", icon: Settings, visible: user?.role === "god" || user?.role === "admin" || hasFeatureAccess(["user_management", "permission_management"]) },
+  ].filter((item) => item.visible);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-bg text-ink">
@@ -164,6 +155,8 @@ export const Shell: React.FC = () => {
 
         {/* Right: Quick Preferences, Status, User Profile, Logout */}
         <div className="flex items-center gap-2">
+          {/* Shared Network Credentials Bar (TACACS / SSH) */}
+          <NetworkCredentialsBar />
           {/* Quick Global CSV Actions Button */}
           <button
             type="button"
@@ -277,8 +270,8 @@ export const Shell: React.FC = () => {
           }`}
         >
           <nav className="flex-1 overflow-y-auto p-1.5 space-y-0.5 scrollbar-thin">
-            {/* Primary Operations Nav Items */}
-            {primaryNavItems.map((item) => (
+            {/* Pure Operational NOC Navigation Items (RBAC Filtered) */}
+            {operationalNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -296,60 +289,6 @@ export const Shell: React.FC = () => {
                 {!railCollapsed && <span className="truncate">{item.label}</span>}
               </NavLink>
             ))}
-
-            {/* Separator Divider */}
-            <div className="py-1">
-              <div className="h-px bg-line/60 mx-1" />
-            </div>
-
-            {/* Advanced Enterprise Hub Collapsible Section */}
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              title={railCollapsed ? "سایر امکانات پیشرفته" : undefined}
-              className={`flex w-full items-center justify-between rounded-control px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
-                isAdvancedActive
-                  ? "bg-signal/10 text-signal font-semibold"
-                  : "text-ink-2 hover:bg-surface-2 hover:text-ink"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Sliders className="h-3.5 w-3.5 shrink-0 text-current" />
-                {!railCollapsed && (
-                  <span className="truncate">سایر امکانات پیشرفته</span>
-                )}
-              </div>
-              {!railCollapsed && (
-                <ChevronDown
-                  className={`h-3 w-3 shrink-0 transition-transform ${
-                    showAdvanced ? "rotate-180" : ""
-                  }`}
-                />
-              )}
-            </button>
-
-            {/* Advanced Items Sub-List */}
-            {showAdvanced && (
-              <div className="space-y-0.5 ps-1 pt-0.5 animate-in fade-in duration-150">
-                {advancedNavItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    title={railCollapsed ? item.label : undefined}
-                    className={({ isActive }) =>
-                      `group flex items-center gap-2 rounded-control px-2 py-1.5 text-[11px] transition-colors ${
-                        isActive
-                          ? "bg-signal/15 text-signal font-semibold border-e-2 border-signal rtl:border-e-0 rtl:border-s-2"
-                          : "text-ink-2 hover:bg-surface-2 hover:text-ink"
-                      }`
-                    }
-                  >
-                    <item.icon className="h-3.5 w-3.5 shrink-0 text-current" />
-                    {!railCollapsed && <span className="truncate">{item.label}</span>}
-                  </NavLink>
-                ))}
-              </div>
-            )}
           </nav>
 
           {/* Rail Collapse Toggle Footer */}

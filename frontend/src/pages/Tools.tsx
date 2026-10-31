@@ -25,6 +25,7 @@ import {
   Server,
   StopCircle,
   Upload,
+  ShieldCheck,
 } from "lucide-react";
 import { apiClient } from "@/api/client";
 import {
@@ -37,6 +38,8 @@ import {
 } from "@/api/types";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cn } from "@/utils/cn";
+import { BgpRouteCheck } from "@/components/operations/BgpRouteCheck";
+import { LicenseTools } from "@/components/operations/LicenseTools";
 
 export const Tools: React.FC = () => {
   const { t } = useTranslation();
@@ -50,8 +53,11 @@ export const Tools: React.FC = () => {
     if (p.includes("/arp")) return "arp";
     if (p.includes("/sessions")) return "sessions";
     if (p.includes("/runner")) return "runner";
+    if (p.includes("/license")) return "license";
     return "vrf-routing";
   }, [location.pathname]);
+
+  const [routingSubTab, setRoutingSubTab] = useState<"bgp" | "vrf">("bgp");
 
   // Devices State (shared across tools)
   const [devices, setDevices] = useState<DeviceItem[]>([]);
@@ -431,7 +437,7 @@ export const Tools: React.FC = () => {
           </p>
         </div>
 
-        {/* 5 Tool Nav Tabs */}
+        {/* Tool Nav Tabs */}
         <div className="flex items-center gap-1 rounded-control border border-line bg-surface-2 p-1 text-xs overflow-x-auto">
           <button
             type="button"
@@ -442,31 +448,19 @@ export const Tools: React.FC = () => {
             )}
           >
             <Network className="h-3.5 w-3.5" />
-            <span>{t("tools.tabVrf")}</span>
+            <span>بررسی روتینگ (BGP & VRF)</span>
           </button>
 
           <button
             type="button"
-            onClick={() => navigate("/tools/ptp")}
+            onClick={() => navigate("/tools/license")}
             className={cn(
               "flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors whitespace-nowrap",
-              activeTool === "ptp" ? "bg-surface text-ink shadow-sm font-semibold" : "text-ink-2 hover:text-ink"
+              activeTool === "license" ? "bg-surface text-ink shadow-sm font-semibold" : "text-ink-2 hover:text-ink"
             )}
           >
-            <Clock className="h-3.5 w-3.5" />
-            <span>{t("tools.tabPtp")}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate("/tools/arp")}
-            className={cn(
-              "flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors whitespace-nowrap",
-              activeTool === "arp" ? "bg-surface text-ink shadow-sm font-semibold" : "text-ink-2 hover:text-ink"
-            )}
-          >
-            <Search className="h-3.5 w-3.5" />
-            <span>{t("tools.tabArp")}</span>
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>ابزارهای لایسنس (License)</span>
           </button>
 
           <button
@@ -478,7 +472,31 @@ export const Tools: React.FC = () => {
             )}
           >
             <FileArchive className="h-3.5 w-3.5" />
-            <span>{t("tools.tabSessions")}</span>
+            <span>استخراج سشن (SecureCRT)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/tools/arp")}
+            className={cn(
+              "flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors whitespace-nowrap",
+              activeTool === "arp" ? "bg-surface text-ink shadow-sm font-semibold" : "text-ink-2 hover:text-ink"
+            )}
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span>جستجو و سایت (ARP/MAC)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/tools/ptp")}
+            className={cn(
+              "flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors whitespace-nowrap",
+              activeTool === "ptp" ? "bg-surface text-ink shadow-sm font-semibold" : "text-ink-2 hover:text-ink"
+            )}
+          >
+            <Clock className="h-3.5 w-3.5" />
+            <span>خطایابی ساعت (PTP)</span>
           </button>
 
           <button
@@ -490,7 +508,7 @@ export const Tools: React.FC = () => {
             )}
           >
             <Terminal className="h-3.5 w-3.5" />
-            <span>{t("tools.tabRunner")}</span>
+            <span>اجرای دستورات (Runner)</span>
           </button>
         </div>
       </div>
@@ -498,29 +516,60 @@ export const Tools: React.FC = () => {
       {/* Main Tool Content */}
       <div className="flex-1 overflow-y-auto p-4">
         {/* ========================================================= */}
-        {/* TAB 1: VRF Routing Check */}
+        {/* TAB 1: VRF & BGP Routing Check */}
         {/* ========================================================= */}
         {activeTool === "vrf-routing" && (
           <div className="space-y-4 max-w-5xl mx-auto">
-            {/* Input Controls */}
-            <div className="rounded-control border border-line bg-surface p-4 shadow-sm">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                <div>
-                  <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2 mb-1 block">
-                    {t("tools.vrfSelect")}
-                  </label>
-                  <select
-                    value={vrfName}
-                    onChange={(e) => setVrfName(e.target.value)}
-                    className="w-full rounded border border-line bg-surface py-1.5 px-2.5 text-xs text-ink font-mono focus:border-signal focus:outline-none"
-                  >
-                    {knownVrfs.map((v) => (
-                      <option key={v} value={v}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {/* Sub-tab switcher between BGP Route Check and VRF Trace */}
+            <div className="flex items-center gap-1 border-b border-line pb-2 mb-2">
+              <button
+                type="button"
+                onClick={() => setRoutingSubTab("bgp")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold transition-colors",
+                  routingSubTab === "bgp" ? "bg-signal text-bg shadow-sm" : "text-ink-2 hover:text-ink hover:bg-surface-2"
+                )}
+              >
+                <Network className="h-3.5 w-3.5" />
+                <span>بررسی هوشمند روت BGP (تشخیص خودکار VRF و اینترفیس مقصد)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRoutingSubTab("vrf")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold transition-colors",
+                  routingSubTab === "vrf" ? "bg-signal text-bg shadow-sm" : "text-ink-2 hover:text-ink hover:bg-surface-2"
+                )}
+              >
+                <Server className="h-3.5 w-3.5" />
+                <span>استعلام روتینگ اینترفیس‌ها (VRF Trace)</span>
+              </button>
+            </div>
+
+            {routingSubTab === "bgp" && <BgpRouteCheck />}
+
+            {routingSubTab === "vrf" && (
+              <>
+                {/* Input Controls */}
+                <div className="rounded-control border border-line bg-surface p-4 shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                    <div>
+                      <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2 mb-1 block">
+                        {t("tools.vrfSelect")}
+                      </label>
+                      <select
+                        value={vrfName}
+                        onChange={(e) => setVrfName(e.target.value)}
+                        className="w-full rounded border border-line bg-surface py-1.5 px-2.5 text-xs text-ink font-mono focus:border-signal focus:outline-none"
+                      >
+                        {knownVrfs.map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
                 <div>
                   <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2 mb-1 block">
@@ -640,6 +689,17 @@ export const Tools: React.FC = () => {
                 </div>
               </div>
             )}
+          </>
+        )}
+      </div>
+    )}
+
+        {/* ========================================================= */}
+        {/* TAB: License Tools & Renewal History */}
+        {/* ========================================================= */}
+        {activeTool === "license" && (
+          <div className="max-w-5xl mx-auto">
+            <LicenseTools />
           </div>
         )}
 
