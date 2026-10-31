@@ -1052,10 +1052,50 @@
      - آزمون‌های واحد فرانت‌اند در [frontend/src/store/prefs.test.ts](file:///d:/Playground/Web-Dash/frontend/src/store/prefs.test.ts) و [frontend/src/i18n/config.test.ts](file:///d:/Playground/Web-Dash/frontend/src/i18n/config.test.ts) (مجموعاً ۲۷ تست پاس‌شده).
      - نگارش آزمون‌های اختصاصی پایتون در [tests/test_step_6_3_tokens_theming_i18n.py](file:///d:/Playground/Web-Dash/tests/test_step_6_3_tokens_theming_i18n.py) (۵ تست).
      - بیلد نهایی در `frontend/dist/` با کپی خودکار فونت‌ها به `dist/fonts/` و حجم باندل اولیه ۱۰۱ کیلوبایت Gzip.
+---
+
+### گام ۶.۴ — کامپوننت‌های هسته NOC، ابزارهای نمایش داده و روت آزمایشگاهی Kitchen Sink (Step 6.4 Core NOC Components & Kitchen Sink Route)
+* **هدف:** پیاده‌سازی کلیه کامپوننت‌های استاندارد و ابزارگونه کنسول عملیات شبکه (NOC) مطابق قرارداد طراحی `plan/08_PHASE6_UI_DESIGN_SYSTEM.md` §5.4، شامل جدول مجازی‌سازی‌شده داده‌ها، استریم و مشاهده‌گر لاگ‌ها، تایم‌لاین بصری اجرای جاب‌ها (Run Timeline)، مقایسه‌گر کانفیگ (Diff Viewer)، گراف توپولوژی شبکه، نمودار سری‌های زمانی uPlot، پنل گرافانا با کارت فال‌بک، و ساخت روت کارگاهی زنده `/_ui` (Kitchen Sink) جهت بررسی تعاملی و آزمون‌های خودکار.
+* **اقدامات انجام‌شده:**
+  1. **جدول داده‌های پرتراکم مجازی‌سازی‌شده ([frontend/src/components/datatable/DataTable.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/datatable/DataTable.tsx)):**
+     - بهره‌گیری از ترکیب `@tanstack/react-table` و `@tanstack/react-virtual` با ارتفاع سطر مبتنی بر چگالی (۲۸ پیکسل در حالت Compact و ۳۶ پیکسل در Comfortable) و قابلیت رندر بیش از ۱۰,۰۰۰ سطر با نرخ فریم ۶۰ fps.
+     - پشتیبانی از فیلتر سراسری، مرتب‌سازی چندستونه، پاپ‌اور انتخاب و پنهان‌سازی ستون‌ها، انتخاب سطرها و خروجی اکسپورت CSV از نمای فیلترشده جاری.
+  2. **مشاهده‌گر و استریم لاگ‌های عملیاتی ([frontend/src/components/logviewer/LogViewer.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/logviewer/LogViewer.tsx)):**
+     - پشتیبانی از رندر تا ۲۰۰,۰۰۰ خط لاگ با مجازی‌سازی دقیق، نمایش ایزوله LTR، برچسب‌های مونو برای نام تجهیزات و رنگ‌بندی سمانتیک سطوح لاگ (INFO، WARN، ERROR، DEBUG).
+     - کلید فعال‌سازی تعقیب خودکار انتهای لاگ (Follow Tail)، جستجوی بلادرنگ در پیام‌ها و تجهیزات، فیلتر سطحی و دکمه‌های کپی و دانلود فایل لاگ.
+  3. **هوک ارتباطی Server-Sent Events ([frontend/src/components/logviewer/useJobEvents.ts](file:///d:/Playground/Web-Dash/frontend/src/components/logviewer/useJobEvents.ts)):**
+     - ارتباط مقاوم با سرور از طریق هدر `Last-Event-ID` برای بازپخش رویدادهای از دست رفته در زمان قطعی موقت.
+     - الگوریتم اتصال مجدد نمایی (Exponential Backoff) و حذف رویدادهای تکراری (Deduplication) بر اساس شناسه رویداد.
+  4. **شناور اجرای جاب‌ها — عنصر برجسته بصری سامانه ([frontend/src/components/timeline/RunTimeline.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/timeline/RunTimeline.tsx)):**
+     - ردیف‌های نمایانگر هر روتر و ستون‌های نمایانگر مراحل پایپ‌لاین (اتصال → پیش‌بررسی → پلن دیف → اعمال کانفیگ → اعتبارسنجی).
+     - نمادهای بصری پیشرفت (Queued، Running با اسپینر ظریف، Succeeded، Failed و Skipped) همراه با جزئیات خطا و مدت زمان اجرا در تولتیپ.
+     - چیدمان اولویت‌دار "نیاز به توجه فوری" (Attention First: شکست‌خورده‌ها و موارد در حال اجرا بالاتر از موفق‌ها) با قابلیت سوییچ به الفبایی، فیلتر سریع و مجازی‌سازی برای ۱,۰۰۰ روتر.
+  5. **مشاهده‌گر تغییرات کانفیگ روتر ([frontend/src/components/diff/DiffViewer.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/diff/DiffViewer.tsx)):**
+     - محاسبه و تفکیک تغییرات با کتابخانه `diff` و رندرر بومی اختصاصی با پشتیبانی از دو حالت نمایشی یکپارچه (Unified) و ستونی (Split / Side-by-Side).
+     - شماره‌گذاری سطور، هایلایت تفکیکی کلمات تغییریافته، آمار تعداد سطور افزوده و حذف‌شده، و دکمه کپی پچ کانفیگ.
+  6. **اتم‌های رابط کاربری و تعاملات هسته NOC ([frontend/src/components/ui/](file:///d:/Playground/Web-Dash/frontend/src/components/ui/)):**
+     - `StatusBadge` و `HealthDot`: نمایش سمانتیک وضعیت با برچسب و آیکون و شمارنده (عدم تکیه به رنگ تنها).
+     - `Timestamp`: نمایش زمان نسبی خودکار (مانند "2m ago") همراه با ساعت دقیق ۲۴ ساعته UTC در هاور.
+     - `Mono` و `MonoChip` و `CliOutput`: تراشه‌های کپی‌شونده برای IP، پورت و شماره AS در جهت LTR ایزوله.
+     - `ConfirmDialog`: دیالوگ تأیید عملیات‌های حساس با الزام به تایپ دقیق مقدار (مانند تایپ تعداد روترها "12").
+     - `Drawer`، `Tabs`، `TimeRangePicker` (بازه ۱۵ دقیقه تا ۷ روز) و `Toast` (سیستم اعلان با اعلامیه صوتی `aria-live`).
+     - `CommandPalette`: پالت جستجو و اجرای سریع دستورات با کلید میانبر سراسری `Ctrl+K` مبتنی بر `cmdk`.
+  7. **گراف‌ها و تلکتری ([frontend/src/components/charts/](file:///d:/Playground/Web-Dash/frontend/src/components/charts/)):**
+     - `TimeSeriesChart`: بسته‌بندی سبک و پرسرعت کتابخانه `uPlot` با پشتیبانی از چندسری داده، خطوط خطی و پله‌ای، کراس‌هیر متقاطع و ایجاد گپ بصری روی دیتای ناموجود/گمشده.
+     - `TopologyGraph`: نقشه تعاملی شبکه مبتنی بر `@xyflow/react` با چیدمان لایه‌ای خودکار (Core → Aggregation → Edge)، وضعیت سلامت روترها و برچسب اینترفیس‌های لینک.
+     - `GrafanaPanel`: تعبیه فریم تلکتری با قابلیت تشخیص تایم‌اوت و نمایش خودکار کارت فال‌بک NOC همراه با دکمه "Open in Grafana".
+  8. **روت کارگاهی و آزمایشگاهی Kitchen Sink ([frontend/src/pages/KitchenSink.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/KitchenSink.tsx)):**
+     - ثبت مسیر `/_ui` در [frontend/src/App.tsx](file:///d:/Playground/Web-Dash/frontend/src/App.tsx) جهت بررسی زنده و تست بصری تمام کامپوننت‌ها با ۱۰۰۰ روتر نمونه، استریم زنده لاگ و سناریوهای تغییر کانفیگ.
+  9. **تست و صحه‌گذاری خودکار:**
+     - نگارش ۱۳ تست واحد در [frontend/src/components/CoreComponents.test.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/CoreComponents.test.tsx).
+     - نگارش تست‌های اعتبارسنجی پایتون در [tests/test_step_6_4_core_components.py](file:///d:/Playground/Web-Dash/tests/test_step_6_4_core_components.py).
+     - به‌روزرسانی خروجی پروداکشن در `frontend/dist/` بدون نیاز به نصب هیچ ابزاری در مقصد.
 * **تأییدیه (Verify):**
-  * اجرای موفق `npm run typecheck` و `npm run lint` با ۰ خطا و ۰ اخطار.
-  * پاس شدن ۱۰۰٪ آزمون‌های Vitest با ۲۷ تست (`27 passed in 4.14s`).
-  * پاس شدن کلیه آزمون‌های فاز ۶ در Pytest (گام‌های ۶.۱، ۶.۲ و ۶.۳): **۱۵ تست از ۱۵ تست با موفقیت پاس شدند (`15 passed in 33.01s`).**
+  - اجرای موفق `npm run typecheck` با ۰ خطا.
+  - اجرای موفق `npm run lint` با ۰ خطا و ۰ اخطار.
+  - پاس شدن ۱۰۰٪ آزمون‌های Vitest (مجموعاً **۴۰ تست از ۴۰ تست** در ۶ فایل تست: `40 passed in 5.71s`).
+  - پاس شدن کلیه آزمون‌های پایتون گام ۶.۴ (**۶ تست از ۶ تست با موفقیت پاس شدند**).
+  - موفقیت کامل بیلد پروداکشن `npm run build` با حجم بهینه و قرارگیری در `dist/`.
 
 
 

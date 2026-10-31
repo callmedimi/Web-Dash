@@ -13,6 +13,7 @@ import { Shell } from "@/components/layout/Shell";
 import { Login } from "@/pages/Login";
 import { ChangePassword } from "@/pages/ChangePassword";
 import { Dashboard } from "@/pages/Dashboard";
+import { KitchenSink } from "@/pages/KitchenSink";
 
 export const AppContent: React.FC = () => {
   const { checkAuth } = useAuthStore();
@@ -26,6 +27,7 @@ export const AppContent: React.FC = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/_ui" element={<KitchenSink />} />
       <Route
         path="/change-password"
         element={
@@ -43,6 +45,7 @@ export const AppContent: React.FC = () => {
         }
       >
         <Route index element={<Dashboard />} />
+        <Route path="_ui" element={<KitchenSink />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
