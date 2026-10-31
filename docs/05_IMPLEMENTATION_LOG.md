@@ -1262,6 +1262,35 @@
   - صفر خطا در `tsc --noEmit` و صفر اخطار در `eslint`.
   - تأیید بصری تعاملی با `browser_subagent` و ذخیره تصویر خروجی جدول تجهیزات و دراور جزئیات روتر.
 
+---
+## گام ۹.۴: پیاده‌سازی صفحه مدیریت گروه‌های هدف روترها (Target Sets Screen)
+* **تاریخ:** ۱۴۰۵/۰۸/۰۹ (2026-10-31)
+* **شاخه گیت:** `phase7`
+* **هدف:** پیاده‌سازی جامع صفحه گروه‌های هدف روترها (`/targets`) منطبق بر سند [plan/09_PHASE7_UI_SCREENS.md](file:///d:/Playground/Web-Dash/plan/09_PHASE7_UI_SCREENS.md) شامل گروه‌های ایستا (Static - انتخاب مستقیم روترها)، گروه‌های پویا (Dynamic Query Builder بر مبنای استان، نقش روتر، سیستم‌عامل و تگ‌ها)، پیش‌نمایش برخط تعداد و لیست تجهیزات منطبق، و امکان اتصال مستقیم به عنوان تارگت‌های عملیاتی در تمام فرم‌های تغییر و خودکارسازی.
+* **اقدامات انجام‌شده:**
+  1. **بهبود لایه مدل در بک‌اند:**
+     - به‌روزرسانی تابع `resolve_devices` در مدل [backend/app/models/device.py](file:///d:/Playground/Web-Dash/backend/app/models/device.py) جهت پشتیبانی هوشمندانه از هر دو ساختار مفرد و جمع فیلترها (`province`/`provinces`، `role`/`roles`، `os_family`/`os_families`، `site`/`sites`، `model`/`models`).
+  2. **طراحی مودال ایجاد و ویرایش گروه هدف (TargetSetModal):**
+     - کامپوننت [frontend/src/components/targets/TargetSetModal.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/targets/TargetSetModal.tsx) با پشتیبانی از دو تب عملیاتی:
+       - **Static**: فیلتر زنده و انتخاب چندتایی روترها از کل ناوگان با چک‌باکس و شمارنده بلادرنگ.
+       - **Dynamic**: موتور ایجاد کوئری پویا بر اساس استان، نقش (PE/P/CORE/AGG/ACCESS)، نسخه سیستم‌عامل (VRP8/VRP5) و برچسب‌ها با شمارنده زنده تعداد روترهای منطبق.
+  3. **پیاده‌سازی نمای دو ستونه صفحه تارگت‌ست‌ها (`/targets`):**
+     - کامپوننت [frontend/src/pages/TargetSets.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/TargetSets.tsx) با طراحی Split View متناسب با استاندارد NOC:
+       - **ستون چپ**: لیست گروه‌های ذخیره‌شده، بج‌های تمایز Static و Dynamic، شمارنده دیوایس‌ها، زمان به‌روزرسانی و فیلد جستجوی سریع.
+       - **ستون راست (پنل پیش‌نمایش اعضا)**: مشخصات گروه انتخاب‌شده، بج قواعد کوئری پویا، دکمه «اجرای کار روی تارگت‌ها» (هدایت مستقیم به برنامه‌ریز تغییرات با پارامتر تارگت‌ها)، دکمه ویرایش، دکمه حذف با مودال تأیید ایمن `ConfirmDialog`، و گرید کارت‌های روترهای عضو با شناسه، IP، استان، نقش و بج سلامت.
+  4. **اتصال روتینگ و ترجمه‌های دو زبانه:**
+     - جایگزینی `PlaceholderScreen` با کامپوننت `TargetSets` در [frontend/src/App.tsx](file:///d:/Playground/Web-Dash/frontend/src/App.tsx).
+     - اضافه شدن کلیدهای ترجمه کامل بخش `targets` به [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json).
+  5. **آزمون‌های خودکار و تضمین عملکرد:**
+     - نگارش تست‌های تجمیعی در [tests/test_step_7_4_target_sets_screen.py](file:///d:/Playground/Web-Dash/tests/test_step_7_4_target_sets_screen.py) (تست ساخت گروه ایستا و پویا، حل اعضا، ویرایش و حذف).
+     - کامپایل باندل نهایی پروداکشن در `frontend/dist/` و پاس شدن ۱۰۰٪ بودجه‌های عملکردی.
+* **تأییدیه (Verification):**
+  - پاس شدن ۱۰۰٪ آزمون‌های بک‌اند در Pytest شامل ۹ تست گام‌های ۷.۲، ۷.۳ و ۷.۴.
+  - پاس شدن ۱۰۰٪ آزمون‌های فرانت‌اند در Vitest (**۴۱ تست از ۴۱ تست**).
+  - موفقیت گیت‌های تایپ‌اسکریپت و لینتر با صفر خطا و اخطار.
+  - تأیید بصری تعاملی با `browser_subagent` و ذخیره اسکرین‌شات‌های خروجی صفحه تارگت‌ست‌ها و فرم ساخت کوئری پویا.
+
+
 
 
 

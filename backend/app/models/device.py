@@ -140,18 +140,29 @@ class TargetSet(Base):
         query = session.query(Device).filter(Device.enabled == True)
         crit = self.filter_criteria or {}
 
-        if crit.get("provinces"):
-            query = query.filter(Device.province.in_(crit["provinces"]))
-        if crit.get("sites"):
-            query = query.filter(Device.site.in_(crit["sites"]))
-        if crit.get("roles"):
-            query = query.filter(Device.role.in_(crit["roles"]))
-        if crit.get("os_families"):
-            query = query.filter(Device.os_family.in_(crit["os_families"]))
-        if crit.get("models"):
-            query = query.filter(Device.model.in_(crit["models"]))
-        if crit.get("health_statuses"):
-            query = query.filter(Device.health_status.in_(crit["health_statuses"]))
+        provinces = crit.get("provinces") or ([crit["province"]] if crit.get("province") else None)
+        if provinces:
+            query = query.filter(Device.province.in_(provinces))
+
+        roles = crit.get("roles") or ([crit["role"]] if crit.get("role") else None)
+        if roles:
+            query = query.filter(Device.role.in_(roles))
+
+        os_families = crit.get("os_families") or ([crit["os_family"]] if crit.get("os_family") else None)
+        if os_families:
+            query = query.filter(Device.os_family.in_(os_families))
+
+        sites = crit.get("sites") or ([crit["site"]] if crit.get("site") else None)
+        if sites:
+            query = query.filter(Device.site.in_(sites))
+
+        models = crit.get("models") or ([crit["model"]] if crit.get("model") else None)
+        if models:
+            query = query.filter(Device.model.in_(models))
+
+        health_statuses = crit.get("health_statuses") or ([crit["health_status"]] if crit.get("health_status") else None)
+        if health_statuses:
+            query = query.filter(Device.health_status.in_(health_statuses))
 
         results = query.all()
 

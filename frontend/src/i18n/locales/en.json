@@ -185,6 +185,25 @@
     "tabConfigs": "Configs",
     "tabJobs": "Jobs",
     "tabCompliance": "Compliance"
+  },
+  "targets": {
+    "title": "Target Sets",
+    "subtitle": "Named, reusable router groupings for multi-device automation jobs.",
+    "createTargetSet": "New Target Set",
+    "searchPlaceholder": "Search target sets...",
+    "static": "Static",
+    "dynamic": "Dynamic",
+    "deviceCount": "{{count}} devices",
+    "noTargetSets": "No target sets created yet. Create one to group routers for automation.",
+    "selectToPreview": "Select a target set from the list to preview members and rules.",
+    "edit": "Edit",
+    "delete": "Delete",
+    "runJob": "Launch Job on Targets",
+    "ruleProvince": "Province",
+    "ruleRole": "Role",
+    "ruleOsFamily": "OS Family",
+    "ruleTags": "Tags",
+    "resolvedDevices": "Resolved Members"
   }
 }
 

@@ -185,6 +185,25 @@
     "tabConfigs": "کانفیگ‌ها",
     "tabJobs": "تاریخچه جاب‌ها",
     "tabCompliance": "انطباق امنیتی"
+  },
+  "targets": {
+    "title": "گروه‌های هدف (Target Sets)",
+    "subtitle": "مجموعه‌های نام‌گذاری‌شده و قابل استفاده مجدد از روترها برای عملیات خودکارسازی.",
+    "createTargetSet": "گروه هدف جدید",
+    "searchPlaceholder": "جستجوی گروه‌های هدف...",
+    "static": "ایستا (Static)",
+    "dynamic": "پویا (Dynamic)",
+    "deviceCount": "{{count}} دیوایس",
+    "noTargetSets": "هیچ گروه هدفی ایجاد نشده است. برای دسته‌بندی روترها یک تارگت‌ست بسازید.",
+    "selectToPreview": "یک گروه هدف را انتخاب کنید تا اعضا و قواعد آن نمایش داده شود.",
+    "edit": "ویرایش",
+    "delete": "حذف",
+    "runJob": "اجرای کار روی تارگت‌ها",
+    "ruleProvince": "استان",
+    "ruleRole": "نقش",
+    "ruleOsFamily": "سیستم‌عامل",
+    "ruleTags": "برچسب‌ها",
+    "resolvedDevices": "تجهیزات عضو گروه"
   }
 }
 

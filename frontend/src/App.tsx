@@ -14,6 +14,7 @@ import { Login } from "@/pages/Login";
 import { ChangePassword } from "@/pages/ChangePassword";
 import { Dashboard } from "@/pages/Dashboard";
 import { Devices } from "@/pages/Devices";
+import { TargetSets } from "@/pages/TargetSets";
 import { KitchenSink } from "@/pages/KitchenSink";
 import { PlaceholderScreen } from "@/pages/PlaceholderScreen";
 
@@ -49,22 +50,7 @@ export const AppContent: React.FC = () => {
         <Route index element={<Dashboard />} />
         <Route path="devices" element={<Devices />} />
         <Route path="devices/:id" element={<Devices />} />
-        <Route
-          path="targets/*"
-          element={
-            <PlaceholderScreen
-              title="Target Sets"
-              subtitle="Named, reusable static and dynamic router groupings"
-              step="9.4"
-              features={[
-                "Static router selection by province and role",
-                "Dynamic query sets: province = TEH AND role = PE",
-                "Target set preview with count and device badges",
-                "Direct reuse as targets input in all automation forms",
-              ]}
-            />
-          }
-        />
+        <Route path="targets" element={<TargetSets />} />
         <Route
           path="alarms/*"
           element={
