@@ -17,7 +17,7 @@ class SiteArpLookupFeature(BaseFeature):
         needs_telemetry=False,
         read_only=True,
         inputs={
-            "query": {"type": "string", "required": True, "description": "Site code (e.g. TEH-0392) or IP address (e.g. 10.10.1.1)"},
+            "query": {"type": "string", "required": True, "description": "Site code (e.g. TEH-0392) or IP address (e.g. <IP>)"},
             "ttl_seconds": {"type": "int", "default": 300, "description": "Cache Time-To-Live in seconds"},
             "force_refresh": {"type": "bool", "default": False, "description": "Bypass TTL cache and query live tables"},
         },
