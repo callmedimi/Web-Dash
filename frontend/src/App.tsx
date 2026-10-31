@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/api/client";
 import { useAuthStore } from "@/store/auth";
+import { usePrefsStore } from "@/store/prefs";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Shell } from "@/components/layout/Shell";
 import { Login } from "@/pages/Login";
@@ -15,10 +16,12 @@ import { Dashboard } from "@/pages/Dashboard";
 
 export const AppContent: React.FC = () => {
   const { checkAuth } = useAuthStore();
+  const { initPrefs } = usePrefsStore();
 
   useEffect(() => {
+    initPrefs();
     checkAuth();
-  }, [checkAuth]);
+  }, [initPrefs, checkAuth]);
 
   return (
     <Routes>

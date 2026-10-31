@@ -1,12 +1,15 @@
 /**
  * Password Change Screen for Mandatory / Self-Service Credentials Update.
+ * Fully localized with Persian / English RTL/LTR support.
  */
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/store/auth";
 import { ApiError } from "@/api/types";
 
 export const ChangePassword: React.FC = () => {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,10 +21,10 @@ export const ChangePassword: React.FC = () => {
   const navigate = useNavigate();
 
   const validatePolicy = (): string | null => {
-    if (!currentPassword) return "Current password is required.";
-    if (!newPassword) return "New password is required.";
-    if (newPassword.length < 8) return "New password must be at least 8 characters long.";
-    if (newPassword === currentPassword) return "New password must be different from current password.";
+    if (!currentPassword) return t("auth.requiredFields");
+    if (!newPassword) return t("auth.requiredFields");
+    if (newPassword.length < 8) return t("auth.policyMinLength");
+    if (newPassword === currentPassword) return "New password must differ from current password.";
     if (newPassword !== confirmPassword) return "Password confirmation does not match.";
     return null;
   };
@@ -43,7 +46,7 @@ export const ChangePassword: React.FC = () => {
         current_password: currentPassword,
         new_password: newPassword,
       });
-      setSuccessMsg("Password updated successfully. Redirecting...");
+      setSuccessMsg(t("auth.passwordSuccess"));
       setTimeout(() => {
         navigate("/", { replace: true });
       }, 1200);
@@ -63,18 +66,22 @@ export const ChangePassword: React.FC = () => {
       <div className="w-full max-w-md rounded-dialog border border-line bg-surface p-6 shadow-floating">
         <div className="mb-6">
           <div className="flex items-center gap-2">
-            <span className="text-base font-semibold tracking-tight text-signal">Web-Dash</span>
+            <span className="text-base font-semibold tracking-tight text-signal">
+              {t("common.appTitle")}
+            </span>
             <span className="rounded-control bg-surface-2 px-1.5 py-0.5 text-[10px] font-mono uppercase text-ink-2">
-              SECURITY
+              {t("common.noc")}
             </span>
           </div>
           <h1 className="mt-2 text-sm font-medium text-ink">
-            {user?.must_change_password ? "Mandatory Password Update" : "Change Password"}
+            {user?.must_change_password
+              ? t("auth.mandatoryPasswordTitle")
+              : t("auth.changePasswordTitle")}
           </h1>
           <p className="mt-1 text-xs text-ink-2">
             {user?.must_change_password
-              ? "Your temporary password must be updated before accessing network operations."
-              : "Update your console login credentials."}
+              ? t("auth.mandatoryPasswordSubtitle")
+              : t("auth.changePasswordSubtitle")}
           </p>
         </div>
 
@@ -83,7 +90,7 @@ export const ChangePassword: React.FC = () => {
             role="alert"
             className="mb-4 rounded-control border border-fault/30 bg-fault/10 p-3 text-xs text-fault"
           >
-            <div className="font-medium">Password Policy Error</div>
+            <div className="font-medium">{t("common.error")}</div>
             <div className="mt-0.5">{errorMsg}</div>
           </div>
         )}
@@ -103,7 +110,7 @@ export const ChangePassword: React.FC = () => {
               htmlFor="currentPassword"
               className="block text-xs font-medium text-ink-2 mb-1"
             >
-              Current Password
+              {t("auth.currentPassword")}
             </label>
             <input
               id="currentPassword"
@@ -112,7 +119,7 @@ export const ChangePassword: React.FC = () => {
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               disabled={isSubmitting}
-              className="h-8 w-full rounded-control border border-line bg-surface-2 px-2.5 text-xs text-ink font-mono focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal disabled:opacity-60"
+              className="h-8 w-full rounded-control border border-line bg-surface-2 px-2.5 text-xs text-ink font-mono focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal disabled:opacity-60 dir-ltr"
             />
           </div>
 
@@ -121,7 +128,7 @@ export const ChangePassword: React.FC = () => {
               htmlFor="newPassword"
               className="block text-xs font-medium text-ink-2 mb-1"
             >
-              New Password
+              {t("auth.newPassword")}
             </label>
             <input
               id="newPassword"
@@ -130,7 +137,7 @@ export const ChangePassword: React.FC = () => {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               disabled={isSubmitting}
-              className="h-8 w-full rounded-control border border-line bg-surface-2 px-2.5 text-xs text-ink font-mono focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal disabled:opacity-60"
+              className="h-8 w-full rounded-control border border-line bg-surface-2 px-2.5 text-xs text-ink font-mono focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal disabled:opacity-60 dir-ltr"
             />
           </div>
 
@@ -139,7 +146,7 @@ export const ChangePassword: React.FC = () => {
               htmlFor="confirmPassword"
               className="block text-xs font-medium text-ink-2 mb-1"
             >
-              Confirm New Password
+              {t("auth.confirmPassword")}
             </label>
             <input
               id="confirmPassword"
@@ -148,17 +155,17 @@ export const ChangePassword: React.FC = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={isSubmitting}
-              className="h-8 w-full rounded-control border border-line bg-surface-2 px-2.5 text-xs text-ink font-mono focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal disabled:opacity-60"
+              className="h-8 w-full rounded-control border border-line bg-surface-2 px-2.5 text-xs text-ink font-mono focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal disabled:opacity-60 dir-ltr"
             />
           </div>
 
           {/* Policy hints */}
           <div className="rounded-control bg-surface-2 p-2.5 text-[11px] text-ink-2">
-            <span className="font-medium text-ink">Password Requirements:</span>
+            <span className="font-medium text-ink">{t("auth.passwordPolicyRequirements")}</span>
             <ul className="mt-1 list-disc list-inside space-y-0.5">
-              <li>Minimum 8 characters</li>
-              <li>Must contain uppercase and lowercase letters</li>
-              <li>Must contain at least one digit and one special character</li>
+              <li>{t("auth.policyMinLength")}</li>
+              <li>{t("auth.policyCase")}</li>
+              <li>{t("auth.policyDigitsSymbols")}</li>
             </ul>
           </div>
 
@@ -170,10 +177,10 @@ export const ChangePassword: React.FC = () => {
             {isSubmitting ? (
               <span className="flex items-center gap-2">
                 <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Updating password...
+                {t("auth.updatingPassword")}
               </span>
             ) : (
-              "Update password"
+              t("auth.updatePasswordButton")
             )}
           </button>
         </form>

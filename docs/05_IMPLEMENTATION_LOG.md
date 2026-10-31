@@ -1026,6 +1026,38 @@
   * اجرای آزمون‌های پایتون: ۵ تست از ۵ تست پاس شدند (`5 passed in 16.01s`).
   * حجم باندل اولیه: ~۸۱ کیلوبایت Gzip (کمتر از یک‌سوم بودجه مجاز ۲۵۰ کیلوبایت).
 
+---
+
+### گام ۶.۳ — سیستم توکن‌ها، تم‌بندی، چگالی، و دوزبانه بودن با فونت‌های آفلاین (Step 6.3 Tokens, Theming, Density & Bilingual i18n)
+* **هدف:** پیاده‌سازی سیستم کامل تم‌های بصری (Paper / Night / System)، حالت‌های چگالی نمایش (Compact / Comfortable)، دوزبانه بودن جامع فارسی و انگلیسی با چرخش بلادرنگ جهت صفحه (RTL/LTR)، بارگذاری فونت‌های سازمانی آفلاین (Vazirmatn، IBM Plex Sans، JetBrains Mono) با فرمت استاندارد WOFF2 بدون نیاز به اینترنت، و ذخیره‌سازی ترجیحات کاربر در `localStorage` تحت کلید `wd.prefs`.
+* **اقدامات انجام‌شده:**
+  1. تولید و بارگذاری فونت‌های محلی استاندارد:
+     - استقرار فایل‌های فونت معتبر WOFF2 در [frontend/public/fonts/](file:///d:/Playground/Web-Dash/frontend/public/fonts) شامل `vazirmatn.woff2`، `ibm-plex-sans.woff2` و `jetbrains-mono.woff2`.
+     - تعریف قوانین `@font-face` همراه با `font-display: swap` در [frontend/src/styles/tokens.css](file:///d:/Playground/Web-Dash/frontend/src/styles/tokens.css) و تضمین صفر ریکوئست خارجی به اینترنت (کاملاً سازگار با شبکه ایزوله Air-Gapped).
+  2. مدیریت ترجیحات کاربری در [frontend/src/store/prefs.ts](file:///d:/Playground/Web-Dash/frontend/src/store/prefs.ts):
+     - نگهداری کلید `wd.prefs` در `localStorage`.
+     - انتخاب و سوئیچ تم: تیره (Night)، روشن (Paper) یا خودکار (System) با اعمال ویژگی `data-theme` و کلاس `dark` روی المان ریشه `<html>`.
+     - انتخاب و سوئیچ چگالی: فشرده (Compact با ارتفاع سطر ۲۸ پیکسل) و معمولی (Comfortable با ارتفاع ۳۶ پیکسل) با متغیرهای اختصاصی CSS.
+     - انتخاب زبان و جهت نوشتار: انگلیسی (LTR) و فارسی (RTL) با اعمال ویژگی‌های `lang` و `dir` روی المان `<html>`.
+  3. بومی‌سازی و چندزبانه بودن با `react-i18next`:
+     - پیکربندی هسته ترجمه در [frontend/src/i18n/config.ts](file:///d:/Playground/Web-Dash/frontend/src/i18n/config.ts).
+     - فایل‌های دیکشنری جامع [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [frontend/src/i18n/locales/fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json) با تطابق ۱۰۰٪ کلیدها در بخش‌های `common`, `prefs`, `auth`, `dashboard`.
+     - به‌کارگیری تابع `useTranslation()` در تمامی کامپوننت‌ها و صفحات (`Shell`, `Login`, `ChangePassword`, `Dashboard`, `IdleTimeoutNotice`, `ProtectedRoute`).
+     - قرارگیری اعداد، IPها، نام اینترفیس‌ها، دستورات CLI و خروجی لاگ‌ها در حالت ایزوله LTR (`dir-ltr`, `unicode-bidi: isolate`).
+  4. کنترل‌های بالای صفحه (Top Bar Controls) در [frontend/src/components/layout/Shell.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/layout/Shell.tsx):
+     - دکمه تغییر تم (Paper ☀️ / Night 🌙).
+     - دکمه تغییر چگالی (Compact ↕️ / Comfortable).
+     - دکمه تغییر زبان (FA / EN) همراه با چرخش بلادرنگ چیدمان به RTL.
+  5. نگارش آزمون‌های خودکار و کامپایل:
+     - آزمون‌های واحد فرانت‌اند در [frontend/src/store/prefs.test.ts](file:///d:/Playground/Web-Dash/frontend/src/store/prefs.test.ts) و [frontend/src/i18n/config.test.ts](file:///d:/Playground/Web-Dash/frontend/src/i18n/config.test.ts) (مجموعاً ۲۷ تست پاس‌شده).
+     - نگارش آزمون‌های اختصاصی پایتون در [tests/test_step_6_3_tokens_theming_i18n.py](file:///d:/Playground/Web-Dash/tests/test_step_6_3_tokens_theming_i18n.py) (۵ تست).
+     - بیلد نهایی در `frontend/dist/` با کپی خودکار فونت‌ها به `dist/fonts/` و حجم باندل اولیه ۱۰۱ کیلوبایت Gzip.
+* **تأییدیه (Verify):**
+  * اجرای موفق `npm run typecheck` و `npm run lint` با ۰ خطا و ۰ اخطار.
+  * پاس شدن ۱۰۰٪ آزمون‌های Vitest با ۲۷ تست (`27 passed in 4.14s`).
+  * پاس شدن کلیه آزمون‌های فاز ۶ در Pytest (گام‌های ۶.۱، ۶.۲ و ۶.۳): **۱۵ تست از ۱۵ تست با موفقیت پاس شدند (`15 passed in 33.01s`).**
+
+
 
 
 

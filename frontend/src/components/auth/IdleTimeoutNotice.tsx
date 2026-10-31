@@ -4,10 +4,12 @@
  */
 import React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/store/auth";
 import { useNavigate } from "react-router-dom";
 
 export const IdleTimeoutNotice: React.FC = () => {
+  const { t } = useTranslation();
   const { idleTimeoutNotice, setIdleTimeoutNotice } = useAuthStore();
   const navigate = useNavigate();
 
@@ -26,13 +28,12 @@ export const IdleTimeoutNotice: React.FC = () => {
               !
             </span>
             <Dialog.Title className="text-base font-semibold text-ink">
-              Session Expired
+              {t("auth.sessionExpiredTitle")}
             </Dialog.Title>
           </div>
 
           <Dialog.Description className="mt-3 text-sm text-ink-2">
-            Your session has expired due to 30 minutes of inactivity. For security on network
-            operations, please sign in again to continue.
+            {t("auth.sessionExpiredDetail")}
           </Dialog.Description>
 
           <div className="mt-6 flex justify-end">
@@ -41,7 +42,7 @@ export const IdleTimeoutNotice: React.FC = () => {
               onClick={handleSignInAgain}
               className="inline-flex h-8 items-center justify-center rounded-control bg-signal px-4 text-xs font-medium text-white transition-colors hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-signal"
             >
-              Sign in again
+              {t("auth.signInAgain")}
             </button>
           </div>
         </Dialog.Content>
