@@ -8,6 +8,7 @@ from backend.app.features.alarm_center.feature import AlarmCenterFeature, alarm_
 from backend.app.features.down_links.feature import DownLinksFeature, down_links_feature
 from backend.app.features.license.feature import LicenseManagementFeature
 from backend.app.features.routing.feature import VrfRoutingCheckFeature
+from backend.app.features.ptp.feature import PtpTroubleshootFeature
 
 __all__ = [
     "BaseFeature",
@@ -23,6 +24,7 @@ __all__ = [
     "down_links_feature",
     "LicenseManagementFeature",
     "VrfRoutingCheckFeature",
+    "PtpTroubleshootFeature",
 ]
 
 
