@@ -1223,6 +1223,46 @@
   - موفقیت گیت‌های تایپ‌اسکریپت `tsc --noEmit` و لینتر `eslint` با صفر خطا و صفر اخطار.
   - پاس شدن ۱۰۰٪ بودجه‌های عملکردی در کامپایل نهایی پروداکشن `npm run build`.
 
+---
+## گام ۹.۳: پیاده‌سازی صفحه مدیریت موجودی تجهیزات شبکه و دراور جزئیات (Devices & Inventory Screen)
+* **تاریخ:** ۱۴۰۵/۰۸/۰۹ (2026-10-31)
+* **شاخه گیت:** `phase7`
+* **هدف:** پیاده‌سازی جامع صفحه موجودی تجهیزات هواوی (`/devices` و `/devices/:id`) منطبق بر سند [plan/09_PHASE7_UI_SCREENS.md](file:///d:/Playground/Web-Dash/plan/09_PHASE7_UI_SCREENS.md) شامل جدول داده‌های مجازی‌شده، فیلترهای استانی/نقش/سیستم‌عامل/سلامت، عملیات دسته‌جمعی، ویزارد ایمپورت CSV هواوی U2000/NCE، فرم ثبت/ویرایش دیوایس، ایجاد تارگت‌ست، و دراور اختصاصی جزئیات روتر با ۶ زبانه عملیاتی.
+* **اقدامات انجام‌شده:**
+  1. **تعریف اینترفیس‌ها و ساختار داده:**
+     - اضافه شدن مدل‌های `DeviceItem`، `DevicesListResponse`، `TargetSetItem` و `CsvImportSummary` در [frontend/src/api/types.ts](file:///d:/Playground/Web-Dash/frontend/src/api/types.ts).
+     - تعریف کلیه کلیدهای دو زبانه بخش Devices در [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json).
+  2. **طراحی کامپوننت‌های مودال عملیاتی:**
+     - `CsvImportModal` در [frontend/src/components/devices/CsvImportModal.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/devices/CsvImportModal.tsx): ویزارد بارگذاری فایل CSV خروجی NMS هواوی U2000 / iMaster NCE، اعتبارسنجی فرمت، سوئیچ به‌روزرسانی رکوردهای پیشین، نمایش آمار تجمیعی (کل ردیف‌ها، جدید، به‌روزرسانی‌شده، نادیده‌گرفته‌شده).
+     - `DeviceFormModal` در [frontend/src/components/devices/DeviceFormModal.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/devices/DeviceFormModal.tsx): فرم ثبت و ویرایش روتر هواوی شامل فیلدهای نام روتر، IP مدیریتی، Vendor، OS Family (VRP8/VRP5)، Role (PE/P/CORE/AGG/ACCESS)، مدل، استان، سایت و برچسب‌های عملیاتی.
+     - `AddToTargetSetModal` در [frontend/src/components/devices/AddToTargetSetModal.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/devices/AddToTargetSetModal.tsx): قابلیت افزودن تجهیزات انتخاب‌شده در جدول به یک گروه هدف (Target Set) جدید یا الحاق به گروه‌های هدف موجود جهت استفاده در برنامه‌ریزی عملیات خودکار.
+  3. **پیاده‌سازی دراور عمیق جزئیات روتر (Device Detail Drawer):**
+     - کامپوننت [frontend/src/components/devices/DeviceDetailDrawer.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/devices/DeviceDetailDrawer.tsx) با باز شدن انیمیشنی از سمت راست صفحه و مدیریت URL بدون ریلود.
+     - پشتیبانی از ۶ زبانه عملیاتی:
+       - **Summary**: نمایش کامل مشخصات سخت‌افزاری و نرم‌افزاری روتر (نسخه VRP، سریال/ESN، شناسه LSR ID، استان و سایت، برچسب‌های عملیاتی، و لینک‌های سریع ارجاع به مرکز آلارم و برنامه‌ریز تغییرات ایمن).
+       - **Monitoring**: نمایش همگام‌سازی تله‌متری زبیکس، شناسه HostID و گراف‌های نرخ ترافیک اینترفیس.
+       - **Alarms**: آلارم‌های فعال روتر بر مبنای زبیکس و SSH روی تقاضا با لینک ایجاد برنامه پاک‌سازی آلارم.
+       - **Configs**: تایم‌لاین اسنپ‌شات‌های پشتیبان کانفیگ و نمایشگر تفاضلی (DiffViewer).
+       - **Jobs**: تاریخچه کارهای خودکارسازی اجرا شده روی روتر.
+       - **Compliance**: ماتریس انطباق با قواعد سخت‌گیرانه استاندارد ملی و تلکام.
+       - دکمه تست آنلاین پروب SSH و وضعیت دسترسی به دیوایس (`Probe`).
+  4. **پیاده‌سازی صفحه اصلی تجهیزات (`/devices`):**
+     - کامپوننت [frontend/src/pages/Devices.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Devices.tsx) بر پایه `DataTable` مجازی‌شده با پیمایش روان برای بیش از ۵,۰۰۰ روتر.
+     - نوار جستجوی زنده چندفیلدی (نام، IP، مدل، سایت) و فیلترهای تفکیکی استان، وضعیت سلامت، نقش شبکه و سیستم‌عامل.
+     - نوار عملیات گروهی (Bulk Action Bar) هنگام انتخاب ردیف‌ها با دکمه‌های "افزودن به تارگت‌ست" و منوی "اجرا... ▸" (پاک‌سازی خودکار آلارم، گزارش قطعی لینک‌ها، بررسی لایسنس).
+     - دکمه‌های سراسری: همگام‌سازی بلادرنگ زبیکس (`Sync Zabbix`)، بارگذاری CSV، استخراج اکسپورت استاندارد CSV، و افزودن دیوایس جدید.
+  5. **اتصال مسیر در روتینگ فرانت‌اند:**
+     - جایگزینی `PlaceholderScreen` با کامپوننت `Devices` برای مسیرهای `/devices` و `/devices/:id` در [frontend/src/App.tsx](file:///d:/Playground/Web-Dash/frontend/src/App.tsx).
+  6. **آزمون‌های خودکار و تضمین عملکرد:**
+     - نگارش تست‌های جامع در [tests/test_step_7_3_devices_screen.py](file:///d:/Playground/Web-Dash/tests/test_step_7_3_devices_screen.py) (پوشش لیست‌گیری، فیلترینگ، عملیات CRUD، مدیریت تارگت‌ست‌ها و خروجی CSV).
+     - کامپایل نهایی پروداکشن با حفظ سقف سخت‌گیرانه بودجه‌های عملکردی در `frontend/dist/`.
+* **تأییدیه (Verification):**
+  - اجرای موفقیت‌آمیز تمام ۴ تست در `pytest tests/test_step_7_3_devices_screen.py` (**۴ پاس از ۴**).
+  - اجرای موفقیت‌آمیز تمام ۴۱ تست در `vitest run` (**۴۱ پاس از ۴۱**).
+  - صفر خطا در `tsc --noEmit` و صفر اخطار در `eslint`.
+  - تأیید بصری تعاملی با `browser_subagent` و ذخیره تصویر خروجی جدول تجهیزات و دراور جزئیات روتر.
+
+
 
 
 

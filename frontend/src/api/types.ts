@@ -177,4 +177,58 @@ export interface OverviewResponse {
   problems_timeline: ProblemsTimelineBucket[];
 }
 
+export interface DeviceItem {
+  id: number;
+  name: string;
+  mgmt_ip: string;
+  vendor: string;
+  os_family: string;
+  model: string | null;
+  esn: string | null;
+  software_version: string | null;
+  lsr_id: string | null;
+  role: string | null;
+  site: string | null;
+  province: string | null;
+  tags: string[];
+  health_status: "up" | "degraded" | "down" | "unknown" | string;
+  last_health_check: string | null;
+  zabbix_hostid: string | null;
+  grafana_vars: Record<string, unknown>;
+  credential_id: number | null;
+  enabled: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface DevicesListResponse {
+  total: number;
+  count: number;
+  offset: number;
+  limit: number;
+  devices: DeviceItem[];
+}
+
+export interface TargetSetItem {
+  id: number;
+  name: string;
+  description: string | null;
+  filter_criteria: Record<string, unknown>;
+  device_ids: number[];
+  created_by_id: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface CsvImportSummary {
+  total_rows?: number;
+  imported?: number;
+  updated?: number;
+  skipped?: number;
+  errors?: string[];
+  error?: string;
+  message?: string;
+}
+
+
 

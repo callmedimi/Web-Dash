@@ -13,6 +13,7 @@ import { Shell } from "@/components/layout/Shell";
 import { Login } from "@/pages/Login";
 import { ChangePassword } from "@/pages/ChangePassword";
 import { Dashboard } from "@/pages/Dashboard";
+import { Devices } from "@/pages/Devices";
 import { KitchenSink } from "@/pages/KitchenSink";
 import { PlaceholderScreen } from "@/pages/PlaceholderScreen";
 
@@ -46,22 +47,8 @@ export const AppContent: React.FC = () => {
         }
       >
         <Route index element={<Dashboard />} />
-        <Route
-          path="devices/*"
-          element={
-            <PlaceholderScreen
-              title="Devices & Inventory"
-              subtitle="Managed Huawei VRP routers, health states, and CSV inventory import"
-              step="9.3"
-              features={[
-                "Virtual-scrolling DataTable with 5,000+ routers",
-                "Bulk actions: add to target set, tagging, on-demand jobs",
-                "CSV import wizard with diff preview (new / modified / unchanged)",
-                "Device detail tabs: Summary, Monitoring, Alarms, Configs, Jobs, Compliance",
-              ]}
-            />
-          }
-        />
+        <Route path="devices" element={<Devices />} />
+        <Route path="devices/:id" element={<Devices />} />
         <Route
           path="targets/*"
           element={
