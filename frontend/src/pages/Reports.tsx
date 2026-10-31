@@ -28,12 +28,13 @@ import {
 } from "@/api/types";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cn } from "@/utils/cn";
+import { CsvOperationsHub } from "@/components/operations/CsvOperationsHub";
 
 export const Reports: React.FC = () => {
   const { t } = useTranslation();
 
   // Active Main Tab
-  const [activeTab, setActiveTab] = useState<"down_links" | "licenses" | "digest">("down_links");
+  const [activeTab, setActiveTab] = useState<"down_links" | "csv_downlinks" | "licenses" | "digest">("down_links");
 
   // Down-Links State
   const [province, setProvince] = useState<string>("ALL");
@@ -272,6 +273,20 @@ export const Reports: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab("csv_downlinks")}
+            className={cn(
+              "px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center gap-1.5",
+              activeTab === "csv_downlinks"
+                ? "bg-[var(--surface)] text-[var(--accent)] shadow-sm"
+                : "text-[var(--muted)] hover:text-[var(--fg)]"
+            )}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>گزارش با فایل CSV</span>
+            <span className="rounded-full bg-signal/20 px-1 py-0.2 text-[9px] font-bold text-signal">Legacy</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab("licenses")}
             className={cn(
               "px-3 py-1.5 text-xs font-semibold rounded-md transition",
@@ -299,6 +314,10 @@ export const Reports: React.FC = () => {
 
       {/* Main Tab Content */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        {activeTab === "csv_downlinks" && (
+          <CsvOperationsHub initialTab="down_links" className="flex-1" />
+        )}
+
         {activeTab === "down_links" && (
           <div className="flex flex-col h-full gap-4 overflow-hidden">
             {/* Query Form & Parameter Controls */}

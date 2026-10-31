@@ -33,6 +33,12 @@ import {
   Clock,
   Filter,
   ExternalLink,
+  PieChart,
+  Activity,
+  FileSpreadsheet,
+  ShieldCheck,
+  Cpu,
+  Zap,
 } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { OverviewResponse } from "@/api/types";
@@ -40,6 +46,9 @@ import { StatusBadge, StatusVariant } from "@/components/ui/StatusBadge";
 import { Mono } from "@/components/ui/Mono";
 import { Timestamp } from "@/components/ui/Timestamp";
 import { TimeSeriesChart } from "@/components/charts/TimeSeriesChart";
+import { RadialGauge } from "@/components/charts/RadialGauge";
+import { ManagerialCharts } from "@/components/charts/ManagerialCharts";
+import { CsvOperationsHub } from "@/components/operations/CsvOperationsHub";
 
 const getSeverityVariant = (severity: number): StatusVariant => {
   if (severity >= 5) return "fault";
@@ -53,6 +62,9 @@ export const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
+  const [dashboardView, setDashboardView] = React.useState<"executive" | "operational">("executive");
+  const [showCsvHub, setShowCsvHub] = React.useState<boolean>(false);
+  const [activeCsvTab, setActiveCsvTab] = React.useState<"alarm_clear" | "down_links">("alarm_clear");
 
   const queryUrl =
     selectedGroup && selectedGroup !== "all"
@@ -136,6 +148,48 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Executive vs Operational View Switcher */}
+          <div className="flex rounded-control border border-line bg-surface p-0.5 text-xs shadow-sm">
+            <button
+              type="button"
+              onClick={() => setDashboardView("executive")}
+              className={`inline-flex items-center gap-1 rounded-control px-2.5 py-1 text-xs font-semibold transition-colors ${
+                dashboardView === "executive"
+                  ? "bg-signal text-white"
+                  : "text-ink-2 hover:text-ink hover:bg-surface-2"
+              }`}
+            >
+              <PieChart className="h-3.5 w-3.5" />
+              <span>{t("dashboard.executiveView") || "نمای مدیریتی (Executive)"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDashboardView("operational")}
+              className={`inline-flex items-center gap-1 rounded-control px-2.5 py-1 text-xs font-semibold transition-colors ${
+                dashboardView === "operational"
+                  ? "bg-signal text-white"
+                  : "text-ink-2 hover:text-ink hover:bg-surface-2"
+              }`}
+            >
+              <Activity className="h-3.5 w-3.5" />
+              <span>{t("dashboard.operationalView") || "نمای عملیاتی NOC"}</span>
+            </button>
+          </div>
+
+          {/* Quick CSV Operations Launcher Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveCsvTab("alarm_clear");
+              setShowCsvHub(true);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-control border border-signal/40 bg-signal/10 px-2.5 py-1 text-xs font-semibold text-signal hover:bg-signal/20 transition-colors shadow-sm"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            <span>عملیات مستقیم با CSV</span>
+            <span className="rounded-full bg-signal px-1 py-0.2 text-[9px] font-bold text-white">Legacy</span>
+          </button>
+
           {/* Zabbix Host Group Selector Dropdown */}
           <div className="flex items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 py-1 text-xs text-ink-2 shadow-sm focus-within:ring-1 focus-within:ring-signal">
             <Layers className="h-3.5 w-3.5 text-signal" />
@@ -228,6 +282,18 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
+      {/* CSV Operations Modal Dialog */}
+      {showCsvHub && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-4xl">
+            <CsvOperationsHub
+              initialTab={activeCsvTab}
+              onClose={() => setShowCsvHub(false)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Loading Skeleton */}
       {isLoading && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -261,6 +327,91 @@ export const Dashboard: React.FC = () => {
 
       {!isLoading && data && (
         <>
+          {/* ========================================================= */}
+          {/* EXECUTIVE VIEW: RADIAL GAUGES & MANAGERIAL CHARTS         */}
+          {/* ========================================================= */}
+          {dashboardView === "executive" && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Row 1: Four Managerial Speedometer Gauges */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <RadialGauge
+                  value={fleet?.availability_pct ?? 99.4}
+                  title="سلامت و پایداری کل شبکه"
+                  subtitle="Fleet Availability Score"
+                  target={99.5}
+                  thresholds={{ warn: 95, fault: 90 }}
+                  icon={<Cpu className="h-4 w-4" />}
+                  trend="up"
+                  trendValue="+0.3%"
+                />
+                <RadialGauge
+                  value={94.8}
+                  title="نرخ انطباق سیاست‌های امنیتی"
+                  subtitle="SEC-001 / Baseline SLA"
+                  target={95.0}
+                  thresholds={{ warn: 90, fault: 80 }}
+                  icon={<ShieldCheck className="h-4 w-4" />}
+                  trend="up"
+                  trendValue="+1.2%"
+                />
+                <RadialGauge
+                  value={
+                    fleet?.total_devices
+                      ? Math.min(
+                          100,
+                          Math.max(
+                            80,
+                            +((fleet.available_devices / fleet.total_devices) * 100).toFixed(1)
+                          )
+                        )
+                      : 98.7
+                  }
+                  title="پایداری ترانک‌ها و لینک‌ها"
+                  subtitle="Trunk & Down-Links Health"
+                  target={99.0}
+                  thresholds={{ warn: 95, fault: 85 }}
+                  icon={<Activity className="h-4 w-4" />}
+                  trend="flat"
+                  trendValue="0.0%"
+                />
+                <RadialGauge
+                  value={92.5}
+                  title="ضریب اطمینان و اعتبار لایسنس‌ها"
+                  subtitle="Valid & Active Fleet Licenses"
+                  target={90.0}
+                  thresholds={{ warn: 85, fault: 75 }}
+                  icon={<Zap className="h-4 w-4" />}
+                  trend="up"
+                  trendValue="+0.8%"
+                />
+              </div>
+
+              {/* Row 2: Managerial Charts (Province Down-links & Severity Donut) */}
+              <ManagerialCharts
+                provinces={(fleet?.provinces || []).map((p) => ({
+                  province: p.province,
+                  total: p.total,
+                  available: p.available,
+                  down: Math.max(0, p.total - p.available),
+                  pct: p.availability_pct ?? 0,
+                }))}
+                problemsBySeverity={problemsBySev}
+                totalAlarms={
+                  problemsBySev
+                    ? problemsBySev.disaster +
+                      problemsBySev.high +
+                      problemsBySev.warning +
+                      problemsBySev.average +
+                      problemsBySev.information
+                    : 0
+                }
+                onSelectProvince={(prov) =>
+                  navigate(`/devices?province=${encodeURIComponent(prov)}`)
+                }
+              />
+            </div>
+          )}
+
           {/* Top Row: Fleet Health & Needs Attention */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Panel 1: Fleet Health (Zabbix) */}

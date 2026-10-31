@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ArrowRight,
   ShieldAlert,
+  FileSpreadsheet,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { apiClient } from "@/api/client";
@@ -34,12 +35,18 @@ import {
 import { DataTable } from "@/components/datatable/DataTable";
 import { StatusBadge, StatusVariant } from "@/components/ui/StatusBadge";
 import { Mono } from "@/components/ui/Mono";
+import { CsvOperationsHub } from "@/components/operations/CsvOperationsHub";
 
 export const AlarmCenter: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
+
+  // Mode: Live Alarms vs Direct CSV Bulk Clearance
+  const [centerMode, setCenterMode] = useState<"live" | "csv_bulk">(
+    searchParams.get("tab") === "csv" ? "csv_bulk" : "live"
+  );
 
   // Filter States
   const [search, setSearch] = useState(searchParams.get("search") || "");
@@ -314,51 +321,87 @@ export const AlarmCenter: React.FC = () => {
 
         {/* Global Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsFilterDrawerOpen(!isFilterDrawerOpen)}
-            className={`inline-flex h-7 items-center gap-1.5 rounded-control border border-line px-2.5 text-xs transition-colors ${
-              isFilterDrawerOpen ? "bg-surface-2 text-signal" : "bg-surface text-ink-2 hover:bg-surface-2"
-            }`}
-          >
-            <Filter className="h-3 w-3" />
-            <span>{t("alarmCenter.filterDrawer")}</span>
-          </button>
+          {/* Mode Switcher: Live Telemetry Alarms vs Direct CSV Bulk Clearance */}
+          <div className="flex rounded-control border border-line bg-surface p-0.5 text-xs shadow-sm">
+            <button
+              type="button"
+              onClick={() => setCenterMode("live")}
+              className={`inline-flex items-center gap-1 rounded-control px-2.5 py-1 text-xs font-semibold transition-colors ${
+                centerMode === "live"
+                  ? "bg-signal text-white"
+                  : "text-ink-2 hover:text-ink hover:bg-surface-2"
+              }`}
+            >
+              <ShieldAlert className="h-3.5 w-3.5" />
+              <span>آلارم‌های زابیکس (Live Alarms)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCenterMode("csv_bulk")}
+              className={`inline-flex items-center gap-1.5 rounded-control px-2.5 py-1 text-xs font-semibold transition-colors ${
+                centerMode === "csv_bulk"
+                  ? "bg-signal text-white"
+                  : "text-ink-2 hover:text-ink hover:bg-surface-2"
+              }`}
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              <span>پاکسازی با فایل CSV</span>
+              <span className="rounded-full bg-signal/20 px-1 py-0.2 text-[9px] font-bold text-signal">Legacy</span>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={handleFetchLive}
-            disabled={isLiveFetching || isFetching}
-            className="inline-flex h-7 items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 text-xs text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-50 transition-colors"
-          >
-            <Zap className={`h-3 w-3 text-warn ${isLiveFetching ? "animate-bounce" : ""}`} />
-            <span>
-              {isLiveFetching ? t("alarmCenter.fetching") : t("alarmCenter.fetchLive")}
-            </span>
-          </button>
+          {centerMode === "live" && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsFilterDrawerOpen(!isFilterDrawerOpen)}
+                className={`inline-flex h-7 items-center gap-1.5 rounded-control border border-line px-2.5 text-xs transition-colors ${
+                  isFilterDrawerOpen ? "bg-surface-2 text-signal" : "bg-surface text-ink-2 hover:bg-surface-2"
+                }`}
+              >
+                <Filter className="h-3 w-3" />
+                <span>{t("alarmCenter.filterDrawer")}</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            aria-label="Refresh alarms"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-control border border-line bg-surface text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3 w-3 ${isFetching ? "animate-spin text-signal" : ""}`} />
-          </button>
+              <button
+                type="button"
+                onClick={handleFetchLive}
+                disabled={isLiveFetching || isFetching}
+                className="inline-flex h-7 items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 text-xs text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-50 transition-colors"
+              >
+                <Zap className={`h-3 w-3 text-warn ${isLiveFetching ? "animate-bounce" : ""}`} />
+                <span>
+                  {isLiveFetching ? t("alarmCenter.fetching") : t("alarmCenter.fetchLive")}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                aria-label="Refresh alarms"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-control border border-line bg-surface text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3 w-3 ${isFetching ? "animate-spin text-signal" : ""}`} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Main Split View */}
-      <div className="flex flex-1 gap-4 overflow-hidden">
-        {/* Left Filter Drawer */}
-        {isFilterDrawerOpen && (
-          <div className="flex w-72 flex-col rounded-control border border-line bg-surface p-3.5 space-y-3.5 text-xs overflow-y-auto shrink-0 animate-in slide-in-from-left-2 duration-150">
-            <div className="flex items-center justify-between border-b border-line pb-2">
-              <span className="font-semibold text-ink flex items-center gap-1.5">
-                <Filter className="h-3.5 w-3.5 text-signal" />
-                <span>{t("alarmCenter.filterDrawer")}</span>
-              </span>
+      {centerMode === "csv_bulk" ? (
+        <CsvOperationsHub initialTab="alarm_clear" className="flex-1" />
+      ) : (
+        /* Main Split View */
+        <div className="flex flex-1 gap-4 overflow-hidden">
+          {/* Left Filter Drawer */}
+          {isFilterDrawerOpen && (
+            <div className="flex w-72 flex-col rounded-control border border-line bg-surface p-3.5 space-y-3.5 text-xs overflow-y-auto shrink-0 animate-in slide-in-from-left-2 duration-150">
+              <div className="flex items-center justify-between border-b border-line pb-2">
+                <span className="font-semibold text-ink flex items-center gap-1.5">
+                  <Filter className="h-3.5 w-3.5 text-signal" />
+                  <span>{t("alarmCenter.filterDrawer")}</span>
+                </span>
 
               {/* Saved Presets Dropdown */}
               {savedFilters.length > 0 && (
@@ -599,6 +642,7 @@ export const AlarmCenter: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
 };

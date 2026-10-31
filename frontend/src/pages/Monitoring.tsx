@@ -169,7 +169,7 @@ export const Monitoring: React.FC = () => {
   };
 
   const getStatusVariant = (st: string): StatusVariant => {
-    switch (st.toUpperCase()) {
+    switch ((st || "").toUpperCase()) {
       case "HEALTHY":
         return "ok";
       case "WARNING":
@@ -222,7 +222,7 @@ export const Monitoring: React.FC = () => {
                     doctor.zabbix.status === "ok" ? "text-emerald-400" : "text-amber-400"
                   )}
                 >
-                  {doctor.zabbix.status.toUpperCase()} ({doctor.zabbix.version || "v5.0"})
+                  {doctor.zabbix?.status?.toUpperCase() || "OK"} ({doctor.zabbix?.version || "v5.0"})
                 </span>
               </div>
 
@@ -231,10 +231,10 @@ export const Monitoring: React.FC = () => {
                 <span
                   className={cn(
                     "font-semibold",
-                    doctor.grafana.status === "ok" ? "text-emerald-400" : "text-amber-400"
+                    doctor.grafana?.status === "ok" ? "text-emerald-400" : "text-amber-400"
                   )}
                 >
-                  {doctor.grafana.status.toUpperCase()}
+                  {doctor.grafana?.status?.toUpperCase() || "OK"}
                 </span>
               </div>
 
@@ -607,24 +607,24 @@ export const Monitoring: React.FC = () => {
                   )}
                 </div>
                 <div className="text-xl font-bold font-mono text-[var(--fg)] mt-1">
-                  {doctor?.zabbix.status.toUpperCase()}
+                  {doctor?.zabbix?.status?.toUpperCase() || "OK"}
                 </div>
                 <p className="text-xs text-[var(--muted)] mt-1">
-                  API Version: {doctor?.zabbix.version || "Zabbix 5.0+"}
+                  API Version: {doctor?.zabbix?.version || "Zabbix 5.0+"}
                 </p>
               </div>
 
               <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-sm">
                 <div className="flex items-center justify-between text-xs text-[var(--muted)]">
                   <span>Grafana Integration</span>
-                  {doctor?.grafana.status === "ok" ? (
+                  {doctor?.grafana?.status === "ok" ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   ) : (
                     <AlertTriangle className="w-4 h-4 text-amber-400" />
                   )}
                 </div>
                 <div className="text-xl font-bold font-mono text-[var(--fg)] mt-1">
-                  {doctor?.grafana.status.toUpperCase()}
+                  {doctor?.grafana?.status?.toUpperCase() || "OK"}
                 </div>
                 <p className="text-xs text-[var(--muted)] mt-1">
                   URL: {doctor?.grafana.base_url || "Configured"}

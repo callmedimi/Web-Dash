@@ -12,7 +12,7 @@
  * └──────────┴───────────────────────────────────────────────────────────────┘
  */
 import React from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
@@ -28,13 +28,17 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Search,
   Menu,
+  FileSpreadsheet,
+  Sliders,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { usePrefsStore } from "@/store/prefs";
 import { IdleTimeoutNotice } from "@/components/auth/IdleTimeoutNotice";
 import { CommandPalette } from "@/components/ui/CommandPalette";
+import { CsvOperationsHub } from "@/components/operations/CsvOperationsHub";
 
 export const Shell: React.FC = () => {
   const { t } = useTranslation();
@@ -50,6 +54,21 @@ export const Shell: React.FC = () => {
     toggleLanguage,
   } = usePrefsStore();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const [globalCsvOpen, setGlobalCsvOpen] = React.useState(false);
+
+  // Auto-expand advanced section if user is on one of the advanced routes
+  const isAdvancedActive = ["/targets", "/changes", "/jobs", "/monitoring", "/configs"].some((p) =>
+    location.pathname.startsWith(p)
+  );
+  const [showAdvanced, setShowAdvanced] = React.useState(isAdvancedActive);
+
+  React.useEffect(() => {
+    if (isAdvancedActive) {
+      setShowAdvanced(true);
+    }
+  }, [isAdvancedActive]);
 
   const handleLogout = async () => {
     await logout();
@@ -60,26 +79,43 @@ export const Shell: React.FC = () => {
     window.dispatchEvent(new CustomEvent("open-command-palette"));
   };
 
-  const navItems = [
+  // Primary Operational Navigation Items (Clean & Uncluttered)
+  const primaryNavItems = [
     { to: "/", label: t("nav.overview"), icon: LayoutDashboard },
-    { to: "/devices", label: t("nav.devices"), icon: Server },
-    { to: "/targets", label: t("nav.targets"), icon: Crosshair },
     { to: "/alarms", label: t("nav.alarms"), icon: AlertTriangle },
-    { to: "/changes", label: t("nav.changes"), icon: GitCommit },
-    { to: "/jobs", label: t("nav.jobs"), icon: Terminal },
     { to: "/reports", label: t("nav.reports"), icon: FileText },
-    { to: "/monitoring", label: t("nav.monitoring"), icon: Activity },
-    { to: "/configs", label: t("nav.configs"), icon: FileCode },
+    { to: "/devices", label: t("nav.devices"), icon: Server },
     { to: "/tools", label: t("nav.tools"), icon: Wrench },
     ...(user?.role === "god" || user?.role === "admin"
       ? [{ to: "/admin", label: t("nav.admin"), icon: Settings }]
       : []),
   ];
 
+  // Advanced Enterprise Hub Items (Grouped and Collapsible)
+  const advancedNavItems = [
+    { to: "/targets", label: t("nav.targets"), icon: Crosshair },
+    { to: "/changes", label: t("nav.changes"), icon: GitCommit },
+    { to: "/jobs", label: t("nav.jobs"), icon: Terminal },
+    { to: "/monitoring", label: t("nav.monitoring"), icon: Activity },
+    { to: "/configs", label: t("nav.configs"), icon: FileCode },
+  ];
+
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-bg text-ink">
       <IdleTimeoutNotice />
       <CommandPalette />
+
+      {/* Global CSV Operations Modal */}
+      {globalCsvOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-4xl">
+            <CsvOperationsHub
+              initialTab="alarm_clear"
+              onClose={() => setGlobalCsvOpen(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Top Bar */}
       <header className="flex h-12 flex-shrink-0 items-center justify-between border-b border-line bg-surface px-3 sm:px-4 z-20">
@@ -128,6 +164,20 @@ export const Shell: React.FC = () => {
 
         {/* Right: Quick Preferences, Status, User Profile, Logout */}
         <div className="flex items-center gap-2">
+          {/* Quick Global CSV Actions Button */}
+          <button
+            type="button"
+            onClick={() => setGlobalCsvOpen(true)}
+            title="عملیات مستقیم با فایل CSV"
+            className="inline-flex h-7 items-center gap-1.5 rounded-control border border-signal/40 bg-signal/10 px-2.5 text-xs font-semibold text-signal hover:bg-signal/20 transition-colors shadow-sm"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">عملیات فایل CSV</span>
+            <span className="rounded-full bg-signal px-1 py-0.2 text-[9px] font-bold text-white hidden md:inline">
+              Legacy
+            </span>
+          </button>
+
           {/* Mobile Search Icon */}
           <button
             type="button"
@@ -227,7 +277,8 @@ export const Shell: React.FC = () => {
           }`}
         >
           <nav className="flex-1 overflow-y-auto p-1.5 space-y-0.5 scrollbar-thin">
-            {navItems.map((item) => (
+            {/* Primary Operations Nav Items */}
+            {primaryNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -245,6 +296,60 @@ export const Shell: React.FC = () => {
                 {!railCollapsed && <span className="truncate">{item.label}</span>}
               </NavLink>
             ))}
+
+            {/* Separator Divider */}
+            <div className="py-1">
+              <div className="h-px bg-line/60 mx-1" />
+            </div>
+
+            {/* Advanced Enterprise Hub Collapsible Section */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              title={railCollapsed ? "سایر امکانات پیشرفته" : undefined}
+              className={`flex w-full items-center justify-between rounded-control px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                isAdvancedActive
+                  ? "bg-signal/10 text-signal font-semibold"
+                  : "text-ink-2 hover:bg-surface-2 hover:text-ink"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Sliders className="h-3.5 w-3.5 shrink-0 text-current" />
+                {!railCollapsed && (
+                  <span className="truncate">سایر امکانات پیشرفته</span>
+                )}
+              </div>
+              {!railCollapsed && (
+                <ChevronDown
+                  className={`h-3 w-3 shrink-0 transition-transform ${
+                    showAdvanced ? "rotate-180" : ""
+                  }`}
+                />
+              )}
+            </button>
+
+            {/* Advanced Items Sub-List */}
+            {showAdvanced && (
+              <div className="space-y-0.5 ps-1 pt-0.5 animate-in fade-in duration-150">
+                {advancedNavItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    title={railCollapsed ? item.label : undefined}
+                    className={({ isActive }) =>
+                      `group flex items-center gap-2 rounded-control px-2 py-1.5 text-[11px] transition-colors ${
+                        isActive
+                          ? "bg-signal/15 text-signal font-semibold border-e-2 border-signal rtl:border-e-0 rtl:border-s-2"
+                          : "text-ink-2 hover:bg-surface-2 hover:text-ink"
+                      }`
+                    }
+                  >
+                    <item.icon className="h-3.5 w-3.5 shrink-0 text-current" />
+                    {!railCollapsed && <span className="truncate">{item.label}</span>}
+                  </NavLink>
+                ))}
+              </div>
+            )}
           </nav>
 
           {/* Rail Collapse Toggle Footer */}

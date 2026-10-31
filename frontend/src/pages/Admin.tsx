@@ -641,7 +641,7 @@ export const Admin: React.FC = () => {
                       <td className="py-2.5 px-4">
                         <StatusBadge
                           variant={u.role === "god" ? "signal" : u.role === "admin" ? "ok" : "info-muted"}
-                          label={u.role.toUpperCase()}
+                          label={u.role?.toUpperCase() || "OPERATOR"}
                         />
                       </td>
                       <td className="py-2.5 px-4">
@@ -810,7 +810,7 @@ export const Admin: React.FC = () => {
                       <td className="py-2.5 px-4 font-semibold text-ink">{c.name}</td>
                       <td className="py-2.5 px-4 text-ink-2">{c.username}</td>
                       <td className="py-2.5 px-4">
-                        <StatusBadge variant="info-muted" label={c.cred_type.toUpperCase()} />
+                        <StatusBadge variant="info-muted" label={c.cred_type?.toUpperCase() || "PASSWORD"} />
                       </td>
                       <td className="py-2.5 px-4 text-ink-2 text-[11px]">
                         {new Date(c.updated_at).toLocaleDateString()}
@@ -1062,12 +1062,12 @@ export const Admin: React.FC = () => {
                       <td className="py-2.5 px-4">
                         <StatusBadge
                           variant={n.severity === "critical" ? "fault" : n.severity === "warning" ? "signal" : "ok"}
-                          label={n.severity.toUpperCase()}
+                          label={n.severity?.toUpperCase() || "INFO"}
                         />
                       </td>
                       <td className="py-2.5 px-4 text-ink-2">{n.channels?.join(", ") || "—"}</td>
                       <td className="py-2.5 px-4">
-                        <StatusBadge variant="ok" label={n.status.toUpperCase()} />
+                        <StatusBadge variant="ok" label={n.status?.toUpperCase() || "ACTIVE"} />
                       </td>
                     </tr>
                   ))}

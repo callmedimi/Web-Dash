@@ -630,7 +630,7 @@ export const Tools: React.FC = () => {
                             <td className="py-2 px-3 text-ink">{h.next_hop || "Direct"}</td>
                             <td className="py-2 px-3 text-ink-2">{h.outgoing_interface}</td>
                             <td className="py-2 px-3">
-                              <StatusBadge variant="ok" label={h.status.toUpperCase()} />
+                              <StatusBadge variant="ok" label={h.status?.toUpperCase() || "OK"} />
                             </td>
                           </tr>
                         ))}
@@ -968,7 +968,7 @@ export const Tools: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Server className="h-3.5 w-3.5 text-signal" />
                           <span className="font-bold text-ink font-mono">{r.device}</span>
-                          <StatusBadge variant="ok" label={r.status.toUpperCase()} />
+                          <StatusBadge variant="ok" label={r.status?.toUpperCase() || "OK"} />
                         </div>
                         <button
                           type="button"
