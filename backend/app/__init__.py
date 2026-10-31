@@ -141,7 +141,7 @@ def create_app(config_override: dict = None) -> Flask:
     from backend.app.api.schedules import schedules_bp
     from backend.app.api.credentials import credentials_bp
     from backend.app.api.changes import changes_bp
-    from backend.app.api.configs import configs_bp
+    from backend.app.api.configs import configs_bp, compliance_bp
     from backend.app.api.devices import devices_bp
     from backend.app.api.features import features_bp
     from backend.app.api.alarms import alarms_bp
@@ -164,6 +164,8 @@ def create_app(config_override: dict = None) -> Flask:
     app.register_blueprint(devices_bp, url_prefix="/devices", name="devices_alias")
     app.register_blueprint(configs_bp, url_prefix="/api/v1/devices")
     app.register_blueprint(configs_bp, url_prefix="/devices", name="configs_alias")
+    app.register_blueprint(compliance_bp, url_prefix="/api/v1/compliance")
+    app.register_blueprint(compliance_bp, url_prefix="/compliance", name="compliance_alias")
     app.register_blueprint(features_bp, url_prefix="/api/v1/features")
     app.register_blueprint(features_bp, url_prefix="/features", name="features_alias")
     app.register_blueprint(alarms_bp, url_prefix="/api/v1/alarms")

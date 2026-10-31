@@ -12,8 +12,10 @@ from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from backend.app.config import settings
+from backend.app.models.device import Device
 from backend.app.models.config_change import ConfigSnapshot
 from backend.app.services.config_backup import ConfigBackupService
+from backend.app.services.inventory import derive_province_and_site
 
 BUILTIN_COMPLIANCE_RULES: List[Dict[str, Any]] = [
     {
@@ -210,4 +212,164 @@ def evaluate_device_compliance(db_session: Session, device_id: int) -> Dict[str,
         "failed_count": failed_count,
         "compliance_score": round((passed_count / len(eval_results)) * 100, 1) if eval_results else 100.0,
         "results": eval_results,
+    }
+
+
+def evaluate_fleet_compliance(
+    db_session: Session,
+    province: Optional[str] = None,
+    rules_dir: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Evaluate fleet-wide compliance on the latest config snapshot per device.
+    Aggregates overall score, rule-level breakdown, and per-province compliance percentages.
+    """
+    rules = load_compliance_rules(rules_dir=rules_dir)
+    query = db_session.query(Device).filter(Device.enabled.is_(True))
+    if province:
+        query = query.filter(Device.province.ilike(province.strip()))
+    devices = query.order_by(Device.province.asc(), Device.name.asc()).all()
+
+    rule_stats: Dict[str, Dict[str, Any]] = {
+        r["id"]: {
+            "rule_id": r["id"],
+            "name": r.get("name", "Unnamed Rule"),
+            "severity": r.get("severity", "medium"),
+            "description": r.get("description", ""),
+            "remediation_hint": r.get("remediation_hint", ""),
+            "passed_devices": 0,
+            "failed_devices": 0,
+            "compliance_pct": 0.0,
+        }
+        for r in rules
+    }
+
+    province_stats: Dict[str, Dict[str, Any]] = {}
+    device_reports: List[Dict[str, Any]] = []
+
+    total_evaluated = 0
+    total_compliant = 0
+
+    for dev in devices:
+        prov = dev.province or derive_province_and_site(dev.name)[0] or "UNKNOWN"
+        if prov not in province_stats:
+            province_stats[prov] = {
+                "province": prov,
+                "total_devices": 0,
+                "evaluated_devices": 0,
+                "compliant_devices": 0,
+                "non_compliant_devices": 0,
+                "compliance_pct": 0.0,
+                "failed_rules_summary": {},
+                "rules_passed": {r["id"]: 0 for r in rules},
+                "rules_failed": {r["id"]: 0 for r in rules},
+            }
+        province_stats[prov]["total_devices"] += 1
+
+        latest_snap = (
+            db_session.query(ConfigSnapshot)
+            .filter(ConfigSnapshot.device_id == dev.id)
+            .order_by(ConfigSnapshot.taken_at.desc())
+            .first()
+        )
+
+        if not latest_snap:
+            device_reports.append({
+                "device_id": dev.id,
+                "name": dev.name,
+                "province": prov,
+                "role": dev.role,
+                "status": "NO_SNAPSHOT",
+                "compliance_score": 0.0,
+                "passed_count": 0,
+                "failed_count": 0,
+                "failed_rules": [],
+                "snapshot_id": None,
+                "snapshot_taken_at": None,
+            })
+            continue
+
+        total_evaluated += 1
+        province_stats[prov]["evaluated_devices"] += 1
+
+        config_text = ConfigBackupService.get_snapshot_decrypted(db_session, latest_snap.id) or ""
+        results = evaluate_compliance_on_config(config_text, rules=rules)
+
+        passed_rules = [r["rule_id"] for r in results if r["status"] == "PASS"]
+        failed_rules = [r["rule_id"] for r in results if r["status"] == "FAIL"]
+        score = round((len(passed_rules) / len(results)) * 100, 1) if results else 100.0
+        is_compliant = len(failed_rules) == 0
+
+        if is_compliant:
+            total_compliant += 1
+            province_stats[prov]["compliant_devices"] += 1
+        else:
+            province_stats[prov]["non_compliant_devices"] += 1
+
+        for rid in passed_rules:
+            if rid in rule_stats:
+                rule_stats[rid]["passed_devices"] += 1
+            if rid in province_stats[prov]["rules_passed"]:
+                province_stats[prov]["rules_passed"][rid] += 1
+
+        for rid in failed_rules:
+            if rid in rule_stats:
+                rule_stats[rid]["failed_devices"] += 1
+            province_stats[prov]["failed_rules_summary"][rid] = (
+                province_stats[prov]["failed_rules_summary"].get(rid, 0) + 1
+            )
+            if rid in province_stats[prov]["rules_failed"]:
+                province_stats[prov]["rules_failed"][rid] += 1
+
+        device_reports.append({
+            "device_id": dev.id,
+            "name": dev.name,
+            "province": prov,
+            "role": dev.role,
+            "status": "COMPLIANT" if is_compliant else "NON_COMPLIANT",
+            "compliance_score": score,
+            "passed_count": len(passed_rules),
+            "failed_count": len(failed_rules),
+            "failed_rules": failed_rules,
+            "snapshot_id": latest_snap.id,
+            "snapshot_taken_at": latest_snap.taken_at.isoformat() if latest_snap.taken_at else None,
+            "results": results,
+        })
+
+    # Calculate rule compliance percentages
+    for r in rule_stats.values():
+        if total_evaluated > 0:
+            r["compliance_pct"] = round((r["passed_devices"] / total_evaluated) * 100, 1)
+        else:
+            r["compliance_pct"] = 0.0
+
+    # Calculate province compliance percentages
+    for p_data in province_stats.values():
+        eval_count = p_data["evaluated_devices"]
+        if eval_count > 0:
+            p_data["compliance_pct"] = round((p_data["compliant_devices"] / eval_count) * 100, 1)
+            p_data["rule_breakdown"] = {
+                rid: round((p_data["rules_passed"][rid] / eval_count) * 100, 1)
+                for rid in p_data["rules_passed"]
+            }
+        else:
+            p_data["compliance_pct"] = 0.0
+            p_data["rule_breakdown"] = {}
+
+    overall_pct = (
+        round((total_compliant / total_evaluated) * 100, 1) if total_evaluated > 0 else 0.0
+    )
+
+    return {
+        "summary": {
+            "total_devices": len(devices),
+            "evaluated_devices": total_evaluated,
+            "compliant_devices": total_compliant,
+            "non_compliant_devices": total_evaluated - total_compliant,
+            "unbacked_devices": len(devices) - total_evaluated,
+            "overall_compliance_pct": overall_pct,
+        },
+        "rules_breakdown": list(rule_stats.values()),
+        "province_breakdown": list(province_stats.values()),
+        "devices": device_reports,
     }

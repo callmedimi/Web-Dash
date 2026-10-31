@@ -40,3 +40,5 @@ users.json
 *.log
 renew_lic_V3.py
 ui-design-system/
+arp_mac.csv
+*.db
