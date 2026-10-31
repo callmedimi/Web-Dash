@@ -11,6 +11,7 @@ from backend.app.features.routing.feature import VrfRoutingCheckFeature
 from backend.app.features.ptp.feature import PtpTroubleshootFeature
 from backend.app.features.arp.feature import SiteArpLookupFeature, site_arp_feature
 from backend.app.features.session_extractor.feature import SessionExtractorFeature, session_extractor_feature
+from backend.app.features.monitoring.feature import MonitoringHubFeature, monitoring_hub_feature
 
 __all__ = [
     "BaseFeature",
@@ -31,6 +32,8 @@ __all__ = [
     "site_arp_feature",
     "SessionExtractorFeature",
     "session_extractor_feature",
+    "MonitoringHubFeature",
+    "monitoring_hub_feature",
 ]
 
 
