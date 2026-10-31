@@ -375,3 +375,105 @@ export interface DailyDigestResponse {
   highlights?: string[];
 }
 
+export interface MonitoringDeviceRow {
+  id: number;
+  name: string;
+  mgmt_ip: string;
+  role: string;
+  province: string;
+  site: string;
+  zabbix_hostid?: string;
+  telemetry_host_id?: string;
+  telemetry_status: "HEALTHY" | "WARNING" | "CRITICAL" | "UNAVAILABLE" | "UNMONITORED" | string;
+  is_available: boolean;
+  problem_count: number;
+  problems?: Array<{
+    name: string;
+    severity: number;
+    severity_name: string;
+    clock: number;
+  }>;
+}
+
+export interface FleetHealthResponse {
+  summary: {
+    total_devices: number;
+    monitored_devices: number;
+    unmonitored_devices: number;
+    available_devices: number;
+    availability_pct: number;
+    total_active_problems: number;
+    problems_by_severity?: Record<string, number>;
+  };
+  province_stats: Array<{
+    province: string;
+    total: number;
+    monitored: number;
+    available: number;
+    problems: number;
+  }>;
+  devices: MonitoringDeviceRow[];
+  host_groups?: Array<{
+    name: string;
+    host_count: number;
+    available_hosts: number;
+    problem_count: number;
+  }>;
+  active_problems?: Array<{
+    event_id: string;
+    device_name: string;
+    name: string;
+    severity_name: string;
+    clock_iso: string;
+  }>;
+}
+
+export interface TelemetryDoctorResponse {
+  zabbix: {
+    status: "ok" | "degraded" | "error" | string;
+    version?: string;
+    error?: string | null;
+  };
+  grafana: {
+    status: "ok" | "degraded" | "error" | string;
+    base_url?: string;
+    details?: Record<string, unknown>;
+  };
+  coverage: {
+    total_devices: number;
+    mapped_devices: number;
+    coverage_pct: number;
+  };
+  doctor_verdict: "HEALTHY" | "DEGRADED" | string;
+}
+
+export interface DeviceMonitoringResponse {
+  device: {
+    name: string;
+    mgmt_ip: string;
+    role: string;
+    province: string;
+    telemetry_host_id?: string;
+  };
+  metrics: {
+    cpu?: { value: number; units: string } | null;
+    memory?: { value: number; units: string } | null;
+    temperature?: { value: number; units: string } | null;
+  };
+  interfaces: Array<{
+    name: string;
+    admin_status?: number | string;
+    oper_status?: number | string;
+    in_rate_bps?: number;
+    out_rate_bps?: number;
+    errors_in?: number;
+    errors_out?: number;
+  }>;
+  series?: Array<{ clock: number; value: number }>;
+  grafana?: {
+    deep_link?: string;
+    embed_url?: string;
+  };
+}
+
+

@@ -19,6 +19,7 @@ import { AlarmCenter } from "@/pages/AlarmCenter";
 import { SafeChanges } from "@/pages/SafeChanges";
 import { Jobs } from "@/pages/Jobs";
 import { Reports } from "@/pages/Reports";
+import { Monitoring } from "@/pages/Monitoring";
 import { KitchenSink } from "@/pages/KitchenSink";
 import { PlaceholderScreen } from "@/pages/PlaceholderScreen";
 
@@ -62,22 +63,8 @@ export const AppContent: React.FC = () => {
         <Route path="jobs/:id" element={<Jobs />} />
         <Route path="reports" element={<Reports />} />
         <Route path="reports/*" element={<Reports />} />
-        <Route
-          path="monitoring/*"
-          element={
-            <PlaceholderScreen
-              title="Monitoring Hub"
-              subtitle="Fleet health, telemetry status, and Grafana integration"
-              step="9.9"
-              features={[
-                "Fleet availability, CPU, RAM, temperature from Zabbix",
-                "Interface explorer with rate graphs and synchronized cursors",
-                "Grafana deep-link panels and doctor diagnostics",
-                "Offline cache with stale indicators during Zabbix outages",
-              ]}
-            />
-          }
-        />
+        <Route path="monitoring" element={<Monitoring />} />
+        <Route path="monitoring/*" element={<Monitoring />} />
         <Route
           path="configs/*"
           element={

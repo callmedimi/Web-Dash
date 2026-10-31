@@ -1407,16 +1407,35 @@
   - گذر کامل و بدون خطای تایپ‌اسکریپت و لینتر (`tsc --noEmit` و `eslint`).
   - تأیید بصری تعاملی با `browser_subagent` و ذخیره اسکرین‌شات‌های خروجی و انیمیشن وب‌پی.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+---
+## گام ۹.۹: پیاده‌سازی مرکز پایش تلمتری زبیکس و گرافانا (Monitoring Hub Screen)
+* **تاریخ:** ۱۴۰۵/۰۸/۰۹ (2026-10-31)
+* **شاخه گیت:** `phase7`
+* **هدف:** پیاده‌سازی صفحه کنسول مانیتورینگ متمرکز شبکه (`/monitoring` و `/monitoring/*`) منطبق بر سند [plan/09_PHASE7_UI_SCREENS.md](file:///d:/Playground/Web-Dash/plan/09_PHASE7_UI_SCREENS.md) شامل نوار وضعیت یکپارچگی زبیکس و گرافانا، بررسی کش آفلاین و شاخص‌های کهنگی داده (Stale Indicator)، جدول پایش دسترسی و سلامت ناوگان بدون نیاز به ارتباط مستقیم SSH، کاوشگر ترافیک اینترفیس‌ها به همراه گراف نرخ تبادل داده، عیب‌یاب تلمتری (Telemetry Doctor) و پذیرش وب‌هوک‌های هشدار خارجی.
+* **اقدامات انجام‌شده:**
+  1. **تعریف اینترفیس‌ها و ساختار داده:**
+     - اضافه شدن مدل‌های `MonitoringDeviceRow`، `FleetHealthResponse`، `TelemetryDoctorResponse` و `DeviceMonitoringResponse` در [frontend/src/api/types.ts](file:///d:/Playground/Web-Dash/frontend/src/api/types.ts).
+     - تعریف کلیدهای دوزبانه بخش پایش تلمتری در [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json).
+  2. **طراحی و پیاده‌سازی کامپوننت صفحه مانیتورینگ:**
+     - ایجاد [frontend/src/pages/Monitoring.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Monitoring.tsx) با معماری ۳ زبانه:
+       - **نوار وضعیت تجمیعی (Integration Status Strip)**: نمایش آنلاین وضعیت سرویس زبیکس، داشبوردهای گرافانا، درصد نگاشت تجهیزات ناوگان و برچسب رای نهایی دکتر تلمتری با دکمه بازخوانی دستی.
+       - **تب ۱ (Fleet Availability & Health)**:
+         - کارت‌های KPI تجمیعی سلامت (درصد دردسترس‌بودن ناوگان، تجهیزات پایش‌شده، روترهای خارج از پایش، مجموع مشکلات فعال زبیکس).
+         - جدول تعاملی روترها با امکان فیلتر بر اساس استان، نقش تجهیز (PE/P/RR) و جستجوی متنی.
+         - نمایش برچسب‌های وضعیت دسترسی (`UP` / `DOWN`)، بار CPU، مصرف رم، دما و لیست آلارم‌های فعال روتر.
+       - **تب ۲ (Interface Traffic Explorer)**:
+         - انتخابگر روتر با قابلیت جستجوی مستقیم اینترفیس‌ها بر مبنای نام یا آدرس IP.
+         - کارت‌های زنده بار سخت‌زاری و لینک عمیق مستقیم به داشبورد اختصاصی تجهیز در گرافانا.
+         - گراف تجمیعی مینیاتوری از نرخ ترافیک و جدول اینترفیس‌ها به تفکیک وضعیت عملیاتی، نرخ ورودی/خروجی (bps) و خطاهای پکت ورودی/خروجی.
+       - **تب ۳ (Integration Doctor & Webhooks)**:
+         - کنسول عیب‌یاب تشخیصی جهت سنجش صحت ارتباط با Zabbix API، سرور Grafana و پوشش نگاشت تجهیزات.
+         - راهنمای دریافت وب‌هوک هشدارهای بیرونی (`/api/v1/telemetry/webhook`) به همراه کپی آدرس اندپوینت جهت ثبت در سامانه‌های ثالث و بات‌های تلگرام/اسلک.
+  3. **اتصال مسیر در روتینگ فرانت‌اند:**
+     - جایگزینی `PlaceholderScreen` با کامپوننت `Monitoring` در مسیرهای `/monitoring` و `/monitoring/*` در [frontend/src/App.tsx](file:///d:/Playground/Web-Dash/frontend/src/App.tsx).
+  4. **آزمون‌های خودکار و تضمین عملکرد:**
+     - نگارش تست‌های یکپارچه در [tests/test_step_7_9_monitoring_screen.py](file:///d:/Playground/Web-Dash/tests/test_step_7_9_monitoring_screen.py) (پوشش کامل دریافت سلامت ناوگان، فیلترهای استانی، دریافت جزئیات تلمتری روتر، تست دکتر تشخیصی و دریافت وب‌هوک).
+     - کامپایل باندل نهایی پروداکشن در `frontend/dist/` و پاس شدن ۱۰۰٪ بودجه‌های عملکردی (۱۲۵.۷ کیلوبایت جاوااسکریپت اولیه).
+* **تأییدیه (Verification):**
+  - پاس شدن ۱۰۰٪ آزمون‌های Pytest (`tests/test_step_7_9_monitoring_screen.py`).
+  - گذر کامل و بدون خطای تایپ‌اسکریپت (`tsc --noEmit`).
+  - تأیید بصری تعاملی با `browser_subagent` و ثبت اسکرین‌شات‌های هر سه تب و وب‌پی دمو.

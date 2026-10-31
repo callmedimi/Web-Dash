@@ -329,6 +329,35 @@
     "totalAlarms": "Total Alarms Handled",
     "totalChanges": "Network Changes Planned",
     "jobsRun": "Automation Jobs Executed"
+  },
+  "monitoring": {
+    "title": "Monitoring Hub",
+    "subtitle": "Zabbix live fleet telemetry, interface traffic rate graphs, and Grafana integration.",
+    "tabFleet": "Fleet Availability & Health",
+    "tabInterfaces": "Interface Traffic Explorer",
+    "tabDoctor": "Integration Doctor & Webhooks",
+    "staleBanner": "Telemetry degraded: showing cached data with STALE label. Live updates paused.",
+    "zabbixStatus": "Zabbix Telemetry",
+    "grafanaStatus": "Grafana Dashboards",
+    "mappingCoverage": "Inventory Mapping",
+    "doctorVerdict": "Telemetry Doctor",
+    "availability": "Fleet Availability",
+    "activeProblems": "Active Zabbix Problems",
+    "totalDevices": "Total Monitored Routers",
+    "healthy": "Healthy",
+    "degraded": "Degraded",
+    "unmonitored": "Unmonitored",
+    "selectDevice": "Select Router to Inspect Interfaces...",
+    "openGrafana": "Open in Grafana",
+    "interfaceName": "Interface",
+    "adminOperStatus": "Admin / Oper",
+    "inRate": "Inbound Rate",
+    "outRate": "Outbound Rate",
+    "errorsDiscards": "Errors / Discards",
+    "searchInterfaces": "Search interfaces by keyword...",
+    "noInterfaces": "No interface metrics found for this router.",
+    "webhookUrl": "Inbound Alert Webhook Endpoint",
+    "webhookHint": "Configure external alert channels in Zabbix media types or Grafana contact points to post JSON alerts to this URL."
   }
 }
 
