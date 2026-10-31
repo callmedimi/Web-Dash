@@ -229,6 +229,32 @@
     "selectedCount": "{{count}} alarms selected",
     "noisyDevices": "Noisiest Routers",
     "noisyInterfaces": "Noisiest Interfaces"
+  },
+  "changes": {
+    "title": "Safe Changes Planner",
+    "subtitle": "Two-phase dry-run, approval matrix, and blast radius controls.",
+    "newChange": "New Change Plan",
+    "status": "Status",
+    "risk": "Risk Level",
+    "device": "Target Router",
+    "reason": "Change Reason",
+    "creator": "Requester",
+    "approver": "Approver",
+    "stepPlan": "1. Plan",
+    "stepPrecheck": "2. Pre-check",
+    "stepApproval": "3. Approval",
+    "stepApply": "4. Apply",
+    "stepVerify": "5. Verify",
+    "precheckEvidence": "Pre-check Evidence",
+    "cliDiff": "Generated CLI Diff",
+    "rollbackLines": "Automated Rollback CLI",
+    "approve": "Approve Change",
+    "reject": "Reject",
+    "apply": "Apply Changes to Network",
+    "rollback": "Rollback this Device",
+    "separationOfDuties": "Dual-Custody Enforcement: Approver must be distinct from Requester.",
+    "blastRadiusAlert": "Blast Radius Exceeded: Proposed change impacts critical core transit infrastructure.",
+    "noChanges": "No active change requests found."
   }
 }
 

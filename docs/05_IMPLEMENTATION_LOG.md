@@ -1313,7 +1313,38 @@
   - پاس شدن ۱۰۰٪ آزمون‌های بک‌اند در Pytest (**۴ تست از ۴ تست**).
   - پاس شدن ۱۰۰٪ آزمون‌های فرانت‌اند در Vitest (**۴۱ تست از ۴۱ تست**).
   - صفر خطا در `tsc --noEmit` و صفر اخطار در `eslint`.
-  - تأیید بصری تعاملی با `browser_subagent` و ذخیره اسکرین‌شات‌های خروجی کنسول مرکز آلارم‌ها.
+
+---
+## گام ۹.۶: پیاده‌سازی صفحه برنامه‌ریز تغییرات ایمن و تأیید دو نفره (Safe Changes Planner & Approval Screen)
+* **تاریخ:** ۱۴۰۵/۰۸/۰۹ (2026-10-31)
+* **شاخه گیت:** `phase7`
+* **هدف:** پیاده‌سازی صفحه جامع مدیریت تغییرات ایمن شبکه (`/changes` و `/changes/:id`) منطبق بر سند [plan/09_PHASE7_UI_SCREENS.md](file:///d:/Playground/Web-Dash/plan/09_PHASE7_UI_SCREENS.md) شامل استپر ایمنی ۵ مرحله‌ای، تأیید دو نفره (Dual-Custody / Separation of Duties)، پیش‌نمایش تفاوت کانفیگ (DiffViewer)، محاسبه خودکار دستورات بازگشت (Rollback Script)، تأییدیه با تایپ اجباری کلمه تأیید برای تغییرات پرخطر، و مودال ساخت پلن تغییر جدید.
+* **اقدامات انجام‌شده:**
+  1. **تعریف اینترفیس‌ها و ساختار داده:**
+     - اضافه شدن مدل `ChangeRequestItem` در [frontend/src/api/types.ts](file:///d:/Playground/Web-Dash/frontend/src/api/types.ts).
+     - تعریف کلیه کلیدهای دو زبانه بخش تغییرات ایمن در [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json).
+  2. **طراحی و پیاده‌سازی صفحه تغییرات ایمن:**
+     - کامپوننت [frontend/src/pages/SafeChanges.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/SafeChanges.tsx) با طراحی Split View:
+       - **لیست صف تغییرات در سمت چپ**: بج وضعیت ایمنی (Planned, Prechecking, Prechecked, Awaiting Approval, Applying, Applied, Rejected, Rolling Back, Rolled Back)، سطح ریسک، نام روتر هدف، کاربر ایجادکننده و تاریخ.
+       - **پنل جزئیات تغییر در سمت راست**:
+         - استپر ایمنی پنج‌گانه بصری (`Planned` -> `Precheck Passed` -> `Approved` -> `Applied` -> `Verified`).
+         - پیش‌نمایش گیت‌های پیش‌بررسی (`Precheck Results`) شامل تست دسترسی SSH روتر و اعتبارسنجی اینترفیس‌ها.
+         - نمایش تفاوت کانفیگ با کامپوننت `DiffViewer`.
+         - اسکریپت رول‌بک معکوس خودکار با دکمه کپی سریع.
+         - دکمه‌های کنترلی فرآیند: اجرای پیش‌بررسی، تأیید درخواست (با بررسی عدم تساوی درخواست‌دهنده و تأییدکننده)، رد درخواست با درج علت، و اجرای تغییر.
+         - دیالوگ تأیید اجباری تایپی برای تغییرات پرریسک (`ConfirmDialog` با نیاز به تایپ کلمه امنیتی).
+       - **مودال ایجاد پلن تغییر جدید**: انتخاب روتر، شرح/شماره تیکت، دستورات CLI، و ارزیابی سطح ریسک.
+  3. **به‌روزرسانی بک‌اند و تقویت امنیت نشست‌ها:**
+     - ارتقای [backend/app/api/changes.py](file:///d:/Playground/Web-Dash/backend/app/api/changes.py) جهت پشتیبانی جامع از استخراج نام کاربر و نقش از سشن کلاینت و کانتکست تست، فعال‌سازی اجباری الزام تأیید دو نفره (`require_second_person=True`)، و بازگرداندن کد خطای اختصاصی `SEPARATION_OF_DUTIES`.
+  4. **آزمون‌های خودکار و تضمین عملکرد:**
+     - نگارش تست‌های خودکار در [tests/test_step_7_6_safe_changes_screen.py](file:///d:/Playground/Web-Dash/tests/test_step_7_6_safe_changes_screen.py) (پوشش کامل چرخه حیات پلن، اعتبارسنجی رد تأیید توسط خود متقاضی، پذیرش توسط ناظر مستقل، و اندپوینت رد تغییر).
+     - بیلد نهایی در `frontend/dist/` و گذر ۱۰۰٪ تست‌های باندل و Vitest.
+* **تأییدیه (Verification):**
+  - پاس شدن ۱۰۰٪ آزمون‌های Pytest (`tests/test_step_7_6_safe_changes_screen.py`).
+  - پاس شدن ۱۰۰٪ آزمون‌های Vitest (۴۱ تست).
+  - گذر موفقیت‌آمیز بدون خطا و هشدار در `tsc` و `eslint`.
+  - تأیید بصری تعاملی با `browser_subagent` و ذخیره اسکرین‌شات‌های خروجی و انیمیشن وب‌پی.
+
 
 
 

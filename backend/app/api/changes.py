@@ -1,5 +1,5 @@
 """Change Pipeline REST API endpoints (Target Architecture §3 & Step 4.1)."""
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, session
 from typing import Dict, Any, List
 
 from auth import login_required, role_required
@@ -60,12 +60,12 @@ def plan_change():
     if not lines or not isinstance(lines, list):
         return jsonify({"error": "INVALID_PARAM", "message": "'lines' list is required"}), 400
 
-    username = getattr(g, "user_id", "unknown")
+    username = session.get("user", {}).get("username") or session.get("username") or getattr(g, "user_id", "unknown")
 
-    with get_db_session() as session:
+    with get_db_session() as session_db:
         target_device_id = device_id
         if not target_device_id and device_name:
-            dev = session.query(Device).filter(Device.name == device_name).first()
+            dev = session_db.query(Device).filter(Device.name == device_name).first()
             if dev:
                 target_device_id = dev.id
 
@@ -73,7 +73,7 @@ def plan_change():
             return jsonify({"error": "DEVICE_NOT_FOUND", "message": "Valid device_id or device_name required"}), 400
 
         cr = ChangePipelineService.create_change_request(
-            db_session=session,
+            db_session=session_db,
             device_id=target_device_id,
             creator_id=username,
             lines=lines,
@@ -91,10 +91,10 @@ def plan_change():
 @login_required
 def run_precheck(change_id: str):
     """Run pre-checks for a change request."""
-    with get_db_session() as session:
+    with get_db_session() as session_db:
         try:
-            passed, results = ChangePipelineService.run_precheck(session, change_id)
-            cr = session.query(ChangeRequest).filter(ChangeRequest.id == change_id).first()
+            passed, results = ChangePipelineService.run_precheck(session_db, change_id)
+            cr = session_db.query(ChangeRequest).filter(ChangeRequest.id == change_id).first()
             return jsonify({"passed": passed, "change": cr.to_dict()}), 200
         except KeyError as ke:
             return jsonify({"error": "NOT_FOUND", "message": str(ke)}), 404
@@ -106,26 +106,29 @@ def run_precheck(change_id: str):
 @login_required
 def approve_change(change_id: str):
     """Approve a change request enforcing RBAC and separation of duties."""
-    username = getattr(g, "user_id", "unknown")
-    user_role = getattr(g, "user_role", "operator")
+    username = session.get("user", {}).get("username") or session.get("username") or getattr(g, "user_id", "unknown")
+    user_role = session.get("user", {}).get("role") or session.get("role") or getattr(g, "user_role", "operator")
 
     data = request.get_json() or {}
     confirmation = data.get("confirmation")
 
-    with get_db_session() as session:
+    with get_db_session() as session_db:
         try:
             cr = ChangePipelineService.approve(
-                db_session=session,
+                db_session=session_db,
                 change_id=change_id,
                 approver_username=username,
                 approver_role=user_role,
                 confirmation_token=confirmation,
+                require_second_person=True,
             )
             return jsonify({"status": "approved", "change": cr.to_dict()}), 200
         except KeyError as ke:
             return jsonify({"error": "NOT_FOUND", "message": str(ke)}), 404
         except PermissionError as pe:
-            return jsonify({"error": "FORBIDDEN", "message": str(pe)}), 403
+            msg = str(pe)
+            err_code = "SEPARATION_OF_DUTIES" if "Separation of duties" in msg or "separation of duties" in msg.lower() else "FORBIDDEN"
+            return jsonify({"error": err_code, "message": msg}), 403
         except ValueError as ve:
             return jsonify({"error": "INVALID_STATE", "message": str(ve)}), 400
 
@@ -134,13 +137,13 @@ def approve_change(change_id: str):
 @login_required
 def reject_change(change_id: str):
     """Reject a change request."""
-    username = getattr(g, "user_id", "unknown")
+    username = session.get("user", {}).get("username") or session.get("username") or getattr(g, "user_id", "unknown")
     data = request.get_json() or {}
     reason = data.get("reason", "")
 
-    with get_db_session() as session:
+    with get_db_session() as session_db:
         try:
-            cr = ChangePipelineService.reject(session, change_id, rejecter_username=username, reason=reason)
+            cr = ChangePipelineService.reject(session_db, change_id, rejecter_username=username, reason=reason)
             return jsonify({"status": "rejected", "change": cr.to_dict()}), 200
         except KeyError as ke:
             return jsonify({"error": "NOT_FOUND", "message": str(ke)}), 404

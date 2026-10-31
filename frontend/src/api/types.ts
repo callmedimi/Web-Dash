@@ -265,5 +265,33 @@ export interface SavedAlarmFilter {
   created_by?: string;
 }
 
+export interface ChangeRequestItem {
+  id: string;
+  device_id: number;
+  device_name?: string;
+  creator_id: string;
+  approver_id?: string | null;
+  risk_level: "low" | "medium" | "high";
+  status:
+    | "planned"
+    | "precheck_passed"
+    | "precheck_failed"
+    | "awaiting_approval"
+    | "approved"
+    | "applied"
+    | "verified"
+    | "rolled_back"
+    | "rejected";
+  plan: Record<string, unknown>;
+  diff: string;
+  rollback_diff?: string;
+  precheck_results?: Record<string, unknown>;
+  verification_results?: Record<string, unknown>;
+  job_id?: string | null;
+  blast_radius_exceeded?: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 
 

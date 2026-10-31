@@ -16,6 +16,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { Devices } from "@/pages/Devices";
 import { TargetSets } from "@/pages/TargetSets";
 import { AlarmCenter } from "@/pages/AlarmCenter";
+import { SafeChanges } from "@/pages/SafeChanges";
 import { KitchenSink } from "@/pages/KitchenSink";
 import { PlaceholderScreen } from "@/pages/PlaceholderScreen";
 
@@ -53,22 +54,8 @@ export const AppContent: React.FC = () => {
         <Route path="devices/:id" element={<Devices />} />
         <Route path="targets" element={<TargetSets />} />
         <Route path="alarms" element={<AlarmCenter />} />
-        <Route
-          path="changes/*"
-          element={
-            <PlaceholderScreen
-              title="Safe Changes Planner"
-              subtitle="Two-phase dry-run, approval matrix, and blast radius controls"
-              step="9.6"
-              features={[
-                "Plan -> Pre-check -> Approval -> Apply -> Verify stepper",
-                "Dual-custody verification (approver ≠ requester)",
-                "Live CLI diff preview and automated rollback plans",
-                "Blast radius limit enforcement and risk scoring",
-              ]}
-            />
-          }
-        />
+        <Route path="changes" element={<SafeChanges />} />
+        <Route path="changes/:id" element={<SafeChanges />} />
         <Route
           path="jobs/*"
           element={
