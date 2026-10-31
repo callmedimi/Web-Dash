@@ -1345,6 +1345,36 @@
   - گذر موفقیت‌آمیز بدون خطا و هشدار در `tsc` و `eslint`.
   - تأیید بصری تعاملی با `browser_subagent` و ذخیره اسکرین‌شات‌های خروجی و انیمیشن وب‌پی.
 
+---
+## گام ۹.۷: پیاده‌سازی صفحه جاب‌های اتوماسیون، تایم‌لاین زنده و استریم لاگ‌ها (Automation Jobs Screen)
+* **تاریخ:** ۱۴۰۵/۰۸/۰۹ (2026-10-31)
+* **شاخه گیت:** `phase7`
+* **هدف:** پیاده‌سازی کامل صفحه کنسول مدیریت جاب‌های اتوماسیون (`/jobs` و `/jobs/:id`) منطبق بر سند [plan/09_PHASE7_UI_SCREENS.md](file:///d:/Playground/Web-Dash/plan/09_PHASE7_UI_SCREENS.md) شامل ساختار Master-Detail، تایم‌لاین بصری اجرای تجهیزات (RunTimeline)، کنسول زنده استریم لاگ‌ها از طریق SSE با قابلیت بازیابی رخدادها (LogViewer)، کنترل و سیگنال لغو سریع (Cancellation)، اجرای مجدد با تنظیمات مشابه (Run Again)، خروجی‌های قطعی CSV، و مودال اجرای جاب جدید.
+* **اقدامات انجام‌شده:**
+  1. **تعریف اینترفیس‌ها و ساختار داده:**
+     - اضافه شدن مدل‌های `JobItem`، `JobTaskItem` و `JobListResponse` در [frontend/src/api/types.ts](file:///d:/Playground/Web-Dash/frontend/src/api/types.ts).
+     - تعریف کلیه کلیدهای دو زبانه بخش جاب‌ها در [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json).
+  2. **طراحی و پیاده‌سازی کامپوننت صفحه جاب‌ها:**
+     - ایجاد [frontend/src/pages/Jobs.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Jobs.tsx) با طراحی ریسپانسیو اسپلیت:
+       - **ستون سمت چپ (صف جاب‌ها)**: نوار جستجوی سریع بر اساس شناسه/نوع/کاربر، فیلتر ترکیبی نوع جاب (`alarm_clear`, `license_check`, `down_links_report`, ...) و وضعیت (`queued`, `running`, `succeeded`, `failed`, `cancelled`)، و کارت‌های وضعیت همراه با بج‌های تعاملی.
+       - **ستون سمت راست (نمای تفصیلی جاب منتخب)**:
+         - سربرگ اطلاعات کلی با بج وضعیت، شناسه با قابلیت کپی سریع، کاربر آغازگر، حالت اجرا (`dry_run` یا `apply`) و دکمه‌های عملیاتی (`Cancel Job`, `Run Again`, `Export CSV`).
+         - **تب ۱ (Device Execution Timeline & Streaming Logs)**: ادغام کامپوننت شناور و بهینه‌سازی‌شده `RunTimeline` جهت نمایش وضعیت مرحله‌به‌مرحله اتصال، پیش‌چک، برنامه‌ریزی، اعمال و ارزیابی روترها به همراه کامپوننت `LogViewer` متصل به هوک `useJobEvents` با استریم زنده SSE و شناسه رویدادها.
+         - **تب ۲ (Task Results & Discrepancies)**: جدول خروجی‌های ساختاریافته تک‌تک تجهیزات، زمان سپری‌شده به ثانیه، خلاصه نتیجه و خطاهای روی‌داده.
+         - **تب ۳ (Parameters & Summary)**: پیش‌نمایش فرمت‌بندی‌شده خروجی و پارامترهای ورودی جاب در قالب JSON.
+       - **مودال اجرای جاب جدید (New Job Modal)**: انتخاب نوع عملیات، تغییر مد به Dry-run یا Apply، و تعیین روترهای هدف با امکان واردسازی دسته‌ای.
+  3. **اتصال مسیر در روتینگ فرانت‌اند:**
+     - جایگزینی `PlaceholderScreen` با کامپوننت `Jobs` در مسیرهای `/jobs` و `/jobs/:id` در [frontend/src/App.tsx](file:///d:/Playground/Web-Dash/frontend/src/App.tsx).
+  4. **آزمون‌های خودکار و تضمین عملکرد:**
+     - نگارش تست‌های یکپارچه در [tests/test_step_7_7_jobs_screen.py](file:///d:/Playground/Web-Dash/tests/test_step_7_7_jobs_screen.py) (پوشش کامل ثبت جاب، فیلترینگ، دریافت تسک‌ها، لغو جاب، اعتبارسنجی خروجی CSV و تست ایزولاسیون RBAC بین اپراتورها و دسترسی ادمین).
+     - کامپایل باندل نهایی پروداکشن در `frontend/dist/` و پاس شدن ۱۰۰٪ بودجه‌های عملکردی (۱۱۴.۷ کیلوبایت جاوااسکریپت اولیه).
+* **تأییدیه (Verification):**
+  - پاس شدن ۱۰۰٪ آزمون‌های Pytest (`tests/test_step_7_7_jobs_screen.py`).
+  - پاس شدن ۱۰۰٪ آزمون‌های Vitest (۴۱ تست).
+  - گذر کامل و بدون خطای تایپ‌اسکریپت و لینتر (`tsc --noEmit` و `eslint`).
+  - تأیید بصری تعاملی با `browser_subagent` و ذخیره اسکرین‌شات‌های خروجی و وب‌پی.
+
+
 
 
 

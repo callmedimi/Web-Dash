@@ -293,5 +293,34 @@ export interface ChangeRequestItem {
   updated_at: string | null;
 }
 
+export interface JobTaskItem {
+  id: string;
+  device_name: string;
+  status: "pending" | "running" | "succeeded" | "failed" | "cancelled" | "skipped" | string;
+  started_at?: string | null;
+  finished_at?: string | null;
+  result?: Record<string, unknown> | null;
+  error?: string | null;
+}
 
+export interface JobItem {
+  id: string;
+  type: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "partial" | string;
+  mode: "dry_run" | "apply" | string;
+  created_by: string;
+  created_at: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  params?: Record<string, unknown>;
+  summary?: Record<string, unknown>;
+  parent_job_id?: string | null;
+  tasks?: JobTaskItem[];
+}
 
+export interface JobListResponse {
+  items: JobItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}

@@ -17,6 +17,7 @@ import { Devices } from "@/pages/Devices";
 import { TargetSets } from "@/pages/TargetSets";
 import { AlarmCenter } from "@/pages/AlarmCenter";
 import { SafeChanges } from "@/pages/SafeChanges";
+import { Jobs } from "@/pages/Jobs";
 import { KitchenSink } from "@/pages/KitchenSink";
 import { PlaceholderScreen } from "@/pages/PlaceholderScreen";
 
@@ -56,22 +57,8 @@ export const AppContent: React.FC = () => {
         <Route path="alarms" element={<AlarmCenter />} />
         <Route path="changes" element={<SafeChanges />} />
         <Route path="changes/:id" element={<SafeChanges />} />
-        <Route
-          path="jobs/*"
-          element={
-            <PlaceholderScreen
-              title="Automation Jobs"
-              subtitle="Real-time execution timelines, log streaming, and task management"
-              step="9.7"
-              features={[
-                "SSE live event streaming without polling",
-                "RunTimeline and resizable split LogViewer",
-                "Immediate cancellation signal handling and drain",
-                "Downloadable artifacts: CSV, XLSX, JSON",
-              ]}
-            />
-          }
-        />
+        <Route path="jobs" element={<Jobs />} />
+        <Route path="jobs/:id" element={<Jobs />} />
         <Route
           path="reports/*"
           element={
