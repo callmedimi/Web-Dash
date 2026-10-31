@@ -15,6 +15,7 @@ import { ChangePassword } from "@/pages/ChangePassword";
 import { Dashboard } from "@/pages/Dashboard";
 import { Devices } from "@/pages/Devices";
 import { TargetSets } from "@/pages/TargetSets";
+import { AlarmCenter } from "@/pages/AlarmCenter";
 import { KitchenSink } from "@/pages/KitchenSink";
 import { PlaceholderScreen } from "@/pages/PlaceholderScreen";
 
@@ -51,22 +52,7 @@ export const AppContent: React.FC = () => {
         <Route path="devices" element={<Devices />} />
         <Route path="devices/:id" element={<Devices />} />
         <Route path="targets" element={<TargetSets />} />
-        <Route
-          path="alarms/*"
-          element={
-            <PlaceholderScreen
-              title="Alarm Center"
-              subtitle="Correlated Zabbix and SSH live alarm suppression and clearance"
-              step="9.5"
-              features={[
-                "Split view with filters drawer and saved queries",
-                "Zabbix vs. SSH real-time mismatch detection",
-                "One-click launch into Safe Changes planner",
-                "On-demand live read-only status refresh from devices",
-              ]}
-            />
-          }
-        />
+        <Route path="alarms" element={<AlarmCenter />} />
         <Route
           path="changes/*"
           element={

@@ -230,5 +230,40 @@ export interface CsvImportSummary {
   message?: string;
 }
 
+export interface UnifiedAlarmItem {
+  device_name: string;
+  sequence?: number | string;
+  level_name: "Critical" | "Major" | "Minor" | "Warning" | string;
+  level_number?: number;
+  date?: string;
+  time?: string;
+  age_minutes?: number;
+  interface?: string | null;
+  description: string;
+  is_noconf?: boolean;
+  source?: "zabbix" | "ssh" | "both" | string;
+  acknowledged?: boolean;
+  mismatch?: boolean;
+}
+
+export interface ActiveAlarmsResponse {
+  total_alarms: number;
+  devices_queried: number;
+  alarms: UnifiedAlarmItem[];
+  statistics?: {
+    by_level?: Record<string, number>;
+    noisy_devices?: Array<{ device: string; count: number }>;
+    noisy_interfaces?: Array<{ interface: string; count: number }>;
+  };
+  errors?: Array<{ device_name: string; error: string }>;
+}
+
+export interface SavedAlarmFilter {
+  id: number;
+  name: string;
+  criteria: Record<string, unknown>;
+  created_by?: string;
+}
+
 
 

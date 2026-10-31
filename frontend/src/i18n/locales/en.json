@@ -204,6 +204,31 @@
     "ruleOsFamily": "OS Family",
     "ruleTags": "Tags",
     "resolvedDevices": "Resolved Members"
+  },
+  "alarmCenter": {
+    "title": "Alarm Center",
+    "subtitle": "Correlated Zabbix and SSH live alarm suppression and clearance.",
+    "fetchLive": "Fetch Live from Devices",
+    "fetching": "Querying SSH...",
+    "planClear": "Plan Alarm Clear",
+    "filterDrawer": "Alarm Filters",
+    "savedFilters": "Saved Presets",
+    "saveFilter": "Save Filter",
+    "source": "Source",
+    "allSources": "All (Zabbix & SSH)",
+    "zabbixOnly": "Zabbix Only",
+    "sshOnly": "SSH Only",
+    "level": "Severity",
+    "allLevels": "All Levels",
+    "interfaceFilter": "Interface",
+    "search": "Search alarm text...",
+    "mismatch": "Mismatch",
+    "mismatchWarning": "Discrepancy: alarm present in SSH but absent in Zabbix telemetry",
+    "noconf": "No-Config (Shutdown Candidate)",
+    "noAlarms": "No active alarms matching current filters.",
+    "selectedCount": "{{count}} alarms selected",
+    "noisyDevices": "Noisiest Routers",
+    "noisyInterfaces": "Noisiest Interfaces"
   }
 }
 

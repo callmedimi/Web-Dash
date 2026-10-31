@@ -1290,6 +1290,32 @@
   - موفقیت گیت‌های تایپ‌اسکریپت و لینتر با صفر خطا و اخطار.
   - تأیید بصری تعاملی با `browser_subagent` و ذخیره اسکرین‌شات‌های خروجی صفحه تارگت‌ست‌ها و فرم ساخت کوئری پویا.
 
+---
+## گام ۹.۵: پیاده‌سازی صفحه مرکز مدیریت آلارم‌ها (Alarm Center Screen)
+* **تاریخ:** ۱۴۰۵/۰۸/۰۹ (2026-10-31)
+* **شاخه گیت:** `phase7`
+* **هدف:** پیاده‌سازی جامع کنسول مرکز آلارم‌ها (`/alarms`) منطبق بر سند [plan/09_PHASE7_UI_SCREENS.md](file:///d:/Playground/Web-Dash/plan/09_PHASE7_UI_SCREENS.md) شامل نمای اسپلیت با فیلترهای چندبعدی، کشف برخط مغایرت‌های زبیکس و SSH روترها، دکمه استعلام زنده (`Fetch Live from Devices`)، و لینک برنامه‌ریزی مستقیم تغییرات ایمن (`Plan Alarm Clear`).
+* **اقدامات انجام‌شده:**
+  1. **تعریف اینترفیس‌ها و ساختار داده:**
+     - اضافه شدن مدل‌های `UnifiedAlarmItem`، `ActiveAlarmsResponse` و `SavedAlarmFilter` در [frontend/src/api/types.ts](file:///d:/Playground/Web-Dash/frontend/src/api/types.ts).
+     - تعریف کلیه کلیدهای دو زبانه بخش مرکز آلارم‌ها در [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json).
+  2. **طراحی و پیاده‌سازی صفحه مرکز آلارم‌ها:**
+     - کامپوننت [frontend/src/pages/AlarmCenter.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/AlarmCenter.tsx) با طراحی Split View:
+       - **دراور فیلترهای سمت چپ**: فیلتر متن آزاد، استان، شدت آلارم (Critical, Major, Minor, Warning)، تفکیک منبع (Both, Zabbix Only, SSH Only)، فیلتر نام اینترفیس، امکان ذخیره و بارگذاری پریست‌های فیلتر (Saved Filter Presets)، و کارت‌های تحلیل آماری پر سر و صداترین روترها (Noisiest Routers).
+       - **جدول جامع آلارم‌ها**: چک‌باکس انتخاب چندتایی، نام روتر با تراشه مونو و کپی سریع، بج استاندارد سطح هشدار (با پالس قرمز برای Critical)، برچسب منبع با بج اخطار ویژه در صورت وجود مغایرت تله‌متری (`Mismatch`)، اینترفیس متصل با بج `noconf`، شرح آلارم، سن رویداد و دکمه اختصاصی `Plan Clear`.
+       - **نوار ابزار و عملیات گروهی**: دکمه استعلام زنده با انیمیشن لایو (`Fetch Live from Devices`) و هدایت خودکار تجهیزات و اینترفیس‌های انتخاب‌شده به برنامه‌ریز تغییرات ایمن (`Safe Changes Planner`).
+  3. **اتصال مسیر در روتینگ فرانت‌اند:**
+     - جایگزینی `PlaceholderScreen` با کامپوننت `AlarmCenter` در مسیر `/alarms` فایل [frontend/src/App.tsx](file:///d:/Playground/Web-Dash/frontend/src/App.tsx).
+  4. **آزمون‌های خودکار و تضمین عملکرد:**
+     - نگارش تست‌های جامع در [tests/test_step_7_5_alarm_center_screen.py](file:///d:/Playground/Web-Dash/tests/test_step_7_5_alarm_center_screen.py) (پوشش احراز هویت، CRUD پریست‌های فیلتر، اندپوینت محاسبات آماری و ایجاد برنامه پاک‌سازی آلارم).
+     - کامپایل باندل نهایی پروداکشن در `frontend/dist/` با موفقیت ۱۰۰٪ گیت‌های عملکردی.
+* **تأییدیه (Verification):**
+  - پاس شدن ۱۰۰٪ آزمون‌های بک‌اند در Pytest (**۴ تست از ۴ تست**).
+  - پاس شدن ۱۰۰٪ آزمون‌های فرانت‌اند در Vitest (**۴۱ تست از ۴۱ تست**).
+  - صفر خطا در `tsc --noEmit` و صفر اخطار در `eslint`.
+  - تأیید بصری تعاملی با `browser_subagent` و ذخیره اسکرین‌شات‌های خروجی کنسول مرکز آلارم‌ها.
+
+
 
 
 

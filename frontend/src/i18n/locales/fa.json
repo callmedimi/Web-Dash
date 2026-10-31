@@ -204,6 +204,31 @@
     "ruleOsFamily": "سیستم‌عامل",
     "ruleTags": "برچسب‌ها",
     "resolvedDevices": "تجهیزات عضو گروه"
+  },
+  "alarmCenter": {
+    "title": "مرکز آلارم‌ها (Alarm Center)",
+    "subtitle": "پایش، تطبیق بلادرنگ زبیکس و SSH و خاموش‌سازی اینترفیس‌های بدون کانفیگ.",
+    "fetchLive": "استعلام زنده از تجهیزات",
+    "fetching": "در حال اتصال SSH...",
+    "planClear": "برنامه‌ریزی پاک‌سازی آلارم",
+    "filterDrawer": "فیلترهای آلارم",
+    "savedFilters": "فیلترهای ذخیره‌شده",
+    "saveFilter": "ذخیره فیلتر",
+    "source": "منبع آلارم",
+    "allSources": "همه منابع (Zabbix و SSH)",
+    "zabbixOnly": "فقط زبیکس",
+    "sshOnly": "فقط SSH",
+    "level": "سطح هشدار",
+    "allLevels": "همه سطوح",
+    "interfaceFilter": "اینترفیس",
+    "search": "جستجو در متن آلارم...",
+    "mismatch": "مغایرت",
+    "mismatchWarning": "مغایرت تله‌متری: آلارم در SSH روتر فعال است اما در زبیکس وجود ندارد",
+    "noconf": "بدون کانفیگ (کاندید Shutdown)",
+    "noAlarms": "هیچ آلارم فعالی مطابق با فیلترهای انتخابی یافت نشد.",
+    "selectedCount": "{{count}} آلارم انتخاب شد",
+    "noisyDevices": "پر سر و صداترین روترها",
+    "noisyInterfaces": "پر سر و صداترین پورت‌ها"
   }
 }
 
