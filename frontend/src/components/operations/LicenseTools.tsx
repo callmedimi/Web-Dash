@@ -160,7 +160,7 @@ export const LicenseTools: React.FC = () => {
         }
       }, 1500);
     } catch (err: any) {
-      alert(`خطا در بررسی لایسنس: ${err?.message || err}`);
+      alert(isFa ? `خطا در بررسی لایسنس: ${err?.message || err}` : `Error during license check: ${err?.message || err}`);
       setCheckLoading(false);
     }
   };
@@ -168,7 +168,11 @@ export const LicenseTools: React.FC = () => {
   // Handle Match Licenses
   const handleMatchLicenses = async () => {
     if (!routerCsvFile || !licenseFiles || licenseFiles.length === 0) {
-      alert("لطفاً هم فایل CSV روترها و هم فایل‌های لایسنس (.zip یا .xml) را بارگذاری نمایید.");
+      alert(
+        isFa
+          ? "لطفاً هم فایل CSV روترها و هم فایل‌های لایسنس (.zip یا .xml) را بارگذاری نمایید."
+          : "Please upload both the router CSV file and the license files (.zip or .xml)."
+      );
       return;
     }
 
@@ -194,7 +198,7 @@ export const LicenseTools: React.FC = () => {
       });
       setSelectedMatchedRouters(initialSelected);
     } catch (err: any) {
-      alert(`خطا در تطبیق لایسنس‌ها: ${err?.message || err}`);
+      alert(isFa ? `خطا در تطبیق لایسنس‌ها: ${err?.message || err}` : `Error matching licenses: ${err?.message || err}`);
     } finally {
       setMatchingLoading(false);
     }
@@ -208,7 +212,7 @@ export const LicenseTools: React.FC = () => {
     );
 
     if (selectedList.length === 0) {
-      alert("هیچ روتری برای تمدید انتخاب نشده است.");
+      alert(isFa ? "هیچ روتری برای تمدید انتخاب نشده است." : "No router selected for renewal.");
       return;
     }
 
@@ -219,11 +223,15 @@ export const LicenseTools: React.FC = () => {
         username: creds.username,
         password: creds.password,
       });
-      alert(`عملیات تمدید لایسنس برای ${selectedList.length} روتر با موفقیت آغاز شد.`);
+      alert(
+        isFa
+          ? `عملیات تمدید لایسنس برای ${selectedList.length} روتر با موفقیت آغاز شد.`
+          : `License renewal started successfully for ${selectedList.length} routers.`
+      );
       setActiveTab("database");
       loadDbReports();
     } catch (err: any) {
-      alert(`خطا در شروع تمدید: ${err?.message || err}`);
+      alert(isFa ? `خطا در شروع تمدید: ${err?.message || err}` : `Error starting renewal: ${err?.message || err}`);
     } finally {
       setRenewalLoading(false);
     }
@@ -237,7 +245,7 @@ export const LicenseTools: React.FC = () => {
           type="button"
           onClick={() => setActiveTab("check")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold transition-colors ${
-            activeTab === "check" ? "bg-signal text-bg shadow-sm" : "text-ink-2 hover:text-ink hover:bg-surface-2"
+            activeTab === "check" ? "bg-signal text-white shadow-sm" : "text-ink-2 hover:text-ink hover:bg-surface-2"
           }`}
         >
           <Search className="h-3.5 w-3.5" />
@@ -248,7 +256,7 @@ export const LicenseTools: React.FC = () => {
           type="button"
           onClick={() => setActiveTab("renewal")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold transition-colors ${
-            activeTab === "renewal" ? "bg-signal text-bg shadow-sm" : "text-ink-2 hover:text-ink hover:bg-surface-2"
+            activeTab === "renewal" ? "bg-signal text-white shadow-sm" : "text-ink-2 hover:text-ink hover:bg-surface-2"
           }`}
         >
           <Upload className="h-3.5 w-3.5" />
@@ -259,7 +267,7 @@ export const LicenseTools: React.FC = () => {
           type="button"
           onClick={() => setActiveTab("database")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold transition-colors ${
-            activeTab === "database" ? "bg-signal text-bg shadow-sm" : "text-ink-2 hover:text-ink hover:bg-surface-2"
+            activeTab === "database" ? "bg-signal text-white shadow-sm" : "text-ink-2 hover:text-ink hover:bg-surface-2"
           }`}
         >
           <Archive className="h-3.5 w-3.5" />
@@ -274,17 +282,18 @@ export const LicenseTools: React.FC = () => {
         <div className="space-y-4">
           <div className="rounded-control border border-line bg-surface p-4 shadow-sm">
             <h3 className="text-xs font-semibold text-ink uppercase tracking-wider mb-1">
-              بررسی و استعلام وضعیت لایسنس روترها از طریق SSH
+              {isFa ? "بررسی و استعلام وضعیت لایسنس روترها از طریق SSH" : "Router License Status Inspection via SSH"}
             </h3>
             <p className="text-xs text-ink-2 mb-3">
-              فایل CSV نودها را آپلود کنید تا سیستم با دستورات <code>display license</code> و{" "}
-              <code>display license verbose</code> تاریخ انقضا و وضعیت تمام فیچرها را استخراج کند.
+              {isFa
+                ? "فایل CSV نودها را آپلود کنید تا سیستم با اتصال SSH و اجرای دستورات display license و display license verbose تاریخ انقضا و وضعیت تمام فیچرها را استخراج کند."
+                : "Upload the router CSV file. The system will connect over SSH, run display license verbose, and extract expiration dates and feature statuses."}
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer rounded border border-dashed border-line bg-surface-2 px-3 py-2 text-xs text-ink hover:border-signal">
                 <FileSpreadsheet className="h-4 w-4 text-signal" />
-                <span>{checkFile ? checkFile.name : "انتخاب یا کشیدن فایل CSV نودها..."}</span>
+                <span>{checkFile ? checkFile.name : (isFa ? "انتخاب یا کشیدن فایل CSV نودها..." : "Choose or drop node CSV file...")}</span>
                 <input
                   type="file"
                   accept=".csv"
@@ -297,10 +306,14 @@ export const LicenseTools: React.FC = () => {
                 type="button"
                 disabled={!checkFile || checkLoading}
                 onClick={handleRunCheck}
-                className="flex items-center gap-1.5 rounded-control bg-signal px-4 py-2 text-xs font-semibold text-bg hover:opacity-90 disabled:opacity-40 transition-opacity"
+                className="flex items-center gap-1.5 rounded-control bg-signal px-4 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
               >
                 {checkLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-                <span>{checkLoading ? "در حال استعلام از روترها..." : "شروع استعلام لایسنس‌ها"}</span>
+                <span>
+                  {checkLoading
+                    ? (isFa ? "در حال استعلام از روترها..." : "Querying Routers via SSH...")
+                    : (isFa ? "شروع استعلام لایسنس‌ها" : "Start License Check")}
+                </span>
               </button>
 
               {checkSessionId && (
@@ -309,7 +322,7 @@ export const LicenseTools: React.FC = () => {
                   className="flex items-center gap-1.5 rounded border border-line bg-surface px-3 py-2 text-xs font-semibold text-ink hover:bg-surface-2"
                 >
                   <Download className="h-3.5 w-3.5 text-signal" />
-                  <span>دانلود گزارش اکسل</span>
+                  <span>{isFa ? "دانلود گزارش اکسل" : "Download Excel Report"}</span>
                 </a>
               )}
             </div>
@@ -318,7 +331,7 @@ export const LicenseTools: React.FC = () => {
           {checkResults.length > 0 && (
             <div className="rounded-control border border-line bg-surface overflow-hidden shadow-sm">
               <div className="bg-surface-2 px-4 py-2 text-xs font-semibold border-b border-line text-ink">
-                نتایج استعلام لایسنس ({checkResults.length} روتر)
+                {isFa ? `نتایج استعلام لایسنس (${checkResults.length} روتر)` : `License Query Results (${checkResults.length} Routers)`}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left font-mono text-xs">
@@ -375,20 +388,23 @@ export const LicenseTools: React.FC = () => {
         <div className="space-y-4">
           <div className="rounded-control border border-line bg-surface p-4 shadow-sm">
             <h3 className="text-xs font-semibold text-ink uppercase tracking-wider mb-1">
-              فرآیند تمدید لایسنس و فعال‌سازی خودکار روی روترها
+              {isFa ? "فرآیند تمدید لایسنس و فعال‌سازی خودکار روی روترها" : "Automated License Renewal & SSH Activation"}
             </h3>
             <p className="text-xs text-ink-2 mb-4">
-              فایل CSV لیست روترها و فایل‌های لایسنس شرکت هواوی (.xml یا .zip) را بارگذاری نمایید تا شماره سریال‌ها (ESN)
-              تطبیق داده شده و لایسنس به صورت خودکار فعال شود.
+              {isFa
+                ? "فایل CSV لیست روترها و فایل‌های لایسنس شرکت هواوی (.xml یا .zip) را بارگذاری نمایید تا شماره سریال‌ها (ESN) تطبیق داده شده و لایسنس به صورت خودکار فعال شود."
+                : "Upload the router CSV file along with Huawei license files (.xml or .zip). The system will match ESNs and push activation over SSH."}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               {/* Step 1: Router CSV */}
               <div className="rounded border border-line/60 bg-surface-2/40 p-3">
-                <span className="text-xs font-semibold text-ink block mb-2">گام ۱: بارگذاری فایل CSV روترها</span>
+                <span className="text-xs font-semibold text-ink block mb-2">
+                  {isFa ? "گام ۱: بارگذاری فایل CSV روترها" : "Step 1: Upload Router CSV"}
+                </span>
                 <label className="flex items-center gap-2 cursor-pointer rounded border border-dashed border-line bg-surface px-3 py-2 text-xs text-ink hover:border-signal">
                   <FileSpreadsheet className="h-4 w-4 text-signal" />
-                  <span className="truncate">{routerCsvFile ? routerCsvFile.name : "انتخاب فایل CSV..."}</span>
+                  <span className="truncate">{routerCsvFile ? routerCsvFile.name : (isFa ? "انتخاب فایل CSV..." : "Select CSV file...")}</span>
                   <input
                     type="file"
                     accept=".csv"
@@ -400,13 +416,15 @@ export const LicenseTools: React.FC = () => {
 
               {/* Step 2: License XML/ZIP */}
               <div className="rounded border border-line/60 bg-surface-2/40 p-3">
-                <span className="text-xs font-semibold text-ink block mb-2">گام ۲: بارگذاری فایل‌های لایسنس (.zip / .xml)</span>
+                <span className="text-xs font-semibold text-ink block mb-2">
+                  {isFa ? "گام ۲: بارگذاری فایل‌های لایسنس (.zip / .xml)" : "Step 2: Upload License Files (.zip / .xml)"}
+                </span>
                 <label className="flex items-center gap-2 cursor-pointer rounded border border-dashed border-line bg-surface px-3 py-2 text-xs text-ink hover:border-signal">
                   <FileCode className="h-4 w-4 text-ok" />
                   <span className="truncate">
                     {licenseFiles && licenseFiles.length > 0
-                      ? `${licenseFiles.length} فایل لایسنس انتخاب شد`
-                      : "انتخاب فایل‌های XML/ZIP..."}
+                      ? (isFa ? `${licenseFiles.length} فایل لایسنس انتخاب شد` : `${licenseFiles.length} license files selected`)
+                      : (isFa ? "انتخاب فایل‌های XML/ZIP..." : "Select XML/ZIP files...")}
                   </span>
                   <input
                     type="file"
@@ -423,10 +441,14 @@ export const LicenseTools: React.FC = () => {
               type="button"
               disabled={!routerCsvFile || !licenseFiles || licenseFiles.length === 0 || matchingLoading}
               onClick={handleMatchLicenses}
-              className="flex items-center gap-2 rounded-control bg-signal px-4 py-2 text-xs font-semibold text-bg hover:opacity-90 disabled:opacity-40 transition-opacity"
+              className="flex items-center gap-2 rounded-control bg-signal px-4 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
             >
               {matchingLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-              <span>{matchingLoading ? "در حال تطبیق شماره سریال‌ها..." : "گام ۳: تطبیق لایسنس‌ها با روترها"}</span>
+              <span>
+                {matchingLoading
+                  ? (isFa ? "در حال تطبیق شماره سریال‌ها..." : "Matching ESNs with Routers...")
+                  : (isFa ? "گام ۳: تطبیق لایسنس‌ها با روترها" : "Step 3: Match Licenses with Routers")}
+              </span>
             </button>
           </div>
 
@@ -434,10 +456,10 @@ export const LicenseTools: React.FC = () => {
             <div className="rounded-control border border-line bg-surface p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-line pb-2">
                 <span className="text-xs font-semibold text-ink">
-                  روترهای تطبیق داده شده ({matchData.matched_routers?.length || 0})
+                  {isFa ? `روترهای تطبیق داده شده (${matchData.matched_routers?.length || 0})` : `Matched Routers (${matchData.matched_routers?.length || 0})`}
                 </span>
                 <span className="text-[11px] text-ink-2">
-                  لایسنس‌های تطبیق نیافته: {matchData.unmatched_licenses?.length || 0}
+                  {isFa ? `لایسنس‌های تطبیق نیافته: ${matchData.unmatched_licenses?.length || 0}` : `Unmatched Licenses: ${matchData.unmatched_licenses?.length || 0}`}
                 </span>
               </div>
 
@@ -472,10 +494,14 @@ export const LicenseTools: React.FC = () => {
                 type="button"
                 disabled={renewalLoading}
                 onClick={handleStartRenewal}
-                className="flex items-center gap-2 rounded-control bg-ok px-4 py-2 text-xs font-semibold text-bg hover:opacity-90 disabled:opacity-40"
+                className="flex items-center gap-2 rounded-control bg-ok px-4 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
               >
                 <ShieldCheck className="h-4 w-4" />
-                <span>{renewalLoading ? "در حال ثبت و ارسال به صف..." : "شروع فعال‌سازی لایسنس‌ها و ثبت در دیتابیس"}</span>
+                <span>
+                  {renewalLoading
+                    ? (isFa ? "در حال ثبت و ارسال به صف..." : "Queueing Renewal...")
+                    : (isFa ? "شروع فعال‌سازی لایسنس‌ها و ثبت در دیتابیس" : "Activate Licenses & Record in DB")}
+                </span>
               </button>
             </div>
           )}
@@ -489,7 +515,7 @@ export const LicenseTools: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-ink uppercase tracking-wider">
-              سوابق و تاریخچه لایسنس‌های تمدید شده در دیتابیس
+              {isFa ? "سوابق و تاریخچه لایسنس‌های تمدید شده در دیتابیس" : "License Renewal History in Database"}
             </span>
             <button
               type="button"
@@ -498,7 +524,7 @@ export const LicenseTools: React.FC = () => {
               className="flex items-center gap-1 text-xs text-signal hover:underline"
             >
               <RefreshCw className={`h-3 w-3 ${loadingDb ? "animate-spin" : ""}`} />
-              <span>به‌روزرسانی جدول</span>
+              <span>{isFa ? "به‌روزرسانی جدول" : "Refresh Table"}</span>
             </button>
           </div>
 
@@ -506,12 +532,12 @@ export const LicenseTools: React.FC = () => {
             <table className="w-full text-left font-mono text-xs">
               <thead className="bg-surface-2 border-b border-line text-ink-2 font-semibold">
                 <tr>
-                  <th className="py-2.5 px-4">شناسه گزارش (ID)</th>
-                  <th className="py-2.5 px-4">تاریخ و زمان ثبت</th>
-                  <th className="py-2.5 px-4">فایل CSV مرجع</th>
-                  <th className="py-2.5 px-4">تعداد روترها</th>
-                  <th className="py-2.5 px-4">وضعیت موفقیت</th>
-                  <th className="py-2.5 px-4 text-right">عملیات</th>
+                  <th className="py-2.5 px-4">{isFa ? "شناسه گزارش (ID)" : "Report ID"}</th>
+                  <th className="py-2.5 px-4">{isFa ? "تاریخ و زمان ثبت" : "Timestamp"}</th>
+                  <th className="py-2.5 px-4">{isFa ? "فایل CSV مرجع" : "Source CSV"}</th>
+                  <th className="py-2.5 px-4">{isFa ? "تعداد روترها" : "Total Routers"}</th>
+                  <th className="py-2.5 px-4">{isFa ? "وضعیت موفقیت" : "Status / Success"}</th>
+                  <th className="py-2.5 px-4 text-right">{isFa ? "عملیات" : "Actions"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/40">
@@ -523,7 +549,9 @@ export const LicenseTools: React.FC = () => {
                     <td className="py-2.5 px-4 text-ink font-semibold">{report.total_routers || report.report_data?.length || 0}</td>
                     <td className="py-2.5 px-4">
                       <span className="rounded bg-ok/10 text-ok px-2 py-0.5 text-[11px] font-semibold">
-                        {report.success_count ?? "تکمیل شده"}
+                        {report.success_count !== undefined
+                          ? (isFa ? `${report.success_count} روتر` : `${report.success_count} Routers`)
+                          : (isFa ? "تکمیل شده" : "Completed")}
                       </span>
                     </td>
                     <td className="py-2.5 px-4 text-right">
@@ -532,7 +560,7 @@ export const LicenseTools: React.FC = () => {
                         className="inline-flex items-center gap-1 rounded bg-surface border border-line px-2 py-1 text-[11px] text-ink hover:bg-surface-2"
                       >
                         <Download className="h-3 w-3 text-signal" />
-                        <span>دانلود اکسل</span>
+                        <span>{isFa ? "دانلود اکسل" : "Download Excel"}</span>
                       </a>
                     </td>
                   </tr>

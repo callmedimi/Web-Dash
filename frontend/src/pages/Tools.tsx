@@ -905,18 +905,24 @@ export const Tools: React.FC = () => {
           <div className="space-y-4 max-w-4xl mx-auto">
             <div className="rounded-control border border-line bg-surface p-6 text-center shadow-sm">
               <FileArchive className="h-10 w-10 text-signal/40 mx-auto mb-3" />
-              <h2 className="text-sm font-semibold text-ink mb-1">SecureCRT Session Tree Extractor</h2>
+              <h2 className="text-sm font-semibold text-ink mb-1">
+                {isFa ? "استخراج درختواره سشن‌های SecureCRT" : "SecureCRT Session Tree Extractor"}
+              </h2>
               <p className="text-xs text-ink-2 mb-4 max-w-md mx-auto">
-                Upload your network router inventory CSV file to parse the hierarchy and generate a ready-to-import SecureCRT folder session archive (.zip).
+                {isFa
+                  ? "فایل CSV موجودی روترهای شبکه را آپلود کنید تا پس از تحلیل ساختار درختی، آرشیو قابل ایمپورت SecureCRT (.zip) تولید و دانلود شود."
+                  : "Upload your network router inventory CSV file to parse the hierarchy and generate a ready-to-import SecureCRT folder session archive (.zip)."}
               </p>
 
-              <label className="inline-flex items-center gap-2 rounded-control bg-signal py-2 px-4 text-xs font-semibold text-bg cursor-pointer hover:opacity-90">
+              <label className="inline-flex items-center gap-2 rounded-control bg-signal py-2 px-4 text-xs font-semibold text-white cursor-pointer hover:opacity-90">
                 <Upload className="h-4 w-4" />
-                <span>{parsingSessions ? "Parsing CSV..." : t("tools.uploadCsv")}</span>
+                <span>{parsingSessions ? (isFa ? "در حال پردازش فایل..." : "Parsing CSV...") : (isFa ? "بارگذاری فایل CSV روترها" : "Upload Router CSV")}</span>
                 <input type="file" accept=".csv" onChange={handleUploadCsv} disabled={parsingSessions} className="hidden" />
               </label>
               {sessionFile && (
-                <div className="mt-2 text-xs font-mono text-ink-2">Uploaded: {sessionFile.name}</div>
+                <div className="mt-2 text-xs font-mono text-ink-2">
+                  {isFa ? "فایل انتخاب شده:" : "Uploaded:"} {sessionFile.name}
+                </div>
               )}
             </div>
 
@@ -925,16 +931,16 @@ export const Tools: React.FC = () => {
               <div className="rounded-control border border-line bg-surface p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-semibold uppercase tracking-wider text-ink">
-                    Parsed Sessions ({parsedRouters.length} routers)
+                    {isFa ? `سشن‌های تحلیل شده (${parsedRouters.length} روتر)` : `Parsed Sessions (${parsedRouters.length} routers)`}
                   </span>
                   <button
                     type="button"
                     onClick={handleGenerateZip}
                     disabled={generatingZip}
-                    className="flex items-center gap-1.5 rounded-control bg-ok py-1 px-3 text-xs font-semibold text-bg hover:opacity-90 disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-control bg-ok py-1 px-3 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
                   >
                     <Download className="h-3.5 w-3.5" />
-                    <span>{t("tools.generateZip")}</span>
+                    <span>{isFa ? "تولید و دانلود فایل ZIP" : "Generate ZIP"}</span>
                   </button>
                 </div>
 

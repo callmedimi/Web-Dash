@@ -44,9 +44,9 @@ export const AlarmCenter: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
 
-  // Mode: Live Alarms vs Direct CSV Bulk Clearance
+  // Mode: Direct CSV Clearance vs Live Telemetry Alarms
   const [centerMode, setCenterMode] = useState<"live" | "csv_bulk">(
-    searchParams.get("tab") === "csv" ? "csv_bulk" : "live"
+    searchParams.get("tab") === "live" ? "live" : "csv_bulk"
   );
 
   // Filter States
@@ -322,32 +322,31 @@ export const AlarmCenter: React.FC = () => {
 
         {/* Global Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Mode Switcher: Live Telemetry Alarms vs Direct CSV Bulk Clearance */}
+          {/* Mode Switcher: Direct CSV Bulk Clearance vs Live Telemetry Alarms */}
           <div className="flex rounded-control border border-line bg-surface p-0.5 text-xs shadow-sm">
             <button
               type="button"
-              onClick={() => setCenterMode("live")}
-              className={`inline-flex items-center gap-1 rounded-control px-2.5 py-1 text-xs font-semibold transition-colors ${
-                centerMode === "live"
-                  ? "bg-signal text-white"
-                  : "text-ink-2 hover:text-ink hover:bg-surface-2"
-              }`}
-            >
-              <ShieldAlert className="h-3.5 w-3.5" />
-              <span>{isFa ? "آلارم‌های زنده زبیکس" : "Live Zabbix Alarms"}</span>
-            </button>
-            <button
-              type="button"
               onClick={() => setCenterMode("csv_bulk")}
-              className={`inline-flex items-center gap-1.5 rounded-control px-2.5 py-1 text-xs font-semibold transition-colors ${
+              className={`inline-flex items-center gap-1.5 rounded-control px-3 py-1 text-xs font-semibold transition-colors ${
                 centerMode === "csv_bulk"
-                  ? "bg-signal text-white"
+                  ? "bg-signal text-white shadow-sm"
                   : "text-ink-2 hover:text-ink hover:bg-surface-2"
               }`}
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              <span>{isFa ? "پاکسازی با فایل CSV" : "CSV Bulk Clearance"}</span>
-              <span className="rounded-full bg-signal/20 px-1 py-0.2 text-[9px] font-bold text-signal">Legacy</span>
+              <span>{isFa ? "پاکسازی آلارم روترها (CSV و دستی)" : "Alarm Clearance (CSV & Manual)"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCenterMode("live")}
+              className={`inline-flex items-center gap-1 rounded-control px-3 py-1 text-xs font-semibold transition-colors ${
+                centerMode === "live"
+                  ? "bg-signal text-white shadow-sm"
+                  : "text-ink-2 hover:text-ink hover:bg-surface-2"
+              }`}
+            >
+              <ShieldAlert className="h-3.5 w-3.5" />
+              <span>{isFa ? "پایش زنده آلارم‌های زبیکس" : "Live Zabbix Alarms"}</span>
             </button>
           </div>
 
@@ -391,7 +390,7 @@ export const AlarmCenter: React.FC = () => {
       </div>
 
       {centerMode === "csv_bulk" ? (
-        <CsvOperationsHub initialTab="alarm_clear" className="flex-1" />
+        <CsvOperationsHub initialTab="alarm_clear" showTabs={false} className="flex-1" />
       ) : (
         /* Main Split View */
         <div className="flex flex-1 gap-4 overflow-hidden">

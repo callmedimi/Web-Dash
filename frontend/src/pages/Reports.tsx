@@ -34,8 +34,8 @@ export const Reports: React.FC = () => {
   const { t, i18n } = useTranslation();
   const isFa = i18n.language === "fa";
 
-  // Active Main Tab
-  const [activeTab, setActiveTab] = useState<"down_links" | "csv_downlinks" | "licenses" | "digest">("down_links");
+  // Active Main Tab - Default to Node CSV Outage & Trunk Report
+  const [activeTab, setActiveTab] = useState<"csv_downlinks" | "down_links" | "licenses" | "digest">("csv_downlinks");
 
   // Down-Links State
   const [province, setProvince] = useState<string>("ALL");
@@ -262,29 +262,28 @@ export const Reports: React.FC = () => {
         {/* Tab Buttons */}
         <div className="flex items-center gap-1.5 p-1 bg-[var(--surface-sunken)] border border-[var(--border)] rounded-lg">
           <button
-            onClick={() => setActiveTab("down_links")}
-            className={cn(
-              "px-3 py-1.5 text-xs font-semibold rounded-md transition",
-              activeTab === "down_links"
-                ? "bg-[var(--surface)] text-[var(--accent)] shadow-sm"
-                : "text-[var(--muted)] hover:text-[var(--fg)]"
-            )}
-          >
-            {t("reports.tabDownLinks")}
-          </button>
-
-          <button
             onClick={() => setActiveTab("csv_downlinks")}
             className={cn(
               "px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center gap-1.5",
               activeTab === "csv_downlinks"
-                ? "bg-[var(--surface)] text-[var(--accent)] shadow-sm"
+                ? "bg-[var(--surface)] text-[var(--accent)] shadow-sm font-bold"
                 : "text-[var(--muted)] hover:text-[var(--fg)]"
             )}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>{isFa ? "گزارش با فایل CSV" : "CSV Nodes Report"}</span>
-            <span className="rounded-full bg-signal/20 px-1 py-0.2 text-[9px] font-bold text-signal">Legacy</span>
+            <span>{isFa ? "گزارش با فایل CSV نودها" : "Node CSV Report"}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("down_links")}
+            className={cn(
+              "px-3 py-1.5 text-xs font-semibold rounded-md transition",
+              activeTab === "down_links"
+                ? "bg-[var(--surface)] text-[var(--accent)] shadow-sm font-bold"
+                : "text-[var(--muted)] hover:text-[var(--fg)]"
+            )}
+          >
+            {isFa ? "تحلیل زنده قطعی لینک‌ها" : "Live Link Outages"}
           </button>
 
           <button
@@ -292,11 +291,11 @@ export const Reports: React.FC = () => {
             className={cn(
               "px-3 py-1.5 text-xs font-semibold rounded-md transition",
               activeTab === "licenses"
-                ? "bg-[var(--surface)] text-[var(--accent)] shadow-sm"
+                ? "bg-[var(--surface)] text-[var(--accent)] shadow-sm font-bold"
                 : "text-[var(--muted)] hover:text-[var(--fg)]"
             )}
           >
-            {t("reports.tabLicenses")}
+            {isFa ? "هشدار لایسنس‌ها" : "License Warnings"}
           </button>
 
           <button
@@ -304,11 +303,11 @@ export const Reports: React.FC = () => {
             className={cn(
               "px-3 py-1.5 text-xs font-semibold rounded-md transition",
               activeTab === "digest"
-                ? "bg-[var(--surface)] text-[var(--accent)] shadow-sm"
+                ? "bg-[var(--surface)] text-[var(--accent)] shadow-sm font-bold"
                 : "text-[var(--muted)] hover:text-[var(--fg)]"
             )}
           >
-            {t("reports.tabDigest")}
+            {isFa ? "خلاصه شیفت (۲۴ ساعته)" : "24h Shift Digest"}
           </button>
         </div>
       </div>
@@ -316,7 +315,7 @@ export const Reports: React.FC = () => {
       {/* Main Tab Content */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {activeTab === "csv_downlinks" && (
-          <CsvOperationsHub initialTab="down_links" className="flex-1" />
+          <CsvOperationsHub initialTab="down_links" showTabs={false} className="flex-1" />
         )}
 
         {activeTab === "down_links" && (
