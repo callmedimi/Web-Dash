@@ -34,7 +34,7 @@ import backend.app.features  # noqa: F401
 SAMPLE_ARP_OUTPUT = """
 IP ADDRESS      MAC ADDRESS     EXPIRE(M) TYPE        INTERFACE   VPN-INSTANCE
 ------------------------------------------------------------------------------
-10.10.1.50      0018-82ab-cd01  19        D-0         GE0/1/0     MCCI_Internet
+10.10.1.50      0018-82ab-cd01  19        D-0         GE0/1/0     VRF_Internet
                     100 / -
 10.10.1.51      0018-82ab-cd02  15        D-0         GE0/1/1     
                     200 / -
@@ -103,7 +103,7 @@ def app_client(tmp_path, monkeypatch):
                 arp_ip="10.10.1.50",
                 arp_mac="0018-82ab-cd01",
                 vlan="100",
-                vrf="MCCI_Internet",
+                vrf="VRF_Internet",
                 arp_interface="GE0/1/0",
                 mac_port="10GE0/0/1",
                 collected_at=datetime.utcnow(),
@@ -138,7 +138,7 @@ def test_arp_and_mac_parsers():
     assert arp_entries[0]["arp_ip"] == "10.10.1.50"
     assert arp_entries[0]["arp_mac"] == "0018-82ab-cd01"
     assert arp_entries[0]["interface"] == "GE0/1/0"
-    assert arp_entries[0]["vrf"] == "MCCI_Internet"
+    assert arp_entries[0]["vrf"] == "VRF_Internet"
     assert arp_entries[0]["vlan"] == "100"
 
     mac_table = parse_mac_table(SAMPLE_MAC_OUTPUT)
@@ -167,7 +167,7 @@ def test_lookup_by_site_and_ip_db(test_db_session):
         arp_ip="10.10.1.50",
         arp_mac="0018-82ab-cd01",
         vlan="100",
-        vrf="MCCI_Internet",
+        vrf="VRF_Internet",
         arp_interface="GE0/1/0",
         mac_port="10GE0/0/1",
         collected_at=datetime.utcnow(),
@@ -179,7 +179,7 @@ def test_lookup_by_site_and_ip_db(test_db_session):
         arp_ip="10.10.1.51",
         arp_mac="0018-82ab-cd01",
         vlan="100",
-        vrf="MCCI_Internet",
+        vrf="VRF_Internet",
         arp_interface="GE0/2/0",
         mac_port="10GE0/0/2",
         collected_at=datetime.utcnow(),
@@ -198,7 +198,7 @@ def test_lookup_by_site_and_ip_db(test_db_session):
     assert row0["Site_Code"] == "TEH-0392"
     assert row0["Site_Model"] == "ATN950B"
     assert row0["Vlan"] == "100"
-    assert row0["VRF"] == "MCCI_Internet"
+    assert row0["VRF"] == "VRF_Internet"
 
     # 3. Lookup by IP Address
     res_ip = SiteArpService.lookup(test_db_session, "10.10.1.50", force_refresh=True)
@@ -315,7 +315,7 @@ def test_collector_job_execution_and_cancellation(test_db_session):
 def test_filter_results_and_csv_export():
     """Verify result table filtering and UTF-8-SIG CSV export."""
     records = [
-        {"Site_Code": "TEH-01", "IP": "10.1.1.1", "Model": "NE40E", "NE": "TEH-AGG01", "NE_IP": "10.0.0.1", "ARP_MAC": "0018-8201-0001", "Vlan": "100", "VRF": "MCCI", "ARP_Interface": "GE0/1/0", "MAC_Port": "10GE0/0/1", "collected_at": "2026-10-31 03:00:00"},
+        {"Site_Code": "TEH-01", "IP": "10.1.1.1", "Model": "NE40E", "NE": "TEH-AGG01", "NE_IP": "10.0.0.1", "ARP_MAC": "0018-8201-0001", "Vlan": "100", "VRF": "INTERNAL", "ARP_Interface": "GE0/1/0", "MAC_Port": "10GE0/0/1", "collected_at": "2026-10-31 03:00:00"},
         {"Site_Code": "TEH-02", "IP": "10.1.1.2", "Model": "NE40E", "NE": "TEH-AGG02", "NE_IP": "10.0.0.2", "ARP_MAC": "0018-8201-0002", "Vlan": "200", "VRF": "INTERNET", "ARP_Interface": "GE0/1/1", "MAC_Port": "10GE0/0/2", "collected_at": "2026-10-31 03:00:00"},
     ]
 
@@ -344,7 +344,7 @@ def test_site_arp_feature_run(test_db_session):
         arp_ip="10.30.1.1",
         arp_mac="0018-8230-0001",
         vlan="300",
-        vrf="MCCI",
+        vrf="VRF_Internet",
         arp_interface="GE0/1/0",
         mac_port="10GE0/0/1",
         collected_at=datetime.utcnow(),

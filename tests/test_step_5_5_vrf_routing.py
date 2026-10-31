@@ -34,7 +34,7 @@ MOCK_BGP_VPNV4_OUTPUT = """
 MOCK_VRF_ROUTING_OUTPUT = """
 Route Flags: R - relay, D - download to fib
 ------------------------------------------------------------------------------
-Routing Table : MCCI_Internet
+Routing Table : VRF_Internet
 Destinations : 2        Routes : 2
 
 Destination/Mask    Proto   Pre  Cost      Flags NextHop         Interface
@@ -47,7 +47,7 @@ MOCK_INTERFACE_CONFIG_OUTPUT = """
 #
 interface GigabitEthernet0/1/0
  description TO_CUSTOMER_INTERNET_LINK
- ip binding vpn-instance MCCI_Internet
+ ip binding vpn-instance VRF_Internet
  ip address 10.10.1.254 255.255.255.0
 #
 """
@@ -140,25 +140,25 @@ def app_client(tmp_path, monkeypatch):
 def test_validate_vrf_and_target():
     """Verify input validation for VRF names and Target IP / CIDR."""
     # Valid VRF and Target IP
-    vrf, target = VrfRoutingService.validate_vrf_and_target("MCCI_Internet", "10.10.1.1")
-    assert vrf == "MCCI_Internet"
+    vrf, target = VrfRoutingService.validate_vrf_and_target("VRF_Internet", "10.10.1.1")
+    assert vrf == "VRF_Internet"
     assert target == "10.10.1.1"
 
     # Valid CIDR
-    vrf, target = VrfRoutingService.validate_vrf_and_target("MCCI_B2B_AFTA", "192.168.1.0/24")
+    vrf, target = VrfRoutingService.validate_vrf_and_target("VRF_B2B_A", "192.168.1.0/24")
     assert target == "192.168.1.0/24"
 
     # Invalid VRF name with dangerous characters
     with pytest.raises(ValueError):
-        VrfRoutingService.validate_vrf_and_target("MCCI; rm -rf", "10.10.1.1")
+        VrfRoutingService.validate_vrf_and_target("VRF_TEST; rm -rf", "10.10.1.1")
 
     # Invalid IP address
     with pytest.raises(ValueError):
-        VrfRoutingService.validate_vrf_and_target("MCCI_Internet", "999.1.1.1")
+        VrfRoutingService.validate_vrf_and_target("VRF_Internet", "999.1.1.1")
 
     # Invalid CIDR prefix
     with pytest.raises(ValueError):
-        VrfRoutingService.validate_vrf_and_target("MCCI_Internet", "10.10.1.0/35")
+        VrfRoutingService.validate_vrf_and_target("VRF_Internet", "10.10.1.0/35")
 
 
 def test_transform_originator_ip():
@@ -180,7 +180,7 @@ def test_parse_bgp_received_routes():
     assert e["prefix"] == "10.10.1.1/32"
     assert e["originator"] == "10.10.91.5"
     assert "65000:500" in e["rt_values"]
-    assert "MCCI_Internet" in e["matched_vrf_names"]
+    assert "VRF_Internet" in e["matched_vrf_names"]
 
 
 def test_parse_routing_table_and_ip_matching():
@@ -204,7 +204,7 @@ def test_parse_interface_config():
     parsed = VrfRoutingService.parse_interface_config(MOCK_INTERFACE_CONFIG_OUTPUT)
     assert parsed["interface_name"] == "GigabitEthernet0/1/0"
     assert parsed["description"] == "TO_CUSTOMER_INTERNET_LINK"
-    assert parsed["vpn_instance"] == "MCCI_Internet"
+    assert parsed["vpn_instance"] == "VRF_Internet"
     assert parsed["ip_address"] == "10.10.1.254"
     assert parsed["subnet_mask"] == "255.255.255.0"
 
@@ -235,14 +235,14 @@ def test_trace_vrf_route_hop_by_hop(test_db_session):
 
     res = VrfRoutingService.trace_vrf_route(
         db_session=test_db_session,
-        vrf="MCCI_Internet",
+        vrf="VRF_Internet",
         target_ip_or_prefix="10.10.1.1",
         ingress_device_id=rr.id,
         session_mock=mock_sess,
     )
 
     assert res["status"] == "resolved"
-    assert res["vrf"] == "MCCI_Internet"
+    assert res["vrf"] == "VRF_Internet"
     assert res["target"] == "10.10.1.1"
 
     # Verify 3 hops
@@ -289,7 +289,7 @@ def test_vrf_routing_feature_run(test_db_session):
     ctx = FeatureContext(
         db_session=test_db_session,
         params={
-            "vrf": "MCCI_Internet",
+            "vrf": "VRF_Internet",
             "target_ip": "10.10.1.1",
             "ingress_device_id": rr.id,
             "_session_mock": mock_sess,
@@ -313,8 +313,8 @@ def test_vrf_routing_api_endpoints(app_client):
     vrfs_res = app_client.get("/api/v1/routing/vrfs")
     assert vrfs_res.status_code == 200
     vrfs_data = vrfs_res.get_json()
-    assert "MCCI_Internet" in vrfs_data["vrfs"]
-    assert "MCCI_B2B_AFTA" in vrfs_data["vrfs"]
+    assert "VRF_Internet" in vrfs_data["vrfs"]
+    assert "VRF_B2B_A" in vrfs_data["vrfs"]
     assert vrfs_data["vrf_count"] > 10
 
     # 2. Trace VRF routing
@@ -322,7 +322,7 @@ def test_vrf_routing_api_endpoints(app_client):
         trace_res = app_client.post(
             "/api/v1/routing/trace",
             json={
-                "vrf": "MCCI_Internet",
+                "vrf": "VRF_Internet",
                 "target_ip": "10.10.1.1",
             },
         )
@@ -337,7 +337,7 @@ def test_vrf_routing_api_endpoints(app_client):
         prefix_res = app_client.post(
             "/api/v1/routing/check-prefix",
             json={
-                "vrf": "MCCI_Internet",
+                "vrf": "VRF_Internet",
                 "target_ip": "10.10.1.1",
             },
         )

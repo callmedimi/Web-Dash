@@ -17,7 +17,7 @@ class VrfRoutingCheckFeature(BaseFeature):
         needs_telemetry=False,
         read_only=True,
         inputs={
-            "vrf": {"type": "string", "required": True, "description": "VRF / VPN-Instance name (e.g. MCCI_Internet)"},
+            "vrf": {"type": "string", "required": True, "description": "VRF / VPN-Instance name (e.g. VRF_Internet)"},
             "target_ip": {"type": "string", "required": True, "description": "Target IPv4 address or CIDR prefix (e.g. <IP>)"},
             "ingress_device_id": {"type": "int", "required": False, "description": "Optional Ingress / Route Reflector device ID"},
         },

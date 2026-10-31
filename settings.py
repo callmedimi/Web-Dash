@@ -67,7 +67,7 @@ class Settings:
             env_key="TARGET_NE_PREFIXES",
             section="site_arp",
             option="target_ne_prefixes",
-            default="IL,BR,BA,BC",
+            default="NE,PE,AGG,CORE",
         )
         self.TARGET_NE_PREFIXES: Tuple[str, ...] = tuple(
             p.strip().upper() for p in raw_prefixes.split(",") if p.strip()
