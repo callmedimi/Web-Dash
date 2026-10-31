@@ -9,6 +9,7 @@ from backend.app.features.down_links.feature import DownLinksFeature, down_links
 from backend.app.features.license.feature import LicenseManagementFeature
 from backend.app.features.routing.feature import VrfRoutingCheckFeature
 from backend.app.features.ptp.feature import PtpTroubleshootFeature
+from backend.app.features.arp.feature import SiteArpLookupFeature, site_arp_feature
 
 __all__ = [
     "BaseFeature",
@@ -25,6 +26,8 @@ __all__ = [
     "LicenseManagementFeature",
     "VrfRoutingCheckFeature",
     "PtpTroubleshootFeature",
+    "SiteArpLookupFeature",
+    "site_arp_feature",
 ]
 
 
