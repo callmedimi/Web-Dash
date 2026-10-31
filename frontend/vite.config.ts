@@ -31,6 +31,8 @@ export default defineConfig({
           query: ["@tanstack/react-query"],
           table: ["@tanstack/react-table", "@tanstack/react-virtual"],
           icons: ["lucide-react"],
+          charts: ["uplot", "@xyflow/react"],
+          diff: ["diff"],
         },
       },
     },
