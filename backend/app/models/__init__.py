@@ -19,6 +19,7 @@ from backend.app.models.arp_mac import (
 from backend.app.models.telemetry_cache import ZabbixInventoryCache
 from backend.app.models.license import LicenseRenewalReport
 from backend.app.models.alarm import AlarmFilter
+from backend.app.models.down_link import DownLinkReport
 
 __all__ = [
     "Base",
@@ -29,6 +30,7 @@ __all__ = [
     "DeviceLock",
     "TargetSet",
     "AlarmFilter",
+    "DownLinkReport",
     "Job",
     "JobTask",
     "JobEvent",
@@ -44,4 +46,5 @@ __all__ = [
     "ZabbixInventoryCache",
     "LicenseRenewalReport",
 ]
+
 
