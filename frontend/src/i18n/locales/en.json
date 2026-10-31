@@ -109,6 +109,22 @@
     "high": "High",
     "average": "Average",
     "warning": "Warning",
-    "information": "Information"
+    "information": "Information",
+    "hostGroupFilter": "Zabbix Host Group",
+    "allHostGroups": "All Host Groups",
+    "groupAlarmsTitle": "Active Alarms for Group",
+    "groupAlarmsSubtitle": "Active alarms on devices belonging to selected host group",
+    "noGroupAlarms": "No active alarms for this host group.",
+    "alarmTitle": "Alarm / Problem",
+    "device": "Device",
+    "severity": "Severity",
+    "age": "Age",
+    "acknowledged": "Acknowledged",
+    "unacknowledged": "Unacknowledged",
+    "hostGroup": "Host Group",
+    "filterByGroup": "Filter by group",
+    "hosts": "hosts",
+    "alarms": "alarms"
   }
 }
+

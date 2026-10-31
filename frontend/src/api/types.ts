@@ -126,15 +126,42 @@ export interface ProblemsTimelineBucket {
   warning: number;
 }
 
+export interface HostGroupSummary {
+  name: string;
+  host_count: number;
+  available_hosts: number;
+  problem_count: number;
+  severity_counts: Record<string, number>;
+}
+
+export interface ActiveProblemItem {
+  event_id: string;
+  host_id: string;
+  host_name: string;
+  device_name: string;
+  name: string;
+  severity: number;
+  severity_name: string;
+  clock: number;
+  clock_iso: string;
+  acknowledged: boolean;
+  groups: string[];
+  tags: Record<string, string>;
+}
+
 export interface OverviewResponse {
   telemetry_status: "ok" | "degraded" | "disabled";
   telemetry_error: string | null;
   cached_at: string;
+  selected_group?: string;
+  host_groups?: HostGroupSummary[];
+  group_problems?: ActiveProblemItem[];
   fleet_health: {
     total_devices: number;
     available_devices: number;
     degraded_devices: number;
     availability_pct: number;
+    selected_group?: string;
     provinces: ProvinceHealth[];
   };
   needs_attention: NeedsAttentionItem[];
@@ -149,4 +176,5 @@ export interface OverviewResponse {
   };
   problems_timeline: ProblemsTimelineBucket[];
 }
+
 

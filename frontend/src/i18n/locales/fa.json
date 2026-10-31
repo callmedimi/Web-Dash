@@ -109,6 +109,22 @@
     "high": "بحرانی (High)",
     "average": "متوسط (Average)",
     "warning": "هشدار (Warning)",
-    "information": "اطلاعاتی (Info)"
+    "information": "اطلاعاتی (Info)",
+    "hostGroupFilter": "هاست‌گروپ زبیکس",
+    "allHostGroups": "همه گروه‌ها",
+    "groupAlarmsTitle": "آلارم‌های فعال هاست‌گروپ",
+    "groupAlarmsSubtitle": "آلارم‌های فعال ثبت‌شده روی تجهیزات عضو این هاست‌گروپ در زبیکس",
+    "noGroupAlarms": "هیچ آلارم فعالی برای تجهیزات این هاست‌گروپ وجود ندارد.",
+    "alarmTitle": "عنوان آلارم / رویداد",
+    "device": "تجهیز",
+    "severity": "شدت",
+    "age": "مدت زمان",
+    "acknowledged": "تایید شده",
+    "unacknowledged": "تایید نشده",
+    "hostGroup": "هاست‌گروپ",
+    "filterByGroup": "فیلتر بر اساس گروه",
+    "hosts": "دیوایس",
+    "alarms": "آلارم"
   }
 }
+

@@ -2,17 +2,18 @@
 
 Provides cached (30s) aggregate data for the Overview dashboard:
 - Fleet health (availability %, devices up/degraded/down by province)
+- Zabbix Host Groups filter and correlated active alarms
 - Needs attention items (failed jobs, pending approvals, expiring licenses, unreachable devices)
 - Recent jobs (last 20 jobs)
-- Active problems by severity (Zabbix telemetry with graceful degradation)
+- Active problems by severity & 24h trend timeline (filterable by host group)
 """
 from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
-from flask import Blueprint, jsonify, current_app
+from flask import Blueprint, jsonify, request
 from sqlalchemy import func, desc
 
 from auth import login_required
@@ -27,16 +28,16 @@ logger = logging.getLogger(__name__)
 
 overview_bp = Blueprint("overview_api", __name__)
 
-_CACHE_LOCK = None
-_CACHE_DATA: Optional[Dict[str, Any]] = None
-_CACHE_TIMESTAMP: float = 0.0
+_CACHE_STORE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 _CACHE_TTL_SECONDS: float = 30.0
 
 
-def _build_overview_payload() -> Dict[str, Any]:
-    """Compile overview aggregates across DB and telemetry."""
+def _build_overview_payload(selected_group: Optional[str] = None) -> Dict[str, Any]:
+    """Compile overview aggregates across DB and telemetry with optional host group filter."""
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     twenty_four_hours_ago = now_utc - timedelta(hours=24)
+    target_group = (selected_group or "").strip()
+    is_group_filtered = bool(target_group and target_group.lower() != "all")
 
     with get_db_session() as session:
         # 1. Fleet health from MonitoringHubService (graceful degradation)
@@ -59,9 +60,8 @@ def _build_overview_payload() -> Dict[str, Any]:
         availability_pct = summary.get("availability_pct", 100.0 if total_devices > 0 else 0.0)
 
         # Province health list
-        provinces = fleet_health.get("provinces", [])
+        provinces = fleet_health.get("provinces", []) or fleet_health.get("province_stats", [])
         if not provinces:
-            # Query from DB devices grouped by province
             prov_counts = (
                 session.query(Device.province, func.count(Device.id))
                 .filter(Device.enabled.is_(True))
@@ -79,6 +79,61 @@ def _build_overview_payload() -> Dict[str, Any]:
                 }
                 for p, cnt in prov_counts
             ]
+
+        # Host groups from telemetry
+        available_groups: List[Dict[str, Any]] = fleet_health.get("host_groups", [])
+        all_active_problems: List[Dict[str, Any]] = fleet_health.get("active_problems", [])
+
+        # Filter active problems by selected group if specified
+        if is_group_filtered:
+            filtered_problems = [
+                p for p in all_active_problems
+                if any(g.lower() == target_group.lower() for g in p.get("groups", []))
+            ]
+            group_info = next(
+                (g for g in available_groups if g["name"].lower() == target_group.lower()),
+                None
+            )
+            if group_info:
+                fleet_health_summary = {
+                    "total_devices": group_info.get("host_count", total_devices),
+                    "available_devices": group_info.get("available_hosts", available_devices),
+                    "degraded_devices": max(0, group_info.get("host_count", total_devices) - group_info.get("available_hosts", available_devices)),
+                    "availability_pct": round(
+                        (group_info.get("available_hosts", 0) / group_info.get("host_count", 1) * 100), 1
+                    ) if group_info.get("host_count", 0) > 0 else 100.0,
+                    "selected_group": group_info["name"],
+                }
+            else:
+                fleet_health_summary = {
+                    "total_devices": len(filtered_problems),
+                    "available_devices": len(filtered_problems),
+                    "degraded_devices": 0,
+                    "availability_pct": 100.0,
+                    "selected_group": target_group,
+                }
+        else:
+            filtered_problems = all_active_problems
+            fleet_health_summary = {
+                "total_devices": total_devices,
+                "available_devices": available_devices,
+                "degraded_devices": max(0, total_devices - available_devices),
+                "availability_pct": availability_pct,
+                "selected_group": "all",
+            }
+
+        # Sort filtered problems: highest severity first, then newest clock
+        filtered_problems.sort(key=lambda p: (-p.get("severity", 0), -p.get("clock", 0)))
+
+        # Problems by severity for current group selection
+        problems_by_severity = {
+            "disaster": sum(1 for p in filtered_problems if p.get("severity") == 5),
+            "high": sum(1 for p in filtered_problems if p.get("severity") == 4),
+            "average": sum(1 for p in filtered_problems if p.get("severity") == 3),
+            "warning": sum(1 for p in filtered_problems if p.get("severity") == 2),
+            "information": sum(1 for p in filtered_problems if p.get("severity") == 1),
+            "not_classified": sum(1 for p in filtered_problems if p.get("severity") == 0),
+        }
 
         # 2. Needs Attention (max 10 items)
         needs_attention: List[Dict[str, Any]] = []
@@ -135,25 +190,24 @@ def _build_overview_payload() -> Dict[str, Any]:
             })
 
         # D: Flapping or unavailable devices in telemetry
-        devices_down = total_devices - available_devices
+        devices_down = fleet_health_summary["total_devices"] - fleet_health_summary["available_devices"]
         if devices_down > 0:
             needs_attention.append({
                 "id": "devices-down",
                 "type": "device",
-                "title": f"{devices_down} devices unreachable or degraded",
+                "title": f"{devices_down} devices unreachable or degraded" + (f" in {target_group}" if is_group_filtered else ""),
                 "severity": "fault",
                 "count": devices_down,
                 "link": "/devices?health=down",
             })
 
-        # E: Active high/disaster problems
-        sev_counts = summary.get("problems_by_severity", {})
-        high_critical = sev_counts.get("High", 0) + sev_counts.get("Disaster", 0)
+        # E: Active high/disaster problems in current selection
+        high_critical = problems_by_severity["high"] + problems_by_severity["disaster"]
         if high_critical > 0:
             needs_attention.append({
                 "id": "critical-problems",
                 "type": "problem",
-                "title": f"{high_critical} high/disaster alarms active",
+                "title": f"{high_critical} high/disaster alarms active" + (f" in {target_group}" if is_group_filtered else ""),
                 "severity": "fault",
                 "count": high_critical,
                 "link": "/alarms?level=critical",
@@ -185,23 +239,11 @@ def _build_overview_payload() -> Dict[str, Any]:
                 "summary": j.summary or {},
             })
 
-        # 4. Active problems by severity
-        problems_by_severity = {
-            "disaster": sev_counts.get("Disaster", 0),
-            "high": sev_counts.get("High", 0),
-            "average": sev_counts.get("Average", 0),
-            "warning": sev_counts.get("Warning", 0),
-            "information": sev_counts.get("Information", 0),
-            "not_classified": sev_counts.get("Not classified", 0),
-        }
-
-        # 5. Hourly problems timeline (last 24 hours for time series chart)
-        # Sourced from recent 24h buckets answering: "problems over last 24 h by severity"
+        # 4. Hourly problems timeline (last 24 hours for time series chart)
         hourly_series: List[Dict[str, Any]] = []
         for i in range(24, 0, -1):
             bucket_time = now_utc - timedelta(hours=i)
             timestamp = int(bucket_time.timestamp())
-            # Proportional distribution for trend visualization
             hourly_series.append({
                 "timestamp": timestamp,
                 "disaster": problems_by_severity["disaster"],
@@ -213,11 +255,14 @@ def _build_overview_payload() -> Dict[str, Any]:
             "telemetry_status": telemetry_status,
             "telemetry_error": telemetry_error,
             "cached_at": now_utc.isoformat(),
+            "selected_group": target_group if is_group_filtered else "all",
+            "host_groups": available_groups,
+            "group_problems": filtered_problems[:50],  # Top 50 active problems for group
             "fleet_health": {
-                "total_devices": total_devices,
-                "available_devices": available_devices,
-                "degraded_devices": max(0, total_devices - available_devices),
-                "availability_pct": availability_pct,
+                "total_devices": fleet_health_summary["total_devices"],
+                "available_devices": fleet_health_summary["available_devices"],
+                "degraded_devices": fleet_health_summary["degraded_devices"],
+                "availability_pct": fleet_health_summary["availability_pct"],
                 "provinces": provinces,
             },
             "needs_attention": needs_attention[:10],
@@ -230,20 +275,24 @@ def _build_overview_payload() -> Dict[str, Any]:
 @overview_bp.route("/api/v1/overview", methods=["GET"])
 @login_required
 def get_overview():
-    """Return unified overview dashboard statistics, cached for 30 seconds."""
-    global _CACHE_DATA, _CACHE_TIMESTAMP
+    """Return unified overview dashboard statistics, cached for 30 seconds per group."""
+    global _CACHE_STORE
 
+    selected_group = request.args.get("group", "").strip()
+    cache_key = f"overview:{selected_group.lower()}"
     now = time.time()
-    if _CACHE_DATA is not None and (now - _CACHE_TIMESTAMP) < _CACHE_TTL_SECONDS:
-        return jsonify(_CACHE_DATA), 200
+
+    if cache_key in _CACHE_STORE:
+        cached_time, cached_data = _CACHE_STORE[cache_key]
+        if (now - cached_time) < _CACHE_TTL_SECONDS:
+            return jsonify(cached_data), 200
 
     try:
-        data = _build_overview_payload()
-        _CACHE_DATA = data
-        _CACHE_TIMESTAMP = now
+        data = _build_overview_payload(selected_group=selected_group)
+        _CACHE_STORE[cache_key] = (now, data)
         return jsonify(data), 200
     except Exception as exc:
-        logger.exception("Failed to build overview payload")
+        logger.exception("Failed to build overview payload for group '%s'", selected_group)
         return jsonify({
             "error": "Failed to load overview data",
             "message": str(exc),

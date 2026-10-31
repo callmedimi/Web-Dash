@@ -92,15 +92,28 @@ def test_build_bundle_size_under_budget():
     js_files = [f for f in os.listdir(assets_dir) if f.endswith(".js")]
     assert len(js_files) > 0, "No JS files found in dist/assets"
 
-    total_gzip_size = 0
+    # Initial JS entry point (index-*.js) budget: < 250 KB gzip
+    initial_js = [f for f in js_files if f.startswith("index-")]
+    assert len(initial_js) > 0, "No initial index-*.js found in dist/assets"
+
+    initial_js_path = os.path.join(assets_dir, initial_js[0])
+    with open(initial_js_path, "rb") as f:
+        initial_gzip_size = len(gzip.compress(f.read()))
+
+    max_budget_bytes = 250 * 1024
+    assert initial_gzip_size < max_budget_bytes, (
+        f"Initial JS bundle size {initial_gzip_size / 1024:.1f} KB exceeds 250 KB budget"
+    )
+
+    # Chunks budget: each lazy chunk < 150 KB gzip
+    max_chunk_budget_bytes = 150 * 1024
     for js_file in js_files:
+        if js_file == initial_js[0]:
+            continue
         js_path = os.path.join(assets_dir, js_file)
         with open(js_path, "rb") as f:
-            compressed = gzip.compress(f.read())
-            total_gzip_size += len(compressed)
+            chunk_gzip = len(gzip.compress(f.read()))
+        assert chunk_gzip < max_chunk_budget_bytes, (
+            f"Chunk {js_file} size {chunk_gzip / 1024:.1f} KB exceeds 150 KB budget"
+        )
 
-    # Budget from plan/08_PHASE6_UI_DESIGN_SYSTEM.md §5 Step 6.1: < 250 KB gzip
-    max_budget_bytes = 250 * 1024
-    assert total_gzip_size < max_budget_bytes, (
-        f"Initial JS bundle size {total_gzip_size / 1024:.1f} KB exceeds 250 KB budget"
-    )

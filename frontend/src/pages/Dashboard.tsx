@@ -7,11 +7,14 @@
  * │ degraded/down by province    │ licenses expiring ≤ 30 d · devices flapping│
  * ├──────────────────────────────┴────────────────────────────────────────────┤
  * │ Recent jobs (table, last 20)  │  Active problems by severity (Zabbix)      │
+ * ├──────────────────────────────┴────────────────────────────────────────────┤
+ * │ Active Alarms for Selected Host Group (Zabbix Correlated Live List)       │
  * └───────────────────────────────────────────────────────────────────────────┘
  *
  * Every number is a link to the filtered list behind it.
  * No decorative sparklines; chart answers "problems over last 24 h by severity".
  * Graceful degradation when Zabbix telemetry is offline.
+ * Filterable by Zabbix Host Group.
  */
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -28,21 +31,37 @@ import {
   Layers,
   HelpCircle,
   Clock,
+  Filter,
+  ExternalLink,
 } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { OverviewResponse } from "@/api/types";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import { StatusBadge, StatusVariant } from "@/components/ui/StatusBadge";
 import { Mono } from "@/components/ui/Mono";
 import { Timestamp } from "@/components/ui/Timestamp";
 import { TimeSeriesChart } from "@/components/charts/TimeSeriesChart";
 
+const getSeverityVariant = (severity: number): StatusVariant => {
+  if (severity >= 5) return "fault";
+  if (severity >= 4) return "warn";
+  if (severity >= 3) return "signal";
+  if (severity >= 2) return "signal";
+  return "info-muted";
+};
+
 export const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
+
+  const queryUrl =
+    selectedGroup && selectedGroup !== "all"
+      ? `/api/v1/overview?group=${encodeURIComponent(selectedGroup)}`
+      : "/api/v1/overview";
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<OverviewResponse>({
-    queryKey: ["overview"],
-    queryFn: () => apiClient.get<OverviewResponse>("/api/v1/overview"),
+    queryKey: ["overview", selectedGroup],
+    queryFn: () => apiClient.get<OverviewResponse>(queryUrl),
     refetchInterval: 30_000,
   });
 
@@ -50,6 +69,9 @@ export const Dashboard: React.FC = () => {
   const needsAttention = data?.needs_attention || [];
   const recentJobs = data?.recent_jobs || [];
   const problemsBySev = data?.problems_by_severity;
+  const hostGroups = data?.host_groups || [];
+  const groupProblems = data?.group_problems || [];
+
   // Prepare uPlot aligned data: [timestamps, disasterSeries, highSeries, warningSeries]
   const chartData = React.useMemo<[number[], number[], number[], number[]]>(() => {
     const timeline = data?.problems_timeline;
@@ -113,7 +135,30 @@ export const Dashboard: React.FC = () => {
           <p className="mt-0.5 text-xs text-ink-2">{t("dashboard.overviewSubtitle")}</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Zabbix Host Group Selector Dropdown */}
+          <div className="flex items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 py-1 text-xs text-ink-2 shadow-sm focus-within:ring-1 focus-within:ring-signal">
+            <Layers className="h-3.5 w-3.5 text-signal" />
+            <label htmlFor="host-group-select" className="text-[11px] font-medium text-ink-2 hidden sm:inline">
+              {t("dashboard.hostGroupFilter")}:
+            </label>
+            <select
+              id="host-group-select"
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+              className="bg-transparent text-xs font-medium text-ink focus:outline-none cursor-pointer pr-1"
+            >
+              <option value="all">
+                {t("dashboard.allHostGroups")} ({hostGroups.length})
+              </option>
+              {hostGroups.map((g) => (
+                <option key={g.name} value={g.name}>
+                  {g.name} ({g.problem_count} {t("dashboard.alarms")} / {g.host_count} {t("dashboard.hosts")})
+                </option>
+              ))}
+            </select>
+          </div>
+
           {data?.cached_at && (
             <span className="text-[11px] text-ink-2 dir-ltr">
               <Timestamp value={data.cached_at} relative />
@@ -132,6 +177,56 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Host Group Quick Navigation Pills */}
+      {hostGroups.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 scrollbar-none text-xs">
+          <span className="text-[11px] font-medium text-ink-2 shrink-0 flex items-center gap-1">
+            <Filter className="h-3 w-3 text-signal" />
+            <span>{t("dashboard.filterByGroup")}:</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedGroup("all")}
+            className={`inline-flex items-center gap-1 rounded-control px-2 py-0.5 text-[11px] font-medium transition-colors ${
+              selectedGroup === "all"
+                ? "bg-signal text-white"
+                : "bg-surface-2 text-ink-2 hover:bg-surface-2/80 hover:text-ink border border-line"
+            }`}
+          >
+            <span>{t("dashboard.allHostGroups")}</span>
+          </button>
+          {hostGroups.map((g) => {
+            const isSelected = selectedGroup.toLowerCase() === g.name.toLowerCase();
+            const hasProblems = g.problem_count > 0;
+            return (
+              <button
+                key={g.name}
+                type="button"
+                onClick={() => setSelectedGroup(g.name)}
+                className={`inline-flex items-center gap-1.5 rounded-control px-2 py-0.5 text-[11px] font-medium transition-colors shrink-0 ${
+                  isSelected
+                    ? "bg-signal text-white"
+                    : hasProblems
+                    ? "bg-surface border border-fault/40 text-ink hover:bg-fault/5"
+                    : "bg-surface border border-line text-ink-2 hover:bg-surface-2 hover:text-ink"
+                }`}
+              >
+                <span>{g.name}</span>
+                {hasProblems && (
+                  <span
+                    className={`rounded-full px-1 text-[10px] font-mono font-bold leading-tight ${
+                      isSelected ? "bg-white/20 text-white" : "bg-fault/15 text-fault"
+                    }`}
+                  >
+                    {g.problem_count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Loading Skeleton */}
       {isLoading && (
@@ -176,6 +271,11 @@ export const Dashboard: React.FC = () => {
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-2">
                     {t("dashboard.fleetHealth")}
                   </h2>
+                  {selectedGroup !== "all" && (
+                    <span className="inline-flex items-center gap-1 rounded-control bg-signal/10 px-1.5 py-0.5 text-[10px] font-medium text-signal border border-signal/20">
+                      {selectedGroup}
+                    </span>
+                  )}
                 </div>
                 <Link
                   to="/monitoring"
@@ -338,7 +438,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Bottom Row: Recent Jobs & Active Problems Chart */}
+          {/* Middle Row: Recent Jobs & Active Problems Chart */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Panel 3: Recent Jobs (Table, last 20) */}
             <div className="flex flex-col rounded-control border border-line bg-surface p-4">
@@ -434,9 +534,14 @@ export const Dashboard: React.FC = () => {
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-2">
                     {t("dashboard.activeProblems")}
                   </h2>
+                  {selectedGroup !== "all" && (
+                    <span className="inline-flex items-center gap-1 rounded-control bg-warn/10 px-1.5 py-0.5 text-[10px] font-medium text-warn border border-warn/20">
+                      {selectedGroup}
+                    </span>
+                  )}
                 </div>
                 <Link
-                  to="/alarms"
+                  to={selectedGroup !== "all" ? `/alarms?group=${encodeURIComponent(selectedGroup)}` : "/alarms"}
                   className="inline-flex items-center gap-1 text-[11px] font-medium text-signal hover:underline"
                 >
                   <span>{t("common.viewAll")}</span>
@@ -447,7 +552,7 @@ export const Dashboard: React.FC = () => {
               {/* Severity Counts Strip */}
               <div className="grid grid-cols-5 gap-1.5 mb-3">
                 <Link
-                  to="/alarms?severity=disaster"
+                  to={selectedGroup !== "all" ? `/alarms?group=${encodeURIComponent(selectedGroup)}&severity=disaster` : "/alarms?severity=disaster"}
                   className="rounded-control bg-fault/10 border border-fault/30 p-2 text-center transition-colors hover:bg-fault/20"
                 >
                   <div className="text-[10px] font-semibold text-fault uppercase">
@@ -459,7 +564,7 @@ export const Dashboard: React.FC = () => {
                 </Link>
 
                 <Link
-                  to="/alarms?severity=high"
+                  to={selectedGroup !== "all" ? `/alarms?group=${encodeURIComponent(selectedGroup)}&severity=high` : "/alarms?severity=high"}
                   className="rounded-control bg-warn/10 border border-warn/30 p-2 text-center transition-colors hover:bg-warn/20"
                 >
                   <div className="text-[10px] font-semibold text-warn uppercase">
@@ -471,7 +576,7 @@ export const Dashboard: React.FC = () => {
                 </Link>
 
                 <Link
-                  to="/alarms?severity=average"
+                  to={selectedGroup !== "all" ? `/alarms?group=${encodeURIComponent(selectedGroup)}&severity=average` : "/alarms?severity=average"}
                   className="rounded-control bg-surface-2 p-2 text-center transition-colors hover:bg-line/40"
                 >
                   <div className="text-[10px] font-medium text-ink-2 uppercase">
@@ -483,7 +588,7 @@ export const Dashboard: React.FC = () => {
                 </Link>
 
                 <Link
-                  to="/alarms?severity=warning"
+                  to={selectedGroup !== "all" ? `/alarms?group=${encodeURIComponent(selectedGroup)}&severity=warning` : "/alarms?severity=warning"}
                   className="rounded-control bg-surface-2 p-2 text-center transition-colors hover:bg-line/40"
                 >
                   <div className="text-[10px] font-medium text-ink-2 uppercase">
@@ -495,7 +600,7 @@ export const Dashboard: React.FC = () => {
                 </Link>
 
                 <Link
-                  to="/alarms?severity=information"
+                  to={selectedGroup !== "all" ? `/alarms?group=${encodeURIComponent(selectedGroup)}&severity=information` : "/alarms?severity=information"}
                   className="rounded-control bg-surface-2 p-2 text-center transition-colors hover:bg-line/40"
                 >
                   <div className="text-[10px] font-medium text-ink-2 uppercase">
@@ -525,6 +630,157 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Bottom Row: Active Alarms for Selected Host Group */}
+          <div className="flex flex-col rounded-control border border-line bg-surface p-4">
+            <div className="flex flex-wrap items-center justify-between border-b border-line pb-2 mb-3 gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-warn" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-2">
+                      {t("dashboard.groupAlarmsTitle")}
+                    </h2>
+                    <span className="rounded-control bg-surface-2 px-1.5 py-0.5 text-[11px] font-mono text-ink-2 border border-line">
+                      {selectedGroup === "all" ? t("dashboard.allHostGroups") : selectedGroup} ({groupProblems.length})
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-ink-2 mt-0.5">
+                    {t("dashboard.groupAlarmsSubtitle")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {selectedGroup !== "all" && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGroup("all")}
+                    className="text-[11px] font-medium text-ink-2 hover:text-ink underline"
+                  >
+                    {t("common.viewAll")} ({t("dashboard.allHostGroups")})
+                  </button>
+                )}
+                <Link
+                  to={selectedGroup !== "all" ? `/alarms?group=${encodeURIComponent(selectedGroup)}` : "/alarms"}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-signal hover:underline"
+                >
+                  <span>{t("common.viewAll")}</span>
+                  <ArrowRight className="h-3 w-3 rtl:rotate-180" />
+                </Link>
+              </div>
+            </div>
+
+            {groupProblems.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center p-6 text-center text-xs text-ink-2">
+                <CheckCircle2 className="h-8 w-8 text-ok mb-2" />
+                <p className="font-semibold text-ink">{t("dashboard.noGroupAlarms")}</p>
+                <p className="mt-1 text-ink-2 text-[11px]">
+                  {selectedGroup === "all"
+                    ? "No active problems reported across Zabbix hosts."
+                    : `All devices in host group '${selectedGroup}' are operating normally.`}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-line rounded-control max-h-80 overflow-y-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-surface-2 sticky top-0 border-b border-line text-[11px] font-semibold text-ink-2">
+                    <tr>
+                      <th className="px-2.5 py-1.5">{t("dashboard.device")}</th>
+                      <th className="px-2.5 py-1.5">{t("dashboard.alarmTitle")}</th>
+                      <th className="px-2 py-1.5">{t("dashboard.severity")}</th>
+                      <th className="px-2 py-1.5">{t("dashboard.hostGroup")}</th>
+                      <th className="px-2 py-1.5">{t("dashboard.age")}</th>
+                      <th className="px-2.5 py-1.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line/60">
+                    {groupProblems.map((prob) => {
+                      const sevVariant = getSeverityVariant(prob.severity);
+                      return (
+                        <tr
+                          key={prob.event_id}
+                          className="hover:bg-surface-2/80 transition-colors"
+                        >
+                          <td className="px-2.5 py-1.5">
+                            <div className="flex flex-col">
+                              <Link
+                                to={`/devices?search=${encodeURIComponent(prob.device_name)}`}
+                                className="font-mono text-xs font-semibold text-signal hover:underline"
+                              >
+                                <Mono copyable={true} className="text-[11px]">
+                                  {prob.device_name}
+                                </Mono>
+                              </Link>
+                              {prob.host_name && prob.host_name !== prob.device_name && (
+                                <span className="text-[10px] text-ink-2 font-mono">{prob.host_name}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-2.5 py-1.5">
+                            <div className="flex flex-col">
+                              <span className="font-medium text-ink">{prob.name}</span>
+                              {prob.tags && Object.keys(prob.tags).length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                  {Object.entries(prob.tags).slice(0, 3).map(([k, v]) => (
+                                    <span
+                                      key={k}
+                                      className="rounded-control bg-surface-2 px-1 py-0.2 text-[9px] font-mono text-ink-2 border border-line"
+                                    >
+                                      {k}:{v}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <StatusBadge
+                              variant={sevVariant}
+                              label={prob.severity_name}
+                              pulse={prob.severity >= 5}
+                              className="text-[10px] py-0 px-1.5"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <div className="flex flex-wrap gap-1">
+                              {prob.groups.map((g) => (
+                                <button
+                                  key={g}
+                                  type="button"
+                                  onClick={() => setSelectedGroup(g)}
+                                  title={`Filter by group ${g}`}
+                                  className={`rounded-control px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                                    selectedGroup.toLowerCase() === g.toLowerCase()
+                                      ? "bg-signal text-white"
+                                      : "bg-surface-2 text-ink-2 hover:bg-signal/15 hover:text-signal border border-line"
+                                  }`}
+                                >
+                                  {g}
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-2 py-1.5 text-[11px] text-ink-2">
+                            <Timestamp value={prob.clock_iso} relative />
+                          </td>
+                          <td className="px-2.5 py-1.5 text-right">
+                            <Link
+                              to={`/alarms?search=${encodeURIComponent(prob.device_name)}`}
+                              className="inline-flex items-center gap-1 rounded-control border border-line bg-surface px-2 py-0.5 text-[10px] font-medium text-ink-2 hover:bg-surface-2 hover:text-signal"
+                            >
+                              <span>Investigate</span>
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </>
       )}

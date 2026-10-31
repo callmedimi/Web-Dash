@@ -173,6 +173,53 @@ class MonitoringHubService:
         total_devices = len(devices)
         overall_availability_pct = round((total_available / total_monitored * 100), 1) if total_monitored > 0 else 0.0
 
+        # Collect host groups summary and correlate with active problems
+        group_stats: Dict[str, Dict[str, Any]] = {}
+        for h in telemetry_hosts.values():
+            for gname in h.groups:
+                if not gname:
+                    continue
+                if gname not in group_stats:
+                    group_stats[gname] = {
+                        "name": gname,
+                        "host_count": 0,
+                        "available_hosts": 0,
+                        "problem_count": 0,
+                        "severity_counts": {name: 0 for name in SEVERITY_MAP.values()},
+                    }
+                group_stats[gname]["host_count"] += 1
+                if h.available:
+                    group_stats[gname]["available_hosts"] += 1
+                h_probs = problems_by_host.get(h.host_id, [])
+                group_stats[gname]["problem_count"] += len(h_probs)
+                for prob in h_probs:
+                    s_name = prob.get("severity_name", "Warning")
+                    group_stats[gname]["severity_counts"][s_name] = group_stats[gname]["severity_counts"].get(s_name, 0) + 1
+
+        # Enriched active problems with device name and host groups
+        enriched_problems: List[Dict[str, Any]] = []
+        for p in active_problems:
+            h = telemetry_hosts.get(p.host_id)
+            h_groups = h.groups if h else []
+            s_name = SEVERITY_MAP.get(p.severity, "Warning")
+            dev_name = (h.visible_name if h else None) or (h.name if h else p.host_name) or p.host_name
+            enriched_problems.append({
+                "event_id": p.event_id,
+                "host_id": p.host_id,
+                "host_name": h.name if h else p.host_name,
+                "device_name": dev_name,
+                "name": p.name,
+                "severity": p.severity,
+                "severity_name": s_name,
+                "clock": p.clock,
+                "clock_iso": datetime.fromtimestamp(p.clock).isoformat() if p.clock else "",
+                "acknowledged": p.acknowledged,
+                "groups": h_groups,
+                "tags": p.tags,
+            })
+
+        sorted_groups = sorted(list(group_stats.values()), key=lambda g: (-g["problem_count"], g["name"]))
+
         return {
             "summary": {
                 "total_devices": total_devices,
@@ -185,6 +232,8 @@ class MonitoringHubService:
             },
             "province_stats": list(province_stats.values()),
             "devices": device_rows,
+            "host_groups": sorted_groups,
+            "active_problems": enriched_problems,
         }
 
     @classmethod
