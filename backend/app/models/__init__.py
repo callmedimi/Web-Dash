@@ -17,7 +17,7 @@ from backend.app.models.arp_mac import (
     SiteInventory,
 )
 from backend.app.models.telemetry_cache import ZabbixInventoryCache
-from backend.app.models.license import LicenseRenewalReport
+from backend.app.models.license import LicenseRenewalReport, LicenseRecord
 from backend.app.models.alarm import AlarmFilter
 from backend.app.models.down_link import DownLinkReport
 
@@ -45,6 +45,7 @@ __all__ = [
     "SiteInventory",
     "ZabbixInventoryCache",
     "LicenseRenewalReport",
+    "LicenseRecord",
 ]
 
 
