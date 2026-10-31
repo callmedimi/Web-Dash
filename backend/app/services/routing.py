@@ -8,6 +8,9 @@ Ports and enhances check_vrf_routing.py:
 - Per-hop result table and visual path graph construction (originator -> RR -> PE -> CE)
 """
 from __future__ import annotations
+import os
+import json
+import configparser
 import re
 import ipaddress
 from typing import Dict, Any, List, Optional, Tuple
@@ -78,6 +81,55 @@ VRF_RT_MAP: Dict[str, List[str]] = {
     "VRF_UP5G": ["65000:5005"],
     "VRF_UPPS": ["65000:800"],
 }
+
+
+def _load_custom_vrf_map() -> Dict[str, List[str]]:
+    """Load optional custom/local VRF mapping from config.local.ini or vrf_map.local.json."""
+    custom: Dict[str, List[str]] = {}
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    json_candidates = [
+        os.environ.get("VRF_MAP_FILE"),
+        os.path.join(os.getcwd(), "vrf_map.local.json"),
+        os.path.join(base_dir, "vrf_map.local.json"),
+        os.path.join(base_dir, "data", "vrf_map.json"),
+    ]
+    for jc in json_candidates:
+        if jc and os.path.isfile(jc):
+            try:
+                with open(jc, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        for k, v in data.items():
+                            if isinstance(v, list):
+                                custom[k] = [str(x) for x in v]
+                            elif isinstance(v, str):
+                                custom[k] = [x.strip() for x in v.split(",") if x.strip()]
+                break
+            except Exception:
+                pass
+
+    ini_candidates = [
+        os.path.join(os.getcwd(), "config.local.ini"),
+        os.path.join(base_dir, "config.local.ini"),
+    ]
+    for ic in ini_candidates:
+        if ic and os.path.isfile(ic):
+            try:
+                cp = configparser.ConfigParser()
+                cp.optionxform = str
+                cp.read(ic, encoding="utf-8")
+                if cp.has_section("vrf_rt_map"):
+                    for k, v in cp.items("vrf_rt_map"):
+                        custom[k] = [x.strip() for x in v.split(",") if x.strip()]
+                break
+            except Exception:
+                pass
+    return custom
+
+
+_custom_map = _load_custom_vrf_map()
+if _custom_map:
+    VRF_RT_MAP.update(_custom_map)
 
 
 def _build_rt_to_vrf_map() -> Dict[str, List[str]]:

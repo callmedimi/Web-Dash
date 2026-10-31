@@ -19,6 +19,8 @@ def _find_config_file() -> str | None:
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
+        os.path.join(os.getcwd(), "config.local.ini"),
+        os.path.join(base_dir, "config.local.ini"),
         os.path.join(os.getcwd(), "config.ini"),
         os.path.join(base_dir, "config.ini"),
         os.path.join(os.getcwd(), "config.example.ini"),

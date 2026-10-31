@@ -58,6 +58,15 @@ zabbix_config.ini
 zabbix_router_db.json
 alarm-clearing.tar
 
+# --- Local / Production Overrides (Never commit) ---
+*.local
+*.local.*
+config.local.ini
+vrf_map.local.json
+arp_mac.local.csv
+production*.ini
+production*.json
+
 # --- Databases & Dynamic State ---
 *.db
 *.sqlite
