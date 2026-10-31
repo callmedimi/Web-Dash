@@ -154,7 +154,6 @@ def create_app(config_override: dict = None) -> Flask:
     import backend.app.features  # noqa: F401
     import backend.app.jobs.handlers  # noqa: F401
 
-    app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(auth_bp, url_prefix="/api/v1", name="auth_api_v1")
     app.register_blueprint(users_bp)
@@ -191,5 +190,7 @@ def create_app(config_override: dict = None) -> Flask:
     app.register_blueprint(schedules_bp, url_prefix="/schedules", name="schedules_alias")
     app.register_blueprint(notifications_bp, url_prefix="/api/v1/notifications")
     app.register_blueprint(notifications_bp, url_prefix="/notifications", name="notifications_alias")
+    # Register main SPA blueprint last as a catch-all fallback
+    app.register_blueprint(main_bp)
 
     return app

@@ -1121,6 +1121,43 @@
   - استایل‌های CSS `index-*.css`: ۸.۰ کیلوبایت Gzip (بودجه: ≤ ۵۰ کیلوبایت).
   - پاس شدن ۱۰۰٪ آزمون‌های پایتون گام ۶.۵ (**۳ تست از ۳ تست با موفقیت پاس شدند**).
 
+---
+
+### گام ۶.۶ — میزبانی فرانت‌اند از طریق فلسک و مسیریابی SPA (Step 6.6 Serve from Flask & SPA Routing)
+* **هدف:** اتصال کامل باندل خروجی فرانت‌اند به سرور بک‌اند فلسک، سرو استاتیک فایل‌های بیلدشده در محیط ایزوله (Air-Gapped) بدون نیاز به ابزارهای جانبی یا Node.js در سرور، مدیریت مسیرهای کلاینت با مکانیزم SPA Fallback به `index.html`، اعمال هدرهای کش پایدار برای است‌ها و عدم کش برای فایل ریشه، و تزریق هدرهای امنیتی استاندارد سازمانی (CSP، X-Content-Type-Options، Referrer-Policy، X-Frame-Options).
+* **اقدامات انجام‌شده:**
+  1. به‌روزرسانی کنترلر اصلی در [backend/app/api/main.py](file:///d:/Playground/Web-Dash/backend/app/api/main.py):
+     - تعریف مسیرهای سرو استاتیک فایل‌های باندل از دایرکتوری `frontend/dist/`.
+     - سرو فایل‌های هش‌شده در مسیرهای `/assets/<filename>` و فونت‌ها در `/fonts/<filename>` همراه با هدرهای کش طولانی‌مدت و تغییرناپذیر:
+       `Cache-Control: public, max-age=31536000, immutable`.
+     - سرو فایل اصلی `index.html` در مسیر ریشه `/` و تمامی روت‌های فرانت‌اند (`/login`، `/change-password`، `/_ui` و مسیرهای ناهمخوان فرانت‌اند) همراه با هدرهای ضد-کش:
+       `Cache-Control: no-cache, no-store, must-revalidate`، `Pragma: no-cache`، `Expires: 0`.
+     - هدایت ایمن استاتیک فاوآیکون (`/favicon.ico`).
+  2. ترتیب اولویت ثبت بلوپرینت‌ها در [backend/app/__init__.py](file:///d:/Playground/Web-Dash/backend/app/__init__.py):
+     - انتقال ثبت بلوپرینت `main_bp` به انتهای لیست بلوپرینت‌های اپلیکیشن فلسک تا مسیرهای API روتین (`/api/v1/...`، `/healthz`، `/readyz`، `/metrics` و غیره) بدون تداخل و با اولویت بالا پردازش شوند.
+  3. تزریق هدرهای امنیتی و سازگاری سشن در [backend/app/security/middleware.py](file:///d:/Playground/Web-Dash/backend/app/security/middleware.py):
+     - معافیت مسیرهای فرانت‌اند (`/assets/`، `/fonts/`، `/_ui`، `/change-password`) از ریدایرکت‌های زودهنگام تغییر کلمه عبور.
+     - پیاده‌سازی هوک سراسری `@app.after_request` جهت تزریق هدرهای امنیتی به تمام پاسخ‌های سرور:
+       - `Content-Security-Policy`:
+         `default-src 'self'; frame-src 'self' <grafana_origin>; img-src 'self' data:; connect-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'`
+       - `X-Content-Type-Options: nosniff`
+       - `Referrer-Policy: same-origin`
+       - `X-Frame-Options: DENY`
+  4. نگارش آزمون‌های خودکار جامع در [tests/test_step_6_6_flask_serve_spa.py](file:///d:/Playground/Web-Dash/tests/test_step_6_6_flask_serve_spa.py):
+     - آزمون سرو صفحه اصلی `/` و هدرهای ضد-کش `index.html`.
+     - آزمون مکانیزم SPA Fallback برای مسیرهای فرانت‌اند نظیر `/login`، `/_ui`، `/change-password` و مسیرهای نامشخص کلاینت بدون تغییر به ۴۰۴.
+     - آزمون کش طولانی‌مدت دارایی‌های کامپایل‌شده (`/assets/` و `/fonts/`).
+     - آزمون تقدم کامل اندپوینت‌های API (`/healthz`، `/readyz`، `/api/v1/jobs`) نسبت به روت‌های SPA.
+     - آزمون صحت هدرهای امنیتی CSP، nosniff، DENY و تزریق داینامیک اوریجین گرافانا در CSP.
+     - آزمون عدم وجود هرگونه ارجاع به دامنه‌ها یا CDNهای خارجی در محتوای خروجی `dist/index.html` (تضمین ۱۰۰٪ تطابق با شبکه Air-Gapped).
+* **تأییدیه (Verify):**
+  - پاس شدن ۱۰۰٪ آزمون‌های گام ۶.۶ پایتون (**۶ تست از ۶ تست با موفقیت پاس شدند**).
+  - اجرای سوئیت کامل آزمون‌های فاز ۶ (گام‌های ۶.۱ تا ۶.۶): **۳۰ تست از ۳۰ تست با موفقیت پاس شدند (`30 passed in 57.15s`)**.
+  - اجرای آزمون‌های Vitest فرانت‌اند: **۴۰ تست از ۴۰ تست با موفقیت پاس شدند (`40 passed in 5.66s`)**.
+  - موفقیت گیت‌های تایپ‌اسکریپت و لینتر با صفر خطا و صفر اخطار.
+  - اعتبارسنجی ۱۰۰٪ حجم باندل در بودجه‌های عملکردی تعیین‌شده.
+
+
 
 
 

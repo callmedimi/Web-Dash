@@ -15,7 +15,13 @@ def init_security_middleware(app: Flask) -> None:
         # 0. Skip static assets, healthz, readyz, metrics, openapi spec, and docs
         if (
             request.path.startswith("/static/")
+            or request.path.startswith("/assets/")
+            or request.path.startswith("/fonts/")
             or request.path in (
+                "/",
+                "/login",
+                "/change-password",
+                "/_ui",
                 "/favicon.ico",
                 "/healthz",
                 "/readyz",
@@ -163,6 +169,32 @@ def init_security_middleware(app: Flask) -> None:
                     }),
                     403,
                 )
+
+    @app.after_request
+    def apply_security_headers(response):
+        grafana_url = os.environ.get("GRAFANA_URL", "http://localhost:3000")
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(grafana_url)
+            grafana_origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else grafana_url
+        except Exception:
+            grafana_origin = "http://localhost:3000"
+
+        csp = (
+            "default-src 'self'; "
+            f"frame-src 'self' {grafana_origin}; "
+            "img-src 'self' data:; "
+            "connect-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'self'; "
+            "font-src 'self'"
+        )
+
+        response.headers.setdefault("Content-Security-Policy", csp)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        return response
 
     # Global Error Handlers (Target Architecture §4 & Step 1.6)
     @app.errorhandler(413)
