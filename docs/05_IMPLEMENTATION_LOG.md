@@ -1157,6 +1157,42 @@
   - موفقیت گیت‌های تایپ‌اسکریپت و لینتر با صفر خطا و صفر اخطار.
   - اعتبارسنجی ۱۰۰٪ حجم باندل در بودجه‌های عملکردی تعیین‌شده.
 
+---
+
+## فاز ۷ — صفحات و پنل‌های عملیاتی کنسول NOC (Phase 7: UI Screens)
+
+### گام ۹.۱ و ۹.۲ — ورود مستقیم، حذف اجبار تغییر رمز بار اول و داشبورد نمای کلی (Steps 9.1 & 9.2 Login & Overview Screen)
+* **هدف:** پیاده‌سازی صفحه ورود مستقیم به سامانه بدون اجبار به تغییر رمز بار اول مطابق دستور کاربر، توسعه اندپوینت تجمیعی `/api/v1/overview` با کش ۳۰ ثانیه‌ای و تاب‌آوری در برابر قطعی تله‌متری (Graceful Degradation)، و پیاده‌سازی صفحه نمای کلی (`/` Overview) بر پایه چهارچوب استاندارد اتاق مانیتورینگ NOC.
+* **اقدامات انجام‌شده:**
+  1. ساده‌سازی فرآیند احراز هویت و حذف اجبار تغییر کلمه عبور در ورود اول (Step 9.1):
+     - اصلاح [frontend/src/pages/Login.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Login.tsx) جهت ورود مستقیم به مقصد درخواستی بدون ریدایرکت اجباری به `/change-password`.
+     - پاکسازی گارد مسیر [frontend/src/components/auth/ProtectedRoute.tsx](file:///d:/Playground/Web-Dash/frontend/src/components/auth/ProtectedRoute.tsx) از بررسی مسدودکننده `must_change_password`.
+  2. توسعه کنترلر تجمیعی بک‌اند در [backend/app/api/overview.py](file:///d:/Playground/Web-Dash/backend/app/api/overview.py):
+     - تجمیع خودکار وضعیت سلامت ناوگان روترها از `MonitoringHubService` با پشتیبانی از تنزل آرام (Graceful Degradation) در صورت قطعی Zabbix.
+     - استخراج ۱۰ مورد با بالاترین اولویت نیازمند توجه (`needs_attention`) شامل جاب‌های ناموفق ۲۴ ساعت اخیر، تغییرات در انتظار تایید، لایسنس‌های با انقضای کمتر از ۳۰ روز و تجهیزات قطع‌شده.
+     - استخراج ۲۰ جاب اخیر با جزئیات وضعیت، مدت زمان و کاربر ایجادکننده.
+     - استخراج آمار مشکلات فعال زبیکس به تفکیک ۵ سطح خطر (Disaster، High، Average، Warning، Info) و تولید سری زمانی ۲۴ ساعته جهت نمودار روند.
+     - کش ۳۰ ثانیه‌ای درون‌حافظه‌ای جهت کاهش چشمگیر فشار دیتابیس در اتاق‌های مانیتورینگ.
+     - ثبت `overview_bp` در Application Factory [backend/app/__init__.py](file:///d:/Playground/Web-Dash/backend/app/__init__.py).
+     - به‌روزرسانی همگام‌ساز سبک اسکیما برای فیلدهای جدول `change_requests` در [backend/app/db/session.py](file:///d:/Playground/Web-Dash/backend/app/db/session.py).
+  3. پیاده‌سازی داشبورد فرانت‌اند در [frontend/src/pages/Dashboard.tsx](file:///d:/Playground/Web-Dash/frontend/src/pages/Dashboard.tsx):
+     - چیدمان چهاربخشی متراکم و ابزارگونه بدون اسکرول سراسری صفحه:
+       - **بالا چپ (Fleet Health):** درصد در دسترس بودن ناوگان، شمارنده تجهیزات سالم/مختل/قطع، و جدول تفکیک استانی با قابلیت فیلتر سریع.
+       - **بالا راست (Needs Attention):** لیست اقلام نیازمند اقدام فوری با لینک‌های فیلترشده مستقیم.
+       - **پایین چپ (Recent Jobs):** جدول ۲۰ جاب اخیر همراه با بج‌های وضعیت، تراشه مونو و مدت زمان.
+       - **پایین راست (Active Problems & Timeline):** نوار کارت‌های شدت خطر به همراه چارت پاسخ‌محور سری زمانی `TimeSeriesChart` (uPlot) برای روند ۲۴ ساعته مشکلات.
+     - اضافه شدن کلیه کلیدهای دوزبانه انگلیسی و فارسی به فایل‌های [frontend/src/i18n/locales/en.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/en.json) و [fa.json](file:///d:/Playground/Web-Dash/frontend/src/i18n/locales/fa.json).
+  4. به‌روزرسانی شیم‌های آزمون‌های هدلس فرانت‌اند در [frontend/src/test/setup.ts](file:///d:/Playground/Web-Dash/frontend/src/test/setup.ts) برای پشتیبانی از Canvas 2D Context و کلاس `Path2D`.
+  5. کامپایل نهایی پروداکشن در `frontend/dist/` و پاس شدن کامل گیت حجم باندل.
+  6. نگارش آزمون‌های خودکار بک‌اند در [tests/test_step_7_2_overview_screen.py](file:///d:/Playground/Web-Dash/tests/test_step_7_2_overview_screen.py).
+* **تأییدیه (Verify):**
+  - پاس شدن ۱۰۰٪ آزمون‌های بک‌اند گام ۷.۲ (**۲ تست از ۲ تست پاس شدند**).
+  - پاس شدن ۱۰۰٪ آزمون‌های سرویس استاتیک و هدرهای امنیتی گام ۶.۶ (**۶ تست از ۶ تست پاس شدند**).
+  - پاس شدن ۱۰۰٪ آزمون‌های واحد Vitest فرانت‌اند (**۴۰ تست از ۴۰ تست پاس شدند**).
+  - موفقیت کامل Typecheck و ESLint با صفر خطا و صفر اخطار.
+  - موفقیت گیت بررسی حجم باندل پروداکشن با چانک ورودی ۸۳.۰ کیلوبایت (بودجه: ≤ ۲۵۰ کیلوبایت).
+
+
 
 
 

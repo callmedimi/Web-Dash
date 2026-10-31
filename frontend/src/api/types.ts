@@ -89,3 +89,64 @@ export interface ChangePasswordResponse {
   status: string;
   message?: string;
 }
+
+export interface ProvinceHealth {
+  province: string;
+  total: number;
+  monitored: number;
+  available: number;
+  problems: number;
+  availability_pct: number;
+}
+
+export interface NeedsAttentionItem {
+  id: string;
+  type: "job" | "change" | "license" | "device" | "problem";
+  title: string;
+  severity: "fault" | "warn" | "ok";
+  count: number;
+  link: string;
+}
+
+export interface RecentJobItem {
+  id: string;
+  type: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  mode: "dry_run" | "apply";
+  created_by: string;
+  created_at: string | null;
+  duration_seconds: number | null;
+  summary: Record<string, unknown>;
+}
+
+export interface ProblemsTimelineBucket {
+  timestamp: number;
+  disaster: number;
+  high: number;
+  warning: number;
+}
+
+export interface OverviewResponse {
+  telemetry_status: "ok" | "degraded" | "disabled";
+  telemetry_error: string | null;
+  cached_at: string;
+  fleet_health: {
+    total_devices: number;
+    available_devices: number;
+    degraded_devices: number;
+    availability_pct: number;
+    provinces: ProvinceHealth[];
+  };
+  needs_attention: NeedsAttentionItem[];
+  recent_jobs: RecentJobItem[];
+  problems_by_severity: {
+    disaster: number;
+    high: number;
+    average: number;
+    warning: number;
+    information: number;
+    not_classified: number;
+  };
+  problems_timeline: ProblemsTimelineBucket[];
+}
+

@@ -41,12 +41,8 @@ export const Login: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const user = await login({ username: trimmedUser, password });
-      if (user.must_change_password) {
-        navigate("/change-password", { replace: true });
-      } else {
-        navigate(from, { replace: true });
-      }
+      await login({ username: trimmedUser, password });
+      navigate(from, { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 429) {

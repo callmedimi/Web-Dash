@@ -99,6 +99,21 @@ def get_engine(db_url: str = None) -> Engine:
                             conn.execute(text("ALTER TABLE devices ADD COLUMN last_health_check DATETIME"))
                         if "updated_at" not in dev_cols:
                             conn.execute(text("ALTER TABLE devices ADD COLUMN updated_at DATETIME"))
+
+                    # change_requests columns
+                    cr_res = conn.execute(text("PRAGMA table_info(change_requests)")).fetchall()
+                    cr_cols = {r[1] for r in cr_res}
+                    if cr_cols:
+                        if "creator_id" not in cr_cols:
+                            conn.execute(text("ALTER TABLE change_requests ADD COLUMN creator_id VARCHAR(100)"))
+                        if "risk_level" not in cr_cols:
+                            conn.execute(text("ALTER TABLE change_requests ADD COLUMN risk_level VARCHAR(20) DEFAULT 'low'"))
+                        if "precheck_results" not in cr_cols:
+                            conn.execute(text("ALTER TABLE change_requests ADD COLUMN precheck_results JSON DEFAULT '{}'"))
+                        if "verification_results" not in cr_cols:
+                            conn.execute(text("ALTER TABLE change_requests ADD COLUMN verification_results JSON DEFAULT '{}'"))
+                        if "snapshot_id" not in cr_cols:
+                            conn.execute(text("ALTER TABLE change_requests ADD COLUMN snapshot_id VARCHAR(36)"))
                     conn.commit()
                 except Exception:
                     pass

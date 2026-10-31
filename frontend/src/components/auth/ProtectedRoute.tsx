@@ -14,7 +14,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { t } = useTranslation();
-  const { isAuthenticated, isLoading, user } = useAuthStore();
+  const { isAuthenticated, isLoading } = useAuthStore();
   const location = useLocation();
 
   if (isLoading) {
@@ -30,10 +30,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  if (user?.must_change_password && location.pathname !== "/change-password") {
-    return <Navigate to="/change-password" replace />;
   }
 
   return children;

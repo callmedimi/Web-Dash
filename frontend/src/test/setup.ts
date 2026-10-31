@@ -57,4 +57,52 @@ if (typeof window !== "undefined") {
       toJSON: () => {},
     };
   };
+
+  if (typeof HTMLCanvasElement !== "undefined") {
+    HTMLCanvasElement.prototype.getContext = ((() => {
+      return {
+        clearRect: () => {},
+        fillRect: () => {},
+        beginPath: () => {},
+        moveTo: () => {},
+        lineTo: () => {},
+        stroke: () => {},
+        fill: () => {},
+        clip: () => {},
+        arc: () => {},
+        arcTo: () => {},
+        rect: () => {},
+        closePath: () => {},
+        save: () => {},
+        restore: () => {},
+        translate: () => {},
+        scale: () => {},
+        rotate: () => {},
+        measureText: () => ({ width: 50 }),
+        strokeText: () => {},
+        fillText: () => {},
+        setLineDash: () => {},
+        getLineDash: () => [],
+        createLinearGradient: () => ({ addColorStop: () => {} }),
+        createPattern: () => null,
+        drawImage: () => {},
+        isPointInPath: () => false,
+      };
+    }) as unknown as typeof HTMLCanvasElement.prototype.getContext);
+  }
+
+  if (typeof (globalThis as { Path2D?: unknown }).Path2D === "undefined") {
+    (globalThis as { Path2D?: unknown }).Path2D = class Path2D {
+      addPath() {}
+      closePath() {}
+      moveTo() {}
+      lineTo() {}
+      bezierCurveTo() {}
+      quadraticCurveTo() {}
+      arc() {}
+      arcTo() {}
+      ellipse() {}
+      rect() {}
+    };
+  }
 }
