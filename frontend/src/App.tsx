@@ -18,6 +18,7 @@ import { TargetSets } from "@/pages/TargetSets";
 import { AlarmCenter } from "@/pages/AlarmCenter";
 import { SafeChanges } from "@/pages/SafeChanges";
 import { Jobs } from "@/pages/Jobs";
+import { Reports } from "@/pages/Reports";
 import { KitchenSink } from "@/pages/KitchenSink";
 import { PlaceholderScreen } from "@/pages/PlaceholderScreen";
 
@@ -59,22 +60,8 @@ export const AppContent: React.FC = () => {
         <Route path="changes/:id" element={<SafeChanges />} />
         <Route path="jobs" element={<Jobs />} />
         <Route path="jobs/:id" element={<Jobs />} />
-        <Route
-          path="reports/*"
-          element={
-            <PlaceholderScreen
-              title="Reports & Analytics"
-              subtitle="Down-links reports, license expiry warnings, and daily NOC digest"
-              step="9.8"
-              features={[
-                "Target-based down-links query and analytics",
-                "Automated scheduled cron reports",
-                "Run-to-run comparison with new and recovered link highlights",
-                "Executive PDF / Excel exports",
-              ]}
-            />
-          }
-        />
+        <Route path="reports" element={<Reports />} />
+        <Route path="reports/*" element={<Reports />} />
         <Route
           path="monitoring/*"
           element={

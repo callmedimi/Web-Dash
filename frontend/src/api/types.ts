@@ -324,3 +324,54 @@ export interface JobListResponse {
   page: number;
   page_size: number;
 }
+
+export interface DownLinkItem {
+  router: string;
+  interface: string;
+  description?: string;
+  down_duration?: string;
+  is_noconf?: boolean;
+  is_trunk?: boolean;
+  status?: string;
+  line_protocol?: string;
+}
+
+export interface DownLinkReportResponse {
+  id: number;
+  province?: string;
+  created_at: string;
+  report_data: DownLinkItem[];
+  noconf_data?: DownLinkItem[];
+  trunk_data?: DownLinkItem[];
+  analytics?: {
+    total_down?: number;
+    total_routers?: number;
+    noconf_count?: number;
+    trunk_count?: number;
+    by_province?: Record<string, number>;
+  };
+}
+
+export interface ReportComparisonResult {
+  current_report_id: number;
+  previous_report_id: number;
+  previous_created_at?: string;
+  new_down: DownLinkItem[];
+  recovered: DownLinkItem[];
+  persistent_down?: DownLinkItem[];
+}
+
+export interface DailyDigestResponse {
+  generated_at: string;
+  window_hours: number;
+  metrics: {
+    total_alarms?: number;
+    unresolved_critical?: number;
+    down_links_count?: number;
+    changes_planned?: number;
+    licenses_expiring?: number;
+    jobs_executed?: number;
+  };
+  highlights?: string[];
+}
+
