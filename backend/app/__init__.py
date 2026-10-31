@@ -138,7 +138,7 @@ def create_app(config_override: dict = None) -> Flask:
     from backend.app.api.arp import arp_bp
     from backend.app.api.sessions_export import sessions_export_bp
     from backend.app.api.ptp import ptp_bp
-    from backend.app.api.schedules import schedules_bp
+    from backend.app.api.schedules import schedules_bp, notifications_bp
     from backend.app.api.credentials import credentials_bp
     from backend.app.api.changes import changes_bp
     from backend.app.api.configs import configs_bp, compliance_bp
@@ -185,5 +185,8 @@ def create_app(config_override: dict = None) -> Flask:
     app.register_blueprint(sessions_export_bp)
     app.register_blueprint(ptp_bp)
     app.register_blueprint(schedules_bp, url_prefix="/api/v1/schedules")
+    app.register_blueprint(schedules_bp, url_prefix="/schedules", name="schedules_alias")
+    app.register_blueprint(notifications_bp, url_prefix="/api/v1/notifications")
+    app.register_blueprint(notifications_bp, url_prefix="/notifications", name="notifications_alias")
 
     return app

@@ -14,6 +14,10 @@ from backend.app.features.session_extractor.feature import SessionExtractorFeatu
 from backend.app.features.monitoring.feature import MonitoringHubFeature, monitoring_hub_feature
 from backend.app.features.config_compliance.feature import ConfigComplianceFeature, config_compliance_feature
 from backend.app.features.command_runner.feature import CommandRunnerFeature, command_runner_feature
+from backend.app.features.scheduler_notifications.feature import (
+    SchedulerNotificationsFeature,
+    scheduler_notifications_feature,
+)
 
 __all__ = [
     "BaseFeature",
@@ -40,6 +44,8 @@ __all__ = [
     "config_compliance_feature",
     "CommandRunnerFeature",
     "command_runner_feature",
+    "SchedulerNotificationsFeature",
+    "scheduler_notifications_feature",
 ]
 
 
